@@ -27,7 +27,7 @@ export default function SearchFilter({ onFilterChange }: { onFilterChange: (filt
   };
 
   return (
-    <div className="absolute top-6 right-6 z-10 w-80 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-2xl flex flex-col gap-4">
+    <div className="w-full bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-2xl flex flex-col gap-4">
       <div className="flex items-center gap-2 text-white font-semibold">
         <Search className="w-5 h-5 text-neon-green" />
         <h2>Find Your Trip</h2>

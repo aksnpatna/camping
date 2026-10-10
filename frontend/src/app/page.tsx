@@ -102,17 +102,22 @@ export default function Home() {
         startLocation={startLocation}
       />
 
-      {/* Floating Filter Panel */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-4 flex gap-4 pointer-events-none">
-        <div className="flex-1 pointer-events-auto">
+      {/* Floating Header Actions */}
+      <div className="absolute top-6 left-0 w-full px-4 md:px-6 z-10 flex flex-col md:flex-row justify-between items-end md:items-start gap-4 pointer-events-none">
+        {/* My Trips Button (Left on Desktop, Top-Right on Mobile) */}
+        <div className="pointer-events-auto w-full md:w-auto flex justify-end md:justify-start">
+          <button 
+            onClick={() => setShowDashboard(true)}
+            className="glass-panel px-5 py-3 rounded-2xl font-bold text-white hover:bg-white/10 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap bg-black/40 backdrop-blur-md border border-white/10"
+          >
+            ⛺ My Trips
+          </button>
+        </div>
+
+        {/* Filter Panel (Right) */}
+        <div className="pointer-events-auto w-full md:w-80">
           <SearchFilter onFilterChange={(newFilters) => setFilters(newFilters)} />
         </div>
-        <button 
-          onClick={() => setShowDashboard(true)}
-          className="pointer-events-auto glass-panel px-5 py-3 rounded-2xl font-bold text-white hover:bg-white/10 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap bg-black/40 backdrop-blur-md"
-        >
-          ⛺ My Trips
-        </button>
       </div>
 
       {/* Answer-First Overlay */}
