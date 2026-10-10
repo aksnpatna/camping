@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { setWorkerUrl } from 'maplibre-gl';
+
 import Map, { NavigationControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
 
 export interface Campsite {
@@ -33,9 +33,7 @@ export default function CampingMap({
     zoom: startLocation ? 5 : 4
   });
 
-  useEffect(() => {
-    setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
-  }, []);
+
 
   return (
     <div className="absolute inset-0 w-full h-full z-0">
