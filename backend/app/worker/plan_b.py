@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.saved_trip import SavedTrip
 from app.models.campsite import Campsite
+from app.services.news_scraper import check_campsite_news
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,19 @@ async def check_plan_b_alerts():
                                 await asyncio.to_thread(db.commit)
                             else:
                                 logger.info(f"Conditions look good for {campsite.name}.")
+                                
+                        # Check DuckDuckGo / Tavily for news alerts (fires, closures)
+                        # We use asyncio.to_thread because DDGS and TavilyClient are blocking
+                        news_data = await asyncio.to_thread(check_campsite_news, campsite.name, campsite.state)
+                        if news_data and news_data.get("results"):
+                            logger.warning(
+                                f"PLAN B ALERT! Found recent news/alerts for {campsite.name}. "
+                                f"Top result: {news_data['results'][0]['title']} "
+                                f"({news_data['results'][0]['source']})"
+                            )
+                            # You could trigger an email here as well, disable alert for now
+                            trip.plan_b_alert_active = False
+                            await asyncio.to_thread(db.commit)
 
         except Exception as e:
             logger.error(f"Error in Plan B Monitor: {e}")
