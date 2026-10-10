@@ -17,7 +17,7 @@ async def startup_event():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3021", "http://127.0.0.1:3021"],
+    allow_origins=["http://localhost:3021", "http://127.0.0.1:3021", "https://camping.akstest.win"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

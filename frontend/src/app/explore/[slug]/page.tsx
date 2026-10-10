@@ -22,7 +22,7 @@ export async function generateMetadata(
 
 async function getFireStatus(state: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/fire-status?state=${state}`, { 
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/fire-status/?state=${state}`, { 
       cache: 'no-store' // CRITICAL: Do NOT cache and present stale fire rules per AGENTS.md
     });
     if (!res.ok) {

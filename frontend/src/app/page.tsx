@@ -77,7 +77,7 @@ export default function Home() {
           params.append('rig_access', filters.rig_access);
         }
 
-        const res = await fetch(`${apiUrl}/campsites?${params.toString()}`);
+        const res = await fetch(`${apiUrl}/campsites/?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
           setCampsites(data);
