@@ -1,7 +1,7 @@
 import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.worker.plan_b import check_plan_b_alerts
+
 
 from app.api.v1.router import api_router
 
@@ -11,9 +11,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(check_plan_b_alerts())
+
 
 app.add_middleware(
     CORSMiddleware,

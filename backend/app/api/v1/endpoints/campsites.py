@@ -16,8 +16,22 @@ logger = logging.getLogger(__name__)
 class AISummaryResponse(BaseModel):
     summary: str
 
-@router.post("", response_model=CampsiteResponse)
-def create_campsite(campsite: CampsiteCreate, db: Session = Depends(get_db)):
+class CampsiteInsightsResponse(BaseModel):
+    sentiment_score: int
+    nearest_fuel: str
+    nearest_grocery: str
+    top_activities: List[str]
+
+import time
+INSIGHTS_CACHE = {}
+CACHE_TTL = 3600 * 24
+
+@router.post("", response_model=CampsiteResponse, status_code=201)
+def create_campsite(campsite: CampsiteCreate, admin_key: str = Query(...), db: Session = Depends(get_db)):
+    import os
+    expected_key = os.environ.get("ADMIN_KEY")
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
     return crud_campsite.create_campsite(db=db, campsite=campsite)
 
 from typing import List, Optional
@@ -52,6 +66,13 @@ async def call_groq_fallback(prompt: str, is_json: bool = False):
         if res.status_code == 200:
             return res.json()["choices"][0]["message"]["content"]
         raise Exception(f"Groq error: {res.text}")
+
+@router.get("/{campsite_id}", response_model=CampsiteResponse)
+def get_campsite(campsite_id: int, db: Session = Depends(get_db)):
+    campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
+    if not campsite:
+        raise HTTPException(status_code=404, detail="Campsite not found")
+    return campsite
 
 @router.get("/{campsite_id}/ai-summary", response_model=AISummaryResponse)
 async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
@@ -89,11 +110,16 @@ async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
     fallback = f"Discover the perfect getaway at {campsite.name} in {campsite.state}. {pet_text} It is {rig_text}, making it an ideal destination for your next trip."
     return {"summary": fallback}
 
-@router.get("/{campsite_id}/insights")
+@router.get("/{campsite_id}/insights", response_model=CampsiteInsightsResponse)
 async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db)):
     campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
     if not campsite:
         raise HTTPException(status_code=404, detail="Not found")
+        
+    if campsite_id in INSIGHTS_CACHE:
+        val, ts = INSIGHTS_CACHE[campsite_id]
+        if time.time() - ts < CACHE_TTL:
+            return val
 
     import json
     
@@ -121,7 +147,9 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
             })
             if local_res.status_code == 200:
                 ai_data = local_res.json().get("response", "")
-                return json.loads(ai_data.strip())
+                parsed = CampsiteInsightsResponse.parse_raw(ai_data.strip())
+                INSIGHTS_CACHE[campsite_id] = (parsed, time.time())
+                return parsed
             else:
                 raise Exception("Local LLM returned non-200 status")
     except Exception as e:
@@ -129,12 +157,15 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
         try:
             groq_prompt = prompt + "\nProvide the JSON only without any markdown blocks or backticks."
             ai_data = await call_groq_fallback(groq_prompt, is_json=True)
-            return json.loads(ai_data.strip())
+            parsed = CampsiteInsightsResponse.parse_raw(ai_data.strip())
+            INSIGHTS_CACHE[campsite_id] = (parsed, time.time())
+            return parsed
         except Exception as e2:
             logger.error(f"Error getting insights from Groq: {e2}")
-            return {
-                "sentiment_score": 80,
-                "nearest_fuel": "Check local maps",
-                "nearest_grocery": "Check local maps",
-                "top_activities": ["Relaxing", "Local trails", "Stargazing"]
-            }
+            fallback = CampsiteInsightsResponse(
+                sentiment_score=0,
+                nearest_fuel="Unavailable",
+                nearest_grocery="Unavailable",
+                top_activities=["Unavailable"]
+            )
+            return fallback

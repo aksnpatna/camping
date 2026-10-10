@@ -8,7 +8,7 @@ from app.crud import saved_trip as crud_saved_trip
 
 router = APIRouter()
 
-@router.post("/", response_model=SavedTripResponse)
+@router.post("", response_model=SavedTripResponse)
 def create_saved_trip(trip: SavedTripCreate, db: Session = Depends(get_db)):
     return crud_saved_trip.create_saved_trip(db=db, trip=trip)
 
@@ -19,7 +19,17 @@ def read_saved_trips(email: str, skip: int = 0, limit: int = 100, db: Session = 
 from app.models.campsite import Campsite
 from app.models.saved_trip import SavedTrip
 @router.get("/dashboard/{email}")
-def get_user_dashboard(email: str, db: Session = Depends(get_db)):
+def get_user_dashboard(email: str, token: str = "", db: Session = Depends(get_db)):
+    import hmac
+    import hashlib
+    import os
+    from fastapi import HTTPException
+    
+    secret = os.environ.get("SECRET_KEY", "dev-secret-key").encode()
+    expected_token = hmac.new(secret, email.encode(), hashlib.sha256).hexdigest()
+    
+    if token != expected_token:
+        raise HTTPException(status_code=403, detail="Invalid magic link token")
     trips = db.query(SavedTrip, Campsite).join(Campsite).filter(SavedTrip.user_email == email).all()
     result = []
     for t, c in trips:

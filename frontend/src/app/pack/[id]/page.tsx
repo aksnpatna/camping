@@ -1,4 +1,3 @@
-export const instant = false;
 import React from 'react';
 import { MapPin, AlertTriangle, ShieldCheck } from "lucide-react";
 import PrintButton from './PrintButton';
@@ -23,10 +22,9 @@ export default async function OfflinePackPage({ params }: { params: Promise<{ id
   
   let campsite: Campsite | null = null;
   try {
-    const res = await fetch(`${apiUrl}/campsites`, { cache: 'no-store' });
+    const res = await fetch(`${apiUrl}/campsites/${id}`, { cache: 'no-store' });
     if (res.ok) {
-      const data: Campsite[] = await res.json();
-      campsite = data.find(c => c.id === parseInt(id)) || null;
+      campsite = await res.json();
     }
   } catch (e) {
     console.error(e);

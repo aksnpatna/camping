@@ -25,8 +25,10 @@ export default function Home() {
   // Dashboard State
   const [showDashboard, setShowDashboard] = useState(false);
   const [dashEmail, setDashEmail] = useState("");
+  const [dashToken, setDashToken] = useState("");
   const [myTrips, setMyTrips] = useState<SavedTripDashboard[] | null>(null);
   const [loadingTrips, setLoadingTrips] = useState(false);
+  const [dashError, setDashError] = useState("");
 
   // Routing State
   const [startLocation, setStartLocation] = useState({ longitude: 151.2093, latitude: -33.8688 }); // Default to Sydney CBD
@@ -145,30 +147,48 @@ export default function Home() {
               <button onClick={() => setShowDashboard(false)} className="text-gray-400 hover:text-white">✕</button>
             </div>
             
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-col gap-2 mb-6">
               <input 
                 type="email" 
                 placeholder="Enter your email" 
                 value={dashEmail}
                 onChange={e => setDashEmail(e.target.value)}
-                className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
+                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
               />
-              <button 
-                onClick={async () => {
-                  if (!dashEmail) return;
-                  setLoadingTrips(true);
-                  try {
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}`);
-                    if (res.ok) {
-                      setMyTrips(await res.json());
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Access Token (from email)" 
+                  value={dashToken}
+                  onChange={e => setDashToken(e.target.value)}
+                  className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
+                />
+                <button 
+                  onClick={async () => {
+                    if (!dashEmail || !dashToken) {
+                      setDashError("Email and token required");
+                      return;
                     }
-                  } catch (e) {}
-                  setLoadingTrips(false);
-                }}
-                className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a]"
-              >
-                Load
-              </button>
+                    setLoadingTrips(true);
+                    setDashError("");
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
+                      if (res.ok) {
+                        setMyTrips(await res.json());
+                      } else {
+                        setDashError("Invalid token or email");
+                      }
+                    } catch (e) {
+                      setDashError("Network error. Please try again.");
+                    }
+                    setLoadingTrips(false);
+                  }}
+                  className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a]"
+                >
+                  Load
+                </button>
+              </div>
+              {dashError && <div className="text-red-400 text-xs text-center mt-1">{dashError}</div>}
             </div>
 
             {loadingTrips ? (

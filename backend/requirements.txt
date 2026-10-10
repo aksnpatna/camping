@@ -10,3 +10,4 @@ alembic>=1.13.1
 pydantic-settings>=2.2.1
 shapely>=2.0.3
 tavily-python==0.8.5
+duckduckgo-search>=6.3.2

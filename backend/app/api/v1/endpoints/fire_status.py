@@ -3,7 +3,7 @@ import random
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("")
 def get_fire_status(state: str = "NSW"):
     """
     Simulates a live fetch to the RFS / BOM feeds for fire danger ratings.
@@ -22,7 +22,7 @@ def get_fire_status(state: str = "NSW"):
     return {
         "state": state,
         "rating": current_rating,
-        "status": "active",
-        "last_updated": "live",
+        "status": "simulated",
+        "last_updated": "simulated",
         "action_required": "Enforce total fire ban" if current_rating in ["Extreme", "Catastrophic"] else "Monitor conditions"
     }

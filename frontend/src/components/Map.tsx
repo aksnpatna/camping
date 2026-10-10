@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { setWorkerUrl } from 'maplibre-gl';
 import Map, { NavigationControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
-
-setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
 export interface Campsite {
   id: number;
   name: string;

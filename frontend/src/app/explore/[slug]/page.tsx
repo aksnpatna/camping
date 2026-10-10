@@ -1,4 +1,3 @@
-export const instant = false;
 import React from 'react';
 import { Metadata, ResolvingMetadata } from 'next';
 import Link from 'next/link';
@@ -22,7 +21,7 @@ export async function generateMetadata(
 
 async function getFireStatus(state: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/fire-status/?state=${state}`, { 
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/fire-status?state=${state}`, { 
       cache: 'no-store' // CRITICAL: Do NOT cache and present stale fire rules per AGENTS.md
     });
     if (!res.ok) {
@@ -37,8 +36,9 @@ async function getFireStatus(state: string) {
 export default async function ExplorePage(props: Props) {
   const params = await props.params;
   // Extract a readable name and state from the slug
-  const titleSlug = params.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const state = params.slug.split('-')[0].toUpperCase() || "NSW";
+  const parts = params.slug.split('-');
+  const titleSlug = parts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const state = parts[parts.length - 1].toUpperCase() || "NSW";
 
   const fireStatus = await getFireStatus(state);
 
@@ -89,6 +89,25 @@ export default async function ExplorePage(props: Props) {
               </p>
             </div>
           </div>
+        ) : fireStatus.status === 'simulated' ? (
+          <div className="bg-red-900/50 border border-red-500 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
+            <div>
+              <p className="text-sm text-red-300 uppercase tracking-widest font-semibold mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> STATUS UNAVAILABLE (SIMULATED FOR {fireStatus.state})
+              </p>
+              <h3 className="text-4xl font-black text-red-500">
+                {fireStatus.rating}
+              </h3>
+            </div>
+            <div className="h-full w-px bg-red-500/30 hidden md:block"></div>
+            <div>
+              <p className="text-sm text-red-300 uppercase tracking-widest font-semibold mb-1">Action Required</p>
+              <p className="text-xl font-medium text-white flex items-center gap-2">
+                <AlertTriangle className="text-red-500" />
+                {fireStatus.action_required}
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
@@ -135,7 +154,7 @@ export default async function ExplorePage(props: Props) {
       
       {/* FOOTER */}
       <footer className="border-t border-white/10 mt-20 py-10 text-center text-gray-500 text-sm">
-        <p>© {new Date().getFullYear()} Camp Smart AU. All data sourced safely avoiding ODbL contamination.</p>
+        <p>© {new Date().getFullYear()} Camp Smart AU.</p>
       </footer>
     </div>
   );
