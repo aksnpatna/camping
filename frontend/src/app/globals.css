@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --color-forest-900: #0a1f18;
+  --color-forest-800: #123328;
+  --color-neon-green: #00ff88;
+  --color-sunset-orange: #ff6b35;
+  --color-glass: rgba(18, 51, 40, 0.65);
+  --color-glass-border: rgba(0, 255, 136, 0.2);
+}
+
+:root {
+  --background: var(--color-forest-900);
+  --foreground: #f0fdf4;
+}
+
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-outfit), sans-serif;
+    margin: 0;
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-[var(--color-glass)] backdrop-blur-xl border border-[var(--color-glass-border)] shadow-2xl;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}

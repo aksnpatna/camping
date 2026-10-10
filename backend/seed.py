@@ -48,13 +48,69 @@ CAMPSITES = [
         "dog_friendly": False,
         "rig_access": ["TENT", "4WD_ONLY", "CARAVAN"],
         "location": "POINT(153.5350 -27.4260)"
+    },
+    {
+        "name": "Wilpena Pound Resort",
+        "state": "SA",
+        "management_type": "Private/National Park",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CARAVAN", "MOTORHOME", "CAMPER_TRAILER"],
+        "location": "POINT(138.6019 -31.5305)"
+    },
+    {
+        "name": "Lucky Bay",
+        "state": "WA",
+        "management_type": "DBCA",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(122.2272 -33.9961)"
+    },
+    {
+        "name": "Dales Campground",
+        "state": "WA",
+        "management_type": "DBCA",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(118.3614 -22.4727)"
+    },
+    {
+        "name": "Richardsons Beach",
+        "state": "TAS",
+        "management_type": "Parks and Wildlife",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "MOTORHOME", "CARAVAN"],
+        "location": "POINT(148.2913 -42.1287)"
+    },
+    {
+        "name": "Cradle Mountain Discovery Parks",
+        "state": "TAS",
+        "management_type": "Private",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CARAVAN", "MOTORHOME", "CAMPER_TRAILER"],
+        "location": "POINT(145.9298 -41.5832)"
+    },
+    {
+        "name": "Garnamarr Campground",
+        "state": "NT",
+        "management_type": "Parks Australia",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "4WD_ONLY"],
+        "location": "POINT(132.8105 -13.3278)"
+    },
+    {
+        "name": "Ayers Rock Campground",
+        "state": "NT",
+        "management_type": "Voyages",
+        "dog_friendly": True,
+        "rig_access": ["TENT", "CARAVAN", "MOTORHOME", "CAMPER_TRAILER"],
+        "location": "POINT(130.9859 -25.2443)"
     }
 ]
 
 def seed_data():
     with SessionLocal() as session:
         # Delete old test data
-        session.execute(text("DELETE FROM canonical_campsites"))
+        session.execute(text("TRUNCATE TABLE canonical_campsites CASCADE"))
         
         for data in CAMPSITES:
             new_site = Campsite(
@@ -68,7 +124,7 @@ def seed_data():
             session.add(new_site)
         
         session.commit()
-        print("Successfully seeded 5 iconic campgrounds!")
+        print(f"Successfully seeded {len(CAMPSITES)} iconic campgrounds!")
 
 if __name__ == "__main__":
     seed_data()
