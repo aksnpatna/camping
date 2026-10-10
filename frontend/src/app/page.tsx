@@ -68,7 +68,7 @@ export default function Home() {
     // Fetch canonical campsites from our FastAPI backend
     const fetchCampsites = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
         const params = new URLSearchParams();
         if (filters.dog_friendly !== null) {
           params.append('dog_friendly', filters.dog_friendly.toString());
@@ -77,9 +77,10 @@ export default function Home() {
           params.append('rig_access', filters.rig_access);
         }
 
-        const res = await fetch(`${apiUrl}/campsites/?${params.toString()}`);
+        const res = await fetch(`${apiUrl}/campsites?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
+          console.log("FETCHED CAMPSITES COUNT:", data.length);
           setCampsites(data);
         } else {
           console.error("Backend returned error:", res.status);
@@ -102,22 +103,19 @@ export default function Home() {
         startLocation={startLocation}
       />
 
-      {/* Floating Header Actions */}
-      <div className="absolute top-6 left-0 w-full px-4 md:px-6 z-10 flex flex-col md:flex-row justify-between items-end md:items-start gap-4 pointer-events-none">
-        {/* My Trips Button (Left on Desktop, Top-Right on Mobile) */}
-        <div className="pointer-events-auto w-full md:w-auto flex justify-end md:justify-start">
-          <button 
-            onClick={() => setShowDashboard(true)}
-            className="glass-panel px-5 py-3 rounded-2xl font-bold text-white hover:bg-white/10 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap bg-black/40 backdrop-blur-md border border-white/10"
-          >
-            ⛺ My Trips
-          </button>
-        </div>
+      {/* My Trips Button */}
+      <div className="absolute top-4 left-4 z-10 pointer-events-auto">
+        <button 
+          onClick={() => setShowDashboard(true)}
+          className="glass-panel px-5 py-3 rounded-2xl font-bold text-white hover:bg-white/10 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap bg-black/40 backdrop-blur-md border border-white/10"
+        >
+          ⛺ My Trips
+        </button>
+      </div>
 
-        {/* Filter Panel (Right) */}
-        <div className="pointer-events-auto w-full md:w-80">
-          <SearchFilter onFilterChange={(newFilters) => setFilters(newFilters)} />
-        </div>
+      {/* Filter Panel */}
+      <div className="absolute top-20 md:top-4 right-4 left-4 md:left-auto md:w-80 z-10 pointer-events-auto">
+        <SearchFilter onFilterChange={(newFilters) => setFilters(newFilters)} />
       </div>
 
       {/* Answer-First Overlay */}

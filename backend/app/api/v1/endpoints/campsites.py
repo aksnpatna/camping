@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 class AISummaryResponse(BaseModel):
     summary: str
 
-@router.post("/", response_model=CampsiteResponse)
+@router.post("", response_model=CampsiteResponse)
 def create_campsite(campsite: CampsiteCreate, db: Session = Depends(get_db)):
     return crud_campsite.create_campsite(db=db, campsite=campsite)
 
 from typing import List, Optional
 from fastapi import Query
 
-@router.get("/", response_model=List[CampsiteResponse])
+@router.get("", response_model=List[CampsiteResponse])
 def read_campsites(
     skip: int = 0, 
     limit: int = 100, 
