@@ -104,6 +104,86 @@ CAMPSITES = [
         "dog_friendly": True,
         "rig_access": ["TENT", "CARAVAN", "MOTORHOME", "CAMPER_TRAILER"],
         "location": "POINT(130.9859 -25.2443)"
+    },
+    {
+        "name": "Osprey Bay",
+        "state": "WA",
+        "management_type": "DBCA",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(113.9875 -22.2038)"
+    },
+    {
+        "name": "El Questro Station",
+        "state": "WA",
+        "management_type": "Private",
+        "dog_friendly": True,
+        "rig_access": ["TENT", "4WD_ONLY", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(127.9806 -16.0064)"
+    },
+    {
+        "name": "Yangie Bay",
+        "state": "SA",
+        "management_type": "National Park",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(135.3496 -34.6293)"
+    },
+    {
+        "name": "Stringybark Campground",
+        "state": "SA",
+        "management_type": "National Park",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN", "MOTORHOME"],
+        "location": "POINT(138.2255 -35.6179)"
+    },
+    {
+        "name": "Cosy Corner North",
+        "state": "TAS",
+        "management_type": "Parks and Wildlife",
+        "dog_friendly": True,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(148.2711 -41.1738)"
+    },
+    {
+        "name": "Friendly Beaches",
+        "state": "TAS",
+        "management_type": "Parks and Wildlife",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(148.2831 -41.9866)"
+    },
+    {
+        "name": "Wangi Falls",
+        "state": "NT",
+        "management_type": "Parks and Wildlife",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(130.6094 -13.1611)"
+    },
+    {
+        "name": "Ormiston Gorge",
+        "state": "NT",
+        "management_type": "Parks and Wildlife",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER", "CARAVAN"],
+        "location": "POINT(132.7275 -23.6300)"
+    },
+    {
+        "name": "Noah Beach",
+        "state": "QLD",
+        "management_type": "National Park",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER"],
+        "location": "POINT(145.4419 -16.1417)"
+    },
+    {
+        "name": "Carnarvon Gorge",
+        "state": "QLD",
+        "management_type": "National Park",
+        "dog_friendly": False,
+        "rig_access": ["TENT", "CAMPER_TRAILER"],
+        "location": "POINT(148.2575 -25.0747)"
     }
 ]
 
