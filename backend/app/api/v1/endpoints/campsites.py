@@ -90,18 +90,76 @@ def get_campsite(campsite_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Campsite not found")
     return campsite
 
+AI_SUMMARY_CACHE = {}
+AI_SUMMARY_CACHE_TTL = 86400  # 24 hours cache
+
 @router.get("/{campsite_id}/ai-summary", response_model=AISummaryResponse)
 async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
     campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
     if not campsite:
         raise HTTPException(status_code=404, detail="Campsite not found")
         
-    pet_text = "It is pet friendly." if campsite.dog_friendly is True else ("Pets are not permitted." if campsite.dog_friendly is False else "Pet policy is unverified.")
-    rig_text = f"accessible for {', '.join(campsite.rig_access)}" if campsite.rig_access else "a great spot"
-    
-    prompt = f"You are a helpful travel guide. Write exactly 2 short, enthusiastic sentences pitching a camping trip to {campsite.name} in {campsite.state}. Mention that it is {rig_text} and {pet_text}. Do not use emojis."
-    
+    if campsite_id in AI_SUMMARY_CACHE:
+        val, ts = AI_SUMMARY_CACHE[campsite_id]
+        if time.time() - ts < AI_SUMMARY_CACHE_TTL:
+            return {"summary": val}
+
+    # 1. Resolve Ground Truth Context
+    from app.services.town_locator import TownLocatorService
+    locality = TownLocatorService.find_nearest_locality(db, campsite.longitude, campsite.latitude)
+    town_text = f"near {locality.locality} (~{locality.distance_km:.1f} km away)" if locality else f"in {campsite.state}"
+
+    mgmt_text = campsite.management_type or "Public park"
+    rig_text = f"accessible for {', '.join(campsite.rig_access)}" if campsite.rig_access else "standard vehicle and tent access"
+
+    if campsite.dog_friendly is True:
+        pet_text = "dog-friendly (pets permitted on leash)"
+    elif campsite.dog_friendly is False:
+        pet_text = "pets strictly prohibited (wildlife conservation area)"
+    else:
+        pet_text = "pet status unverified"
+
+    fac_parts = []
+    if campsite.facilities and isinstance(campsite.facilities, dict):
+        f = campsite.facilities
+        if f.get("toilets") and f["toilets"] != "none":
+            fac_parts.append(f"{f['toilets']} toilets")
+        if f.get("showers") and f["showers"] != "none":
+            fac_parts.append(f"{f['showers']} showers")
+        if f.get("campfires") is True:
+            fac_parts.append("campfires allowed in designated fire pits")
+        elif f.get("campfires") is False:
+            fac_parts.append("no open fires permitted")
+        if f.get("drinking_water") is True:
+            fac_parts.append("drinking water on tap")
+        elif f.get("drinking_water") is False:
+            fac_parts.append("no drinking water (bring all water)")
+
+    facilities_text = ", ".join(fac_parts) if fac_parts else "unpowered bush camping with basic amenities"
+    fees_text = f"Fees: {campsite.fees}" if campsite.fees else "Fees apply per booking regulations"
+
+    # 2. Seasoned Australian Bush Camper Prompt (Zero Generic Clichés)
+    prompt = f"""You are a seasoned Australian bush camper and trip planner.
+Write a concise, vivid 2-sentence pitch for {campsite.name} in {campsite.state}.
+
+Grounded facts:
+- Managing Authority: {mgmt_text}
+- Setting / Proximity: {town_text}
+- Access: {rig_text}
+- Pets: {pet_text}
+- Facilities: {facilities_text}
+- Fees: {fees_text}
+
+Strict Writing Rules:
+1. Do NOT use generic marketing clichés like 'unforgettable adventure', 'breathtaking beauty', 'idyllic getaway', 'outdoor enthusiasts', 'hidden gem', 'paradise', 'stunner'.
+2. Highlight specific, tangible features of this campsite (real setting, practical amenity prep like BYO water/firewood, dog permissions, proximity to nearest town).
+3. Sound like a knowledgeable local camper giving a direct, authentic tip.
+4. Keep it strictly 2 natural sentences. Do not use emojis, quotation marks, or bullet points.
+"""
+
     from app.services.llm_inference import LLMInferenceService
+    import re
+
     summary = await LLMInferenceService.call_local_server(prompt)
     if not summary:
         summary = await LLMInferenceService.call_ollama(prompt, is_json=False)
@@ -109,11 +167,22 @@ async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
         summary = await LLMInferenceService.call_groq(prompt, is_json=False)
 
     if summary:
-        return {"summary": summary.strip()}
-        
-    # Fallback heuristic if AI is not running
-    fallback = f"Discover the perfect getaway at {campsite.name} in {campsite.state}. {pet_text} It is {rig_text}, making it an ideal destination for your next trip."
+        clean_sum = summary.strip()
+        clean_sum = re.sub(r"^```(?:markdown|text)?\s*", "", clean_sum)
+        clean_sum = re.sub(r"\s*```$", "", clean_sum)
+        clean_sum = clean_sum.strip('"\'')
+        clean_sum = re.sub(r"\s+", " ", clean_sum).strip()
+        AI_SUMMARY_CACHE[campsite_id] = (clean_sum, time.time())
+        return {"summary": clean_sum}
+
+    # Grounded factual fallback if LLM is offline
+    fallback = (
+        f"{campsite.name} is a {mgmt_text} campground in {campsite.state}, situated {town_text}. "
+        f"It is {rig_text} and {pet_text}, offering {facilities_text} ({fees_text.lower()})."
+    )
+    AI_SUMMARY_CACHE[campsite_id] = (fallback, time.time())
     return {"summary": fallback}
+
 
 @router.get("/{campsite_id}/insights", response_model=CampsiteInsightsResponse)
 async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db)):

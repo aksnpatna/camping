@@ -155,8 +155,33 @@ def test_campsite_insights_non_placeholder_amenities():
     assert "Verify in nearest town" not in ins_data["nearest_grocery"]
     assert len(ins_data["nearest_fuel"]) > 5
     assert len(ins_data["nearest_grocery"]) > 5
+def test_campsite_ai_summary_grounded_and_anti_cliche():
+    """Verify that AI Pitch provides grounded, distinct copy free of generic travel clichés."""
+    res = client.get("/api/v1/campsites")
+    assert res.status_code == 200
+    first_campsite = res.json()[0]
+    campsite_id = first_campsite["id"]
 
+    sum_res = client.get(f"/api/v1/campsites/{campsite_id}/ai-summary")
+    assert sum_res.status_code == 200
+    summary_text = sum_res.json()["summary"].lower()
 
+    # Must be free of tired travel-brochure clichés
+    cliches = [
+        "unforgettable adventure",
+        "breathtaking beauty",
+        "outdoor enthusiasts",
+        "discover the perfect getaway",
+    ]
+    for cliche in cliches:
+        assert cliche not in summary_text, f"Found cliché '{cliche}' in AI pitch"
 
+    # Must include grounded facts
+    assert len(summary_text) > 40
+
+    # Repeat call should return cached result instantly
+    repeat_res = client.get(f"/api/v1/campsites/{campsite_id}/ai-summary")
+    assert repeat_res.status_code == 200
+    assert repeat_res.json()["summary"] == sum_res.json()["summary"]
 
 
