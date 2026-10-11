@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.campsite import Campsite
 from app.schemas.campsite import CampsiteCreate
@@ -27,9 +28,19 @@ def create_campsite(db: Session, campsite: CampsiteCreate):
 
 from sqlalchemy import func, String
 
-def get_campsites(db: Session, skip: int = 0, limit: int = 100, dog_friendly: bool = None, rig_access: str = None):
+def get_campsites(
+    db: Session, 
+    skip: int = 0, 
+    limit: Optional[int] = 5000, 
+    state: Optional[str] = None,
+    dog_friendly: Optional[bool] = None, 
+    rig_access: Optional[str] = None
+):
     query = db.query(Campsite)
     
+    if state:
+        query = query.filter(func.upper(Campsite.state) == state.upper().strip())
+
     if dog_friendly is not None:
         query = query.filter(Campsite.dog_friendly == dog_friendly)
         
@@ -37,4 +48,8 @@ def get_campsites(db: Session, skip: int = 0, limit: int = 100, dog_friendly: bo
         # Cast JSON to string to do a simple LIKE match
         query = query.filter(func.cast(Campsite.rig_access, String).like(f"%{rig_access}%"))
         
-    return query.offset(skip).limit(limit).all()
+    if limit is not None:
+        query = query.limit(limit)
+        
+    return query.offset(skip).all()
+

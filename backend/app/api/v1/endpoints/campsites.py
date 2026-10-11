@@ -48,12 +48,20 @@ from fastapi import Query
 @router.get("", response_model=List[CampsiteResponse])
 def read_campsites(
     skip: int = 0, 
-    limit: int = 100, 
+    limit: int = Query(5000, le=10000), 
+    state: Optional[str] = None,
     dog_friendly: Optional[bool] = None,
     rig_access: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    return crud_campsite.get_campsites(db, skip=skip, limit=limit, dog_friendly=dog_friendly, rig_access=rig_access)
+    return crud_campsite.get_campsites(
+        db, 
+        skip=skip, 
+        limit=limit, 
+        state=state, 
+        dog_friendly=dog_friendly, 
+        rig_access=rig_access
+    )
 
 import os
 

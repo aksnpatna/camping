@@ -1,12 +1,25 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { setWorkerUrl } from 'maplibre-gl';
-import Map, { NavigationControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
+import Map, { NavigationControl, Marker, Source, Layer, MapRef } from 'react-map-gl/maplibre';
 
 if (typeof window !== 'undefined') {
   setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
 }
+
+const STATE_CENTERS: Record<string, { longitude: number, latitude: number, zoom: number }> = {
+  NSW: { longitude: 147.0, latitude: -32.5, zoom: 6 },
+  VIC: { longitude: 145.0, latitude: -37.0, zoom: 6.5 },
+  QLD: { longitude: 145.5, latitude: -21.5, zoom: 5 },
+  WA: { longitude: 121.5, latitude: -26.0, zoom: 5 },
+  SA: { longitude: 136.0, latitude: -31.5, zoom: 5.5 },
+  TAS: { longitude: 146.8, latitude: -42.0, zoom: 7 },
+  NT: { longitude: 133.5, latitude: -19.5, zoom: 5 },
+  ACT: { longitude: 149.1, latitude: -35.4, zoom: 9.5 },
+  JBT: { longitude: 150.7, latitude: -35.15, zoom: 11 },
+};
+
 export interface Campsite {
   id: number;
   name: string;
@@ -26,26 +39,37 @@ export default function CampingMap({
   campsites, 
   onSelectCampsite,
   routeGeoJson,
-  startLocation
+  startLocation,
+  selectedState
 }: { 
   campsites: Campsite[], 
   onSelectCampsite: (site: Campsite) => void,
   routeGeoJson?: GeoJSON.Geometry | GeoJSON.Feature | null,
-  startLocation?: { longitude: number, latitude: number }
+  startLocation?: { longitude: number, latitude: number },
+  selectedState?: string | null
 }) {
+  const mapRef = useRef<MapRef>(null);
   const [viewState, setViewState] = useState({
-    longitude: startLocation ? startLocation.longitude : 133.7751,
-    latitude: startLocation ? startLocation.latitude : -25.2744,
-    zoom: startLocation ? 5 : 4
+    longitude: 133.7751,
+    latitude: -25.2744,
+    zoom: 4
   });
 
-
-
-  // Worker URL is now set globally outside the component
+  useEffect(() => {
+    if (selectedState && STATE_CENTERS[selectedState] && mapRef.current) {
+      const center = STATE_CENTERS[selectedState];
+      mapRef.current.flyTo({
+        center: [center.longitude, center.latitude],
+        zoom: center.zoom,
+        duration: 1200
+      });
+    }
+  }, [selectedState]);
 
   return (
     <div className="absolute inset-0 w-full h-full z-0">
       <Map
+        ref={mapRef}
         {...viewState}
         style={{ width: "100%", height: "100%" }}
         onMove={evt => setViewState(evt.viewState)}

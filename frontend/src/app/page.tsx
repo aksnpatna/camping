@@ -144,6 +144,9 @@ export default function Home() {
       try {
         const apiUrl = getApiUrl();
         const params = new URLSearchParams();
+        if (filters.state) {
+          params.append('state', filters.state);
+        }
         if (filters.dog_friendly !== null) {
           params.append('dog_friendly', filters.dog_friendly.toString());
         }
@@ -254,6 +257,7 @@ export default function Home() {
               onSelectCampsite={setSelectedSite}
               routeGeoJson={routeGeoJson}
               startLocation={startLocation}
+              selectedState={filters.state}
             />
 
             {/* Filter Panel */}

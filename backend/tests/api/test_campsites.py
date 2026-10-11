@@ -120,4 +120,26 @@ def test_campsite_insights_attributed_observations():
     assert "source_attribution" in ins_data["observations"][0]
 
 
+def test_get_campsites_nationwide_coverage():
+    """Ensure the default campsites endpoint returns records covering all states, not just the first 100."""
+    res = client.get("/api/v1/campsites")
+    assert res.status_code == 200
+    data = res.json()
+    states = {s["state"] for s in data}
+    expected = {"NSW", "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT", "JBT"}
+    assert expected.issubset(states)
+    assert len(data) >= 2000
+
+
+def test_get_campsites_filter_by_state():
+    """Ensure state query parameter filters results cleanly."""
+    for test_state in ["QLD", "WA", "TAS", "SA", "NT"]:
+        res = client.get(f"/api/v1/campsites?state={test_state}")
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data) > 0
+        assert all(s["state"] == test_state for s in data)
+
+
+
 
