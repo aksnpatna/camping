@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  allowedDevOrigins: ['camping.akstest.win', '*.akstest.win'],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
