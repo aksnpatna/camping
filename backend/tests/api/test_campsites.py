@@ -86,6 +86,15 @@ def test_campsite_facilities_and_fees_fields(monkeypatch):
     assert data["booking_url"] == "https://www.forestrycorporation.com.au"
     assert data["fire_district"] == "Southern Highlands"
 
+    # Clean up created test campsite
+    from app.core.database import SessionLocal
+    from app.models.campsite import Campsite
+    with SessionLocal() as db:
+        test_site = db.query(Campsite).filter(Campsite.id == data["id"]).first()
+        if test_site:
+            db.delete(test_site)
+            db.commit()
+
 def test_campsite_insights_attributed_observations():
     res = client.get("/api/v1/campsites")
     assert res.status_code == 200

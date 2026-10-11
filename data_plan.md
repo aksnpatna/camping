@@ -397,8 +397,8 @@ graph TD
 | **WP-2** | Queensland (QLD) | `Agent-QLD` | `backend/app/ingest/seed_qld.py`<br>QPWS flat-fee rules ($7.75)<br>Mandatory permit rule in `policy_rules` | `backend/tests/ingest/test_seed_qld.py` | ✅ Complete (1,000 sites) |
 | **WP-3** | Western Australia (WA) | `Agent-WA` | `backend/app/ingest/seed_wa.py`<br>DBCA 1080 pet ban rules<br>DBCA FeatureServer CC-BY 4.0 parser | `backend/tests/ingest/test_seed_wa.py` | ✅ Complete (200 sites) |
 | **WP-4** | South Australia (SA) | `Agent-SA` | `backend/app/ingest/seed_sa.py`<br>NPWSA pet ban & online booking rules<br>DEW WaterConnect GeoJSON CC-BY 4.0 parser | `backend/tests/ingest/test_seed_sa.py` | ✅ Complete (361 sites) |
-| **WP-5** | Tasmania (TAS) | `Agent-TAS` | `backend/app/ingest/seed_tas.py`<br>The LIST PWS parser<br>National Parks Pass requirement rule | `backend/tests/ingest/test_seed_tas.py` | ⏳ Pending |
-| **WP-6** | Northern Territory (NT) | `Agent-NT` | `backend/app/ingest/seed_nt.py`<br>PWCNT Category A/B/C fee schedule<br>Data NT parser | `backend/tests/ingest/test_seed_nt.py` | ⏳ Pending |
+| **WP-5** | Tasmania (TAS) | `Agent-TAS` | `backend/app/ingest/seed_tas.py`<br>The LIST PWS parser<br>National Parks Pass requirement rule | `backend/tests/ingest/test_seed_tas.py` | ✅ Complete (112 sites) |
+| **WP-6** | Northern Territory (NT) | `Agent-NT` | `backend/app/ingest/seed_nt.py`<br>PWCNT Category A/B/C fee schedule<br>Data NT parser | `backend/tests/ingest/test_seed_nt.py` | ✅ Complete (96 sites) |
 | **WP-7** | ACT & JBT | `Agent-ACT` | `backend/app/ingest/seed_act.py`<br>JBT Booderee carve-out (R11)<br>Data ACT parser | `backend/tests/ingest/test_seed_act.py` | ⏳ Pending |
 | **WP-8** | Emergency Feeds | `Agent-FireFeeds` | Multi-state fire router in `fire_status.py`<br>CFA, QFD, DFES, CFS, TFS, ESA feeds<br>Degradation unit tests | `backend/tests/api/test_fire_status.py` | ⏳ Pending |
 

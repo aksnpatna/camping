@@ -137,6 +137,38 @@ CANONICAL_RULES = [
         "description": "Advance online booking is required for all campgrounds managed by National Parks and Wildlife Service South Australia.",
         "effective_from": date(2020, 1, 1),
     },
+    {
+        "land_manager": "PWS",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://parks.tas.gov.au/plan-your-visit/parks-pass/dogs-in-parks",
+        "description": "Dogs are prohibited in Tasmanian national parks and reserves under the National Parks and Reserves Management Act 2002.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "PWS",
+        "field": "booking_status",
+        "value": "Parks Pass required",
+        "evidence_url": "https://parks.tas.gov.au/passes-and-entry",
+        "description": "A valid Tasmanian National Parks Pass is required for entry to all national parks in Tasmania.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "PWCNT",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://nt.gov.au/parks/find-a-park/rules-for-pets",
+        "description": "Dogs and other pets are prohibited in Northern Territory national parks under the Territory Parks and Wildlife Conservation Act.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "PWCNT",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://parkbookings.nt.gov.au/",
+        "description": "Advance online booking is mandatory for all campsites managed by Parks and Wildlife Commission of the NT.",
+        "effective_from": date(2020, 1, 1),
+    },
 ]
 
 
@@ -289,6 +321,30 @@ def apply_policy_rules(db: Session, overwrite_verified: bool = False) -> Dict[st
                 changed = True
             if not site.booking_url:
                 site.booking_url = "https://www.parks.sa.gov.au/booking"
+                changed = True
+
+        # 8. PWS Tasmania rules
+        elif "PWS" in mgmt or site.state == "TAS":
+            tas_rules = rules_by_manager.get("PWS", {})
+            if "dog_friendly" in tas_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = tas_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://parks.tas.gov.au/passes-and-entry"
+                changed = True
+
+        # 9. PWCNT Northern Territory rules
+        elif "PWCNT" in mgmt or "DEPWS" in mgmt or site.state == "NT":
+            nt_rules = rules_by_manager.get("PWCNT", {})
+            if "dog_friendly" in nt_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = nt_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://parkbookings.nt.gov.au/"
                 changed = True
 
         if changed:
