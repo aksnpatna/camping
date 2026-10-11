@@ -19,6 +19,10 @@ class Campsite(Base):
     # Core constraints
     dog_friendly = Column(Boolean, nullable=True) # True=Yes, False=No, Null=Unknown
     rig_access = Column(JSON, nullable=True) # e.g., ['4WD_ONLY', 'CARAVAN', 'TENT']
+    facilities = Column(JSON, nullable=True) # e.g. {"toilets": "flush"|"pit"|"none", "showers": "hot"|"cold"|"none", "drinking_water": bool, "campfires": bool}
+    fees = Column(String(100), nullable=True) # e.g. "$24.60/night", "$0 (Free)"
+    booking_url = Column(Text, nullable=True) # Direct reservation link or None
+    fire_district = Column(String(100), nullable=True) # e.g. "Greater Sydney Region", "Illawarra/Shoalhaven"
     
     # Metadata for provenance & trust
     source_id = Column(String(255)) 

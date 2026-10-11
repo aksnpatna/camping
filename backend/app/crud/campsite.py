@@ -13,6 +13,10 @@ def create_campsite(db: Session, campsite: CampsiteCreate):
         management_type=campsite.management_type,
         dog_friendly=campsite.dog_friendly,
         rig_access=campsite.rig_access,
+        facilities=campsite.facilities,
+        fees=campsite.fees,
+        booking_url=campsite.booking_url,
+        fire_district=campsite.fire_district,
         source_id=campsite.source_id,
         source_url=campsite.source_url
     )

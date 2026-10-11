@@ -31,6 +31,8 @@ class TripRecommendationCard(BaseModel):
     booking_status: str
     booking_url: Optional[str] = None
     management_type: Optional[str] = None
+    facilities: Optional[Dict[str, Any]] = None
+    fees: Optional[str] = None
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]

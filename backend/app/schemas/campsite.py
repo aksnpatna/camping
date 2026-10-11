@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class CampsiteBase(BaseModel):
@@ -8,6 +8,10 @@ class CampsiteBase(BaseModel):
     management_type: Optional[str] = None
     dog_friendly: Optional[bool] = None
     rig_access: Optional[List[str]] = None
+    facilities: Optional[Dict[str, Any]] = None
+    fees: Optional[str] = None
+    booking_url: Optional[str] = None
+    fire_district: Optional[str] = None
     source_id: Optional[str] = None
     source_url: Optional[str] = None
 

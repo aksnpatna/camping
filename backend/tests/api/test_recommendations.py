@@ -64,3 +64,21 @@ def test_adjust_trip_conversational():
     assert data["updated_request"]["dog_friendly"] is True
     assert data["updated_request"]["max_drive_hours"] >= 4.0
     assert "cards" in data
+
+def test_recommendation_cards_no_fabricated_compromises():
+    payload = {
+        "prompt": "Melbourne weekend trip",
+        "origin_lat": -37.8136,
+        "origin_lng": 144.9631,
+        "max_drive_hours": 5.0
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    cards = response.json()["cards"]
+    assert len(cards) > 0
+    for card in cards:
+        # Non-NSW sites must NEVER link to the NSW NPWS homepage!
+        if card.get("state") != "NSW":
+            assert card.get("booking_url") != "https://www.nationalparks.nsw.gov.au"
+
+

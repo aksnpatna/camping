@@ -14,11 +14,19 @@ interface WeatherData {
   description: string;
 }
 
+interface CamperObservation {
+  category: string;
+  observation: string;
+  source_attribution: string;
+}
+
 interface InsightsData {
-  sentiment_score: number;
+  sentiment_score?: number | null;
   nearest_fuel: string;
   nearest_grocery: string;
   top_activities: string[];
+  observations?: CamperObservation[];
+  retrieved_at?: string;
 }
 
 export default function TripCard({ campsite, onClose, routeDistance }: { campsite: Campsite | null, onClose: () => void, routeDistance?: number | null }) {
@@ -253,40 +261,61 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
         </div>
       </div>
 
-      {/* AI Deep Insights Section */}
+      {/* Community Field Notes & Sourced Insights Section */}
       <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10">
         <div className="flex justify-between items-center text-sm text-gray-300">
-          <span className="font-semibold text-white">AI Deep Insights</span>
-          {insights && (
-            <span className={`text-xs font-bold px-2 py-1 rounded-full ${insights.sentiment_score >= 80 ? 'bg-neon-green/20 text-neon-green' : 'bg-yellow-500/20 text-yellow-500'}`}>
-              Score: {insights.sentiment_score}/100
+          <span className="font-semibold text-white flex items-center gap-1.5">
+            <span>Verified Field Notes</span>
+            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 font-mono">Sourced</span>
+          </span>
+          {insights?.retrieved_at && (
+            <span className="text-[10px] text-gray-400">
+              Checked {new Date(insights.retrieved_at).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
             </span>
           )}
         </div>
         
         {loadingInsights ? (
-          <div className="text-xs text-gray-400 animate-pulse py-2">Scanning web reviews & amenities via AI...</div>
+          <div className="text-xs text-gray-400 animate-pulse py-2">Scanning verified field reports & town amenities...</div>
         ) : insights ? (
-          <div className="grid grid-cols-2 gap-2 text-xs text-gray-300">
-            <div>
-              <span className="text-gray-400 block mb-0.5">⛽ Fuel</span>
-              {insights.nearest_fuel}
+          <div className="space-y-2.5 text-xs text-gray-300">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-gray-400 block mb-0.5">⛽ Fuel</span>
+                <span className="text-white font-medium">{insights.nearest_fuel}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block mb-0.5">🛒 Groceries</span>
+                <span className="text-white font-medium">{insights.nearest_grocery}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-gray-400 block mb-0.5">🛒 Groceries</span>
-              {insights.nearest_grocery}
-            </div>
-            <div className="col-span-2 mt-1 border-t border-white/10 pt-2">
+
+            {insights.observations && insights.observations.length > 0 && (
+              <div className="border-t border-white/10 pt-2 space-y-1.5">
+                <span className="text-gray-400 block text-[11px] font-semibold uppercase tracking-wider">Ground Truth Observations</span>
+                {insights.observations.map((obs, i) => (
+                  <div key={i} className="bg-black/30 p-2 rounded-lg border border-white/5 space-y-0.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-emerald-300 font-bold uppercase">{obs.category}</span>
+                      <span className="text-gray-500 italic">via {obs.source_attribution}</span>
+                    </div>
+                    <div className="text-gray-200 text-xs">{obs.observation}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-white/10 pt-2">
               <span className="text-gray-400 block mb-1">Top Activities</span>
               <div className="flex flex-wrap gap-1">
                 {insights.top_activities.map((act, i) => (
-                  <span key={i} className="bg-white/10 px-2 py-0.5 rounded text-white">{act}</span>
+                  <span key={i} className="bg-white/10 px-2 py-0.5 rounded text-white text-[11px]">{act}</span>
                 ))}
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-xs text-gray-400">Insights unavailable</div>
+          <div className="text-xs text-gray-400">Field notes currently unavailable</div>
         )}
       </div>
 

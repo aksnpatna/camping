@@ -31,3 +31,23 @@ def test_fire_status_degradation_handling(monkeypatch):
     response = client.get("/api/v1/fire-status?state=NSW")
     assert response.status_code == 503
     assert "unavailable" in response.json()["detail"].lower()
+
+def test_fire_status_non_nsw_honest_degradation():
+    response = client.get("/api/v1/fire-status?state=VIC")
+    # Non-NSW must NEVER return a synthesized Moderate/live rating!
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "unavailable"
+    assert data.get("rating") is None
+    assert "pilot catchment" in data.get("message", "").lower() or "check" in data.get("message", "").lower()
+
+def test_fire_status_nsw_district_parsing():
+    response = client.get("/api/v1/fire-status?state=NSW&district=Greater+Sydney+Region")
+    assert response.status_code in [200, 503]
+    if response.status_code == 200:
+        data = response.json()
+        assert data["state"] == "NSW"
+        assert "district" in data
+        assert data["rating"] in VALID_AFDRS_RATINGS
+        assert isinstance(data["total_fire_ban"], bool)
+

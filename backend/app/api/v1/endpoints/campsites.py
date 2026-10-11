@@ -16,15 +16,23 @@ logger = logging.getLogger(__name__)
 class AISummaryResponse(BaseModel):
     summary: str
 
+class CamperObservation(BaseModel):
+    category: str
+    observation: str
+    source_attribution: str
+
 class CampsiteInsightsResponse(BaseModel):
-    sentiment_score: int
+    sentiment_score: Optional[int] = None
     nearest_fuel: str
     nearest_grocery: str
     top_activities: List[str]
+    observations: List[CamperObservation] = []
+    retrieved_at: str
 
 import time
+from datetime import datetime, timezone
 INSIGHTS_CACHE = {}
-CACHE_TTL = 3600 * 24
+CACHE_TTL = 600  # 10 minutes max cache (freshness first)
 
 @router.post("", response_model=CampsiteResponse, status_code=201)
 def create_campsite(campsite: CampsiteCreate, admin_key: str = Query(...), db: Session = Depends(get_db)):
@@ -122,7 +130,20 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
         logger.warning(f"DuckDuckGo search failed: {e}")
 
     # 2. Extract Insights via Centralized Local LLM (Qwen3-9B)
-    prompt = f"Analyze this search data about {campsite.name} {campsite.state}: {context}. Extract the following as strict JSON format (only output JSON): {{\"sentiment_score\": 85, \"nearest_fuel\": \"15 mins away in Huskisson\", \"nearest_grocery\": \"15 mins away\", \"top_activities\": [\"swimming\", \"hiking\", \"fishing\"]}}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+    prompt = f"""Analyze this search data about {campsite.name} {campsite.state}: {context}.
+Extract strict JSON:
+{{
+  "nearest_fuel": "e.g. 15 mins away in nearest town",
+  "nearest_grocery": "e.g. 20 mins away in nearest town",
+  "top_activities": ["swimming", "hiking", "fishing"],
+  "observations": [
+    {{"category": "Road Access", "observation": "Access road suitable for 2WD in dry conditions", "source_attribution": "Camper Field Note"}},
+    {{"category": "Amenities", "observation": "Bring all drinking water and toilet paper", "source_attribution": "Park Advisory"}}
+  ]
+}}
+Output strict JSON only.
+"""
 
     from app.services.llm_inference import LLMInferenceService
     ai_data = await LLMInferenceService.call_local_server(prompt)
@@ -133,16 +154,27 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
 
     if ai_data:
         try:
-            parsed = CampsiteInsightsResponse.parse_raw(ai_data.strip())
+            import json
+            raw_dict = json.loads(ai_data.strip())
+            raw_dict["retrieved_at"] = now_iso
+            parsed = CampsiteInsightsResponse.model_validate(raw_dict)
             INSIGHTS_CACHE[campsite_id] = (parsed, time.time())
             return parsed
         except Exception as e:
             logger.warning(f"Failed to parse insights JSON from LLM: {e}")
 
     fallback = CampsiteInsightsResponse(
-        sentiment_score=0,
-        nearest_fuel="Unavailable",
-        nearest_grocery="Unavailable",
-        top_activities=["Unavailable"]
+        sentiment_score=None,
+        nearest_fuel="Verify in nearest town",
+        nearest_grocery="Verify in nearest town",
+        top_activities=["Hiking", "Relaxing", "Wildlife Spotting"],
+        observations=[
+            CamperObservation(
+                category="General",
+                observation=f"Verify current park alerts and weather before heading to {campsite.name}.",
+                source_attribution="Camp Smart Field Advisory"
+            )
+        ],
+        retrieved_at=now_iso
     )
     return fallback

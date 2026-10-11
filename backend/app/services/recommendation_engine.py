@@ -138,30 +138,54 @@ class RecommendationEngine:
             if site.management_type:
                 fits.append(f"Managed by {site.management_type}")
 
-            # Calculated compromises
-            compromises = [
-                "Unsealed access track for last 2km; drive carefully after rain",
-                "Basic drop toilets only; carry out all personal rubbish",
-                "Popular location; arrive before 3pm on Friday to secure a prime spot",
-                "No mobile phone reception in campground; download offline pack first",
-                "Non-potable water only; bring minimum 5L drinking water per person/day"
-            ]
-            main_compromise = compromises[i % len(compromises)]
-
-            # Costs & bookings
+            # Factual compromise derivation based on actual campsite records
+            fac = site.facilities or {}
+            compromises: List[str] = []
+            if site.rig_access and "4WD_ONLY" in site.rig_access:
+                compromises.append("4WD required; unsealed access road with steep ruts")
+            
+            toilet_type = fac.get("toilets")
+            if toilet_type in ["pit", "composting", "drop"]:
+                compromises.append("Drop/pit toilets only; carry out all rubbish")
+            elif toilet_type == "none":
+                compromises.append("No toilets on site; portable chemical toilet required")
+                
+            if fac.get("drinking_water") is False:
+                compromises.append("Non-potable water only; bring minimum 5L drinking water/person/day")
+                
+            if site.dog_friendly is False:
+                compromises.append("Strictly no pets (National Park regulations apply)")
+                
             m_type = (site.management_type or "").lower()
-            if "national park" in m_type or "npws" in m_type:
-                cost = "$24/night (vehicle park fee may apply)"
-                status = "NPWS Booking Required"
-            elif "parks victoria" in m_type:
-                cost = "$18/night (pre-booking required)"
-                status = "Parks Victoria Booking"
-            elif "private" in m_type or "resort" in m_type or "voyages" in m_type:
-                cost = "$38–$50/night"
+            if "forestry" in m_type or "state forest" in m_type or "council" in m_type:
+                compromises.append("First-come, first-served unallocated sites; arrive early Friday")
+            elif "npws" in m_type or "national park" in m_type:
+                compromises.append("Popular destination; advance booking required")
+
+            main_compromise = compromises[0] if compromises else "Verify fire regulations and bring all personal supplies"
+
+            # Costs & bookings: use real verified data, never templated guesses
+            cost = site.fees or "Fee unverified"
+            booking_url = site.booking_url or site.source_url
+            
+            if booking_url:
                 status = "Direct Reservation Required"
+            elif site.fees and ("$0" in site.fees or "free" in site.fees.lower()):
+                status = "Free / First-Come, First-Served"
             else:
-                cost = "$0 (Free public camping)"
-                status = "First-Come, First-Served"
+                status = "Booking Details Unverified"
+
+            # Honest badge derivation
+            if dist_km < 120:
+                badge = "Shortest Drive"
+            elif site.fees and ("$0" in site.fees or "free" in site.fees.lower()):
+                badge = "Free Camping"
+            elif site.dog_friendly is True:
+                badge = "Dog Friendly"
+            elif fac.get("showers") == "hot":
+                badge = "Hot Showers"
+            else:
+                badge = "Scenic Escape"
 
             cards.append(TripRecommendationCard(
                 id=site.id,
@@ -174,13 +198,15 @@ class RecommendationEngine:
                 vehicle_clearance="4WD_ONLY" if site.rig_access and "4WD_ONLY" in site.rig_access else "2WD",
                 driving_distance_km=dist_km,
                 driving_time_minutes=drive_mins,
-                highlight_badge=badges[i % len(badges)],
+                highlight_badge=badge,
                 why_it_fits=fits,
                 main_compromise=main_compromise,
                 estimated_cost=cost,
                 booking_status=status,
-                booking_url=site.source_url or "https://www.nationalparks.nsw.gov.au",
-                management_type=site.management_type
+                booking_url=booking_url,
+                management_type=site.management_type,
+                facilities=site.facilities,
+                fees=site.fees
             ))
 
         return FindWeekendResponse(cards=cards)
