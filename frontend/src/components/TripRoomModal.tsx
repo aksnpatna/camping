@@ -233,7 +233,7 @@ export default function TripRoomModal({
 
   const copyRoomLink = () => {
     if (!room) return;
-    const shareUrl = `${window.location.origin}/?room=${room.room_token}`;
+    const shareUrl = `${window.location.origin}/trip/${room.room_token}`;
     navigator.clipboard.writeText(shareUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
@@ -265,6 +265,17 @@ export default function TripRoomModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {room && (
+              <a
+                href={`/trip/${room.room_token}`}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-white/5 hover:bg-white/15 border border-white/10 text-emerald-300 px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Open Dedicated Full Page in New Tab"
+              >
+                Full Page ↗
+              </a>
+            )}
             <button
               onClick={copyRoomLink}
               className="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"

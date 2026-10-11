@@ -25,4 +25,11 @@ class SavedTripResponse(SavedTripBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class SwitchCampsiteRequest(BaseModel):
+    new_campsite_id: int
+
+class SimulateAlertRequest(BaseModel):
+    alert_type: Optional[str] = "WEATHER_WARNING"
+    reason: Optional[str] = "Severe condition shift detected"
+
 

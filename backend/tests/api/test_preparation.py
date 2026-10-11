@@ -157,3 +157,21 @@ def test_shared_trip_room_lifecycle():
     assert task_res.status_code == 200
     task_list = task_res.json()["tasks"]
     assert any(t["title"] == "Pick up 15kg ice from servo" for t in task_list)
+
+    # 6. Unclaim gear
+    unclaim_res = client.post(f"/api/v1/trips/rooms/{token}/claim-gear", json={
+        "item_name": "Double Burner Stove",
+        "claimer_name": ""
+    })
+    assert unclaim_res.status_code == 200
+    assert not any(c["item_name"] == "Double Burner Stove" for c in unclaim_res.json()["claimed_gear"])
+
+    # 7. Toggle vote off
+    toggle_vote_res = client.post(f"/api/v1/trips/rooms/{token}/vote", json={
+        "campsite_id": id1,
+        "vote_type": "primary",
+        "voter_name": "Sarah"
+    })
+    assert toggle_vote_res.status_code == 200
+    assert toggle_vote_res.json()["primary_votes"].get(str(id1), 0) == 0
+

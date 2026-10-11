@@ -80,3 +80,69 @@ def test_plan_b_creates_persistent_alerts_with_alternatives():
     assert "alerts" in target_trip
     assert len(target_trip["alerts"]) >= 1
     assert len(target_trip["alerts"][0]["suggested_alternatives"]) >= 2
+
+def test_switch_campsite_to_alternative():
+    email = f"camper_switch_{uuid.uuid4().hex[:8]}@example.com"
+    token = get_magic_token(email)
+
+    campsites = client.get("/api/v1/campsites").json()
+    orig_site = campsites[0]["id"]
+    new_site = campsites[1]["id"]
+
+    start = date.today() + timedelta(days=7)
+    end = start + timedelta(days=2)
+
+    # Create trip
+    trip_res = client.post("/api/v1/saved-trips", json={
+        "campsite_id": orig_site,
+        "user_email": email,
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "plan_b_alert_active": True
+    })
+    trip_id = trip_res.json()["id"]
+
+    # Unauthorized switch without token should be 401
+    unauth = client.post(f"/api/v1/saved-trips/{trip_id}/switch-campsite", json={
+        "new_campsite_id": new_site
+    })
+    assert unauth.status_code == 401
+
+    # Authorized switch with token
+    switch_res = client.post(f"/api/v1/saved-trips/{trip_id}/switch-campsite?token={token}", json={
+        "new_campsite_id": new_site
+    })
+    assert switch_res.status_code == 200
+    updated_trip = switch_res.json()
+    assert updated_trip["campsite_id"] == new_site
+
+def test_simulate_alert_creates_alternatives():
+    email = f"camper_sim_{uuid.uuid4().hex[:8]}@example.com"
+    token = get_magic_token(email)
+
+    campsites = client.get("/api/v1/campsites").json()
+    site_id = campsites[0]["id"]
+
+    start = date.today() + timedelta(days=12)
+    end = start + timedelta(days=2)
+
+    trip_res = client.post("/api/v1/saved-trips", json={
+        "campsite_id": site_id,
+        "user_email": email,
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "plan_b_alert_active": True
+    })
+    trip_id = trip_res.json()["id"]
+
+    sim_res = client.post(f"/api/v1/saved-trips/{trip_id}/simulate-alert?token={token}", json={
+        "alert_type": "WEATHER_WARNING",
+        "reason": "Severe gale warnings and high fire danger in region"
+    })
+    assert sim_res.status_code == 200
+    alert_data = sim_res.json()
+    assert alert_data["alert_type"] == "WEATHER_WARNING"
+    assert "Severe gale" in alert_data["details"]
+    assert len(alert_data["suggested_alternatives"]) >= 2
+    assert site_id not in [a["id"] for a in alert_data["suggested_alternatives"]]
+

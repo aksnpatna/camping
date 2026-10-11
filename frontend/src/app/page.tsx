@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Campsite } from '@/components/Map';
 const CampingMap = dynamic(() => import('@/components/Map'), { ssr: false });
 import TripCard from '@/components/TripCard';
@@ -59,6 +60,22 @@ export default function Home() {
   const [startLocation, setStartLocation] = useState({ longitude: 151.2093, latitude: -33.8688 }); // Default to Sydney CBD
   const [routeGeoJson, setRouteGeoJson] = useState<GeoJSON.Geometry | GeoJSON.Feature | null>(null);
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
+
+  // Plan B Action States
+  const [switchingTripId, setSwitchingTripId] = useState<number | null>(null);
+  const [simulatingTripId, setSimulatingTripId] = useState<number | null>(null);
+  const [actionMessage, setActionMessage] = useState<string>("");
+
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const roomParam = new URLSearchParams(window.location.search).get("room");
+      if (roomParam) {
+        router.replace(`/trip/${roomParam}`);
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "geolocation" in navigator) {
@@ -238,8 +255,13 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-white/20 p-6 rounded-2xl w-full max-w-md text-white shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-neon-green">My Saved Trips</h2>
-              <button onClick={() => setShowDashboard(false)} className="text-gray-400 hover:text-white">✕</button>
+              <div>
+                <h2 className="text-xl font-black text-[var(--color-neon-green)] flex items-center gap-2">
+                  <span>My Saved Trips & Condition Monitor</span>
+                </h2>
+                <p className="text-xs text-gray-400">Track weather shifts, group shortlists, and 1-click Plan B backups</p>
+              </div>
+              <button onClick={() => setShowDashboard(false)} className="text-gray-400 hover:text-white p-2">✕</button>
             </div>
             
             <div className="flex flex-col gap-2 mb-6">
@@ -266,6 +288,7 @@ export default function Home() {
                     }
                     setLoadingTrips(true);
                     setDashError("");
+                    setActionMessage("");
                     try {
                       const res = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
                       if (res.ok) {
@@ -278,90 +301,190 @@ export default function Home() {
                     }
                     setLoadingTrips(false);
                   }}
-                  className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a]"
+                  className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a] cursor-pointer"
                 >
                   Load
                 </button>
               </div>
               {dashError && <div className="text-red-400 text-xs text-center mt-1">{dashError}</div>}
+              {actionMessage && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-2.5 rounded-lg text-center font-bold">
+                  {actionMessage}
+                </div>
+              )}
             </div>
 
             {loadingTrips ? (
-              <div className="text-center text-sm text-gray-400 py-4 animate-pulse">Loading your trips...</div>
+              <div className="text-center text-sm text-gray-400 py-6 animate-pulse">Loading your trips and condition monitors...</div>
             ) : myTrips ? (
               myTrips.length === 0 ? (
-                <div className="text-center text-sm text-gray-400 py-4">No trips found for this email.</div>
+                <div className="text-center text-sm text-gray-400 py-6">No trips found for this email.</div>
               ) : (
-                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                   {myTrips.map(trip => (
-                    <div key={trip.id} className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-white">{trip.campsite_name}</h3>
-                        <a href={`/pack/${trip.campsite_id}`} target="_blank" rel="noreferrer" className="text-xs bg-neon-green/20 text-neon-green px-2 py-1 rounded hover:bg-neon-green hover:text-black transition-colors">Offline Pack</a>
-                      </div>
-                      <div className="text-xs text-gray-400 mb-3">
-                        {trip.start_date} to {trip.end_date}
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          {trip.plan_b_active ? (
-                            <span className="text-neon-green flex items-center gap-1 font-semibold">🟢 Plan B Monitor Active</span>
-                          ) : (
-                            <span className="text-gray-500">⚪ Monitor Inactive</span>
-                          )}
-                          {trip.is_shortlist && (
-                            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded font-bold">
-                              Shortlist Candidate
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* PLAN B ALERT BANNER WITH ALTERNATIVES */}
-                      {trip.alerts && trip.alerts.length > 0 && (
-                        <div className="mt-3 bg-red-950/60 border border-red-500/50 p-3 rounded-xl text-xs space-y-2">
-                          <div className="flex items-center gap-1.5 text-red-300 font-bold">
-                            <span className="animate-pulse">🚨</span>
-                            <span>{trip.alerts[0].details}</span>
-                          </div>
-                          {trip.alerts[0].suggested_alternatives && trip.alerts[0].suggested_alternatives.length > 0 && (
-                            <div className="space-y-1.5 pt-1.5 border-t border-red-500/20">
-                              <span className="text-[11px] text-gray-300 font-bold block">
-                                Recommended Plan B Alternatives:
-                              </span>
-                              <div className="grid grid-cols-1 gap-1.5">
-                                {trip.alerts[0].suggested_alternatives.map((alt) => (
-                                  <div key={alt.id} className="bg-black/50 p-2.5 rounded-lg border border-white/10 flex items-start justify-between gap-2">
-                                    <div>
-                                      <div className="font-bold text-white text-[11px]">{alt.name} ({alt.state})</div>
-                                      <div className="text-[10px] text-gray-400 mt-0.5">{alt.reason}</div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        const s = campsites.find(c => c.id === alt.id);
-                                        if (s) {
-                                          setSelectedSite(s);
-                                          setShowDashboard(false);
-                                          setViewMode("map");
-                                        }
-                                      }}
-                                      className="text-[10px] bg-white/10 hover:bg-white/20 text-[var(--color-neon-green)] px-2.5 py-1 rounded font-bold shrink-0 cursor-pointer"
-                                    >
-                                      View Site →
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
+                    <div key={trip.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <div>
+                            <h3 className="font-bold text-white text-base">{trip.campsite_name}</h3>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              {trip.state} • {trip.start_date} to {trip.end_date}
                             </div>
-                          )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {trip.room_token && (
+                              <Link 
+                                href={`/trip/${trip.room_token}`}
+                                target="_blank"
+                                className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-lg font-bold hover:bg-emerald-500/30 transition-all flex items-center gap-1"
+                              >
+                                Room ↗
+                              </Link>
+                            )}
+                            <a 
+                              href={`/pack/${trip.campsite_id}`} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="text-xs bg-white/10 text-gray-200 border border-white/15 px-2.5 py-1 rounded-lg font-bold hover:bg-white/20 transition-all"
+                            >
+                              Pack List
+                            </a>
+                          </div>
                         </div>
-                      )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs py-2 border-y border-white/5 my-2">
+                          <div className="flex items-center gap-2">
+                            {trip.plan_b_active ? (
+                              <span className="text-[var(--color-neon-green)] flex items-center gap-1 font-bold">
+                                🟢 Plan B Active
+                              </span>
+                            ) : (
+                              <span className="text-gray-500">⚪ Monitor Inactive</span>
+                            )}
+                            {trip.is_shortlist && (
+                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded font-bold">
+                                Shortlist
+                              </span>
+                            )}
+                          </div>
+
+                          {/* SIMULATE ALERT BUTTON */}
+                          <button
+                            onClick={async () => {
+                              if (!dashToken) return;
+                              setSimulatingTripId(trip.id);
+                              setActionMessage("");
+                              try {
+                                const res = await fetch(`${getApiUrl()}/saved-trips/${trip.id}/simulate-alert?token=${encodeURIComponent(dashToken)}`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    alert_type: "WEATHER_WARNING",
+                                    reason: "Severe gale warning & heavy downpour (90% rain, 70km/h wind gusts)"
+                                  })
+                                });
+                                if (res.ok) {
+                                  // Refresh dashboard
+                                  const dRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
+                                  if (dRes.ok) setMyTrips(await dRes.json());
+                                  setActionMessage("🚨 Weather shift simulated! Plan B alternatives generated.");
+                                }
+                              } catch (e) {
+                                console.error(e);
+                              } finally {
+                                setSimulatingTripId(null);
+                              }
+                            }}
+                            disabled={simulatingTripId === trip.id}
+                            className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            title="Simulate severe condition shift to test Plan B alternatives"
+                          >
+                            <span>⚡ {simulatingTripId === trip.id ? "Simulating..." : "Test Condition Shift"}</span>
+                          </button>
+                        </div>
+
+                        {/* PLAN B ALERT BANNER WITH 1-CLICK ALTERNATIVE SWITCHING */}
+                        {trip.alerts && trip.alerts.length > 0 && (
+                          <div className="mt-3 bg-red-950/70 border border-red-500/40 p-3.5 rounded-xl text-xs space-y-2.5 shadow-lg">
+                            <div className="flex items-center gap-2 text-red-300 font-bold">
+                              <span className="animate-pulse text-base">🚨</span>
+                              <span>{trip.alerts[0].details}</span>
+                            </div>
+
+                            {trip.alerts[0].suggested_alternatives && trip.alerts[0].suggested_alternatives.length > 0 && (
+                              <div className="space-y-2 pt-2 border-t border-red-500/20">
+                                <span className="text-[11px] text-gray-300 font-bold block uppercase tracking-wider">
+                                  Safe Alternative Campsites:
+                                </span>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {trip.alerts[0].suggested_alternatives.map((alt) => (
+                                    <div key={alt.id} className="bg-black/60 p-3 rounded-xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                                      <div>
+                                        <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                                          <span>{alt.name}</span>
+                                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 uppercase font-mono">{alt.state}</span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-300 mt-0.5">{alt.reason}</div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                                        <button
+                                          onClick={() => {
+                                            const s = campsites.find(c => c.id === alt.id);
+                                            if (s) {
+                                              setSelectedSite(s);
+                                              setShowDashboard(false);
+                                              setViewMode("map");
+                                            }
+                                          }}
+                                          className="text-[11px] bg-white/10 hover:bg-white/20 text-gray-300 px-2.5 py-1.5 rounded-lg font-bold cursor-pointer"
+                                        >
+                                          Map
+                                        </button>
+
+                                        {/* 1-CLICK CAMPSITE SWITCHER */}
+                                        <button
+                                          onClick={async () => {
+                                            if (!dashToken) return;
+                                            setSwitchingTripId(trip.id);
+                                            setActionMessage("");
+                                            try {
+                                              const res = await fetch(`${getApiUrl()}/saved-trips/${trip.id}/switch-campsite?token=${encodeURIComponent(dashToken)}`, {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ new_campsite_id: alt.id })
+                                              });
+                                              if (res.ok) {
+                                                const dRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
+                                                if (dRes.ok) setMyTrips(await dRes.json());
+                                                setActionMessage(`✓ Successfully switched trip to ${alt.name}!`);
+                                              }
+                                            } catch (e) {
+                                              console.error(e);
+                                            } finally {
+                                              setSwitchingTripId(null);
+                                            }
+                                          }}
+                                          disabled={switchingTripId === trip.id}
+                                          className="flex-1 sm:flex-none text-[11px] bg-[var(--color-neon-green)] text-[var(--color-forest-900)] hover:bg-[#00e67a] px-3 py-1.5 rounded-lg font-black transition-all cursor-pointer disabled:opacity-50"
+                                        >
+                                          {switchingTripId === trip.id ? "Switching..." : "⚡ Switch Here"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )
             ) : (
-              <div className="text-center text-sm text-gray-500 py-4">Enter your email to view your planned trips and active Plan B weather alerts.</div>
+              <div className="text-center text-sm text-gray-500 py-6">Enter your email and token to view your planned trips, test Plan B shifts, and switch campgrounds.</div>
             )}
           </div>
         </div>

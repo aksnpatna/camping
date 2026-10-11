@@ -48,13 +48,18 @@ def vote_campsite(db: Session, token: str, vote: VoteRequest) -> TripRoomRespons
         raise HTTPException(status_code=404, detail="Trip room not found")
 
     votes = list(room.votes or [])
-    # Filter out previous vote of same voter on same campsite
-    votes = [v for v in votes if not (v.get("voter_name") == vote.voter_name and v.get("campsite_id") == vote.campsite_id)]
-    votes.append({
-        "campsite_id": vote.campsite_id,
-        "voter_name": vote.voter_name,
-        "vote_type": vote.vote_type.lower()
-    })
+    matching = next((v for v in votes if v.get("voter_name") == vote.voter_name and v.get("campsite_id") == vote.campsite_id), None)
+    if matching and matching.get("vote_type") == vote.vote_type.lower():
+        # Toggle off if same vote clicked again
+        votes = [v for v in votes if not (v.get("voter_name") == vote.voter_name and v.get("campsite_id") == vote.campsite_id)]
+    else:
+        # Replace existing or add new
+        votes = [v for v in votes if not (v.get("voter_name") == vote.voter_name and v.get("campsite_id") == vote.campsite_id)]
+        votes.append({
+            "campsite_id": vote.campsite_id,
+            "voter_name": vote.voter_name,
+            "vote_type": vote.vote_type.lower()
+        })
     room.votes = votes
     db.commit()
     db.refresh(room)
@@ -66,15 +71,18 @@ def claim_gear(db: Session, token: str, claim: ClaimGearRequest) -> TripRoomResp
         raise HTTPException(status_code=404, detail="Trip room not found")
 
     claimed = list(room.claimed_gear or [])
-    # Update or add claim
-    existing = next((c for c in claimed if c.get("item_name") == claim.item_name), None)
-    if existing:
-        existing["claimed_by"] = claim.claimer_name
+    if not claim.claimer_name or claim.claimer_name.strip() == "":
+        # Unclaim item
+        claimed = [c for c in claimed if c.get("item_name") != claim.item_name]
     else:
-        claimed.append({
-            "item_name": claim.item_name,
-            "claimed_by": claim.claimer_name
-        })
+        existing = next((c for c in claimed if c.get("item_name") == claim.item_name), None)
+        if existing:
+            existing["claimed_by"] = claim.claimer_name.strip()
+        else:
+            claimed.append({
+                "item_name": claim.item_name,
+                "claimed_by": claim.claimer_name.strip()
+            })
     room.claimed_gear = claimed
     db.commit()
     db.refresh(room)
