@@ -56,13 +56,32 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
                     target_district = dist_nodes[0]
 
                 if target_district is not None:
-                    dist_name = target_district.findtext("Name", "Greater Sydney Region")
-                    raw_rating = target_district.findtext("DangerLevelToday", "Moderate").strip().title()
-                    toban_text = target_district.findtext("FireBanToday", "No").strip().lower()
-                    total_fire_ban = toban_text == "yes"
-                    
-                    # Normalize rating to AFDRS standard
-                    rating = raw_rating if raw_rating in VALID_RATINGS else "Moderate"
+                    dist_name = (target_district.findtext("Name") or "").strip() or None
+                    raw_rating = (target_district.findtext("DangerLevelToday") or "").strip().title()
+                    toban_text = (target_district.findtext("FireBanToday") or "").strip().lower()
+
+                    # A declared ban is read from the feed. It is never inferred
+                    # from the rating, and an absent element is not treated as "No".
+                    if toban_text == "yes":
+                        total_fire_ban = True
+                    elif toban_text == "no":
+                        total_fire_ban = False
+                    else:
+                        total_fire_ban = None
+
+                    # Unknown is unknown. Never coerce a missing or unrecognised
+                    # element into a substantive rating.
+                    rating = raw_rating if raw_rating in VALID_RATINGS else "No Rating"
+
+                    if total_fire_ban:
+                        action_required = "Enforce total fire ban — no wood, gas only if permitted"
+                    elif rating == "No Rating":
+                        action_required = (
+                            "Rating unavailable for this district — check the official "
+                            "NSW RFS source before travelling"
+                        )
+                    else:
+                        action_required = "Monitor conditions"
 
                     return {
                         "state": "NSW",
@@ -71,7 +90,7 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
                         "total_fire_ban": total_fire_ban,
                         "status": "live",
                         "source": "NSW Rural Fire Service (rfs.nsw.gov.au/feeds/fdrToban.xml)",
-                        "action_required": "Enforce total fire ban — no wood, gas only if permitted" if total_fire_ban else "Monitor conditions"
+                        "action_required": action_required
                     }
                 else:
                     raise Exception("No district data found in RFS feed")

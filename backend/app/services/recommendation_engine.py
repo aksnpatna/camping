@@ -175,20 +175,20 @@ class RecommendationEngine:
             if "forestry" in m_lower or "state forest" in m_lower or ("council" in m_lower and is_free):
                 booking_type = "FIRST_COME_FIRST_SERVED"
                 status = "No Booking Required (First-Come, First-Served)"
-                avail_window = "No booking required. Arrive before 4:00 PM on Friday to secure a prime creek or forest spot."
+                avail_window = "No booking required — first-come, first-served. Live site availability is not published."
             elif "npws" in m_lower or "national park" in m_lower or "parks australia" in m_lower:
                 if is_free:
                     booking_type = "FREE_REGISTRATION_REQUIRED"
                     status = "Free Permit / Registration ($0)"
-                    avail_window = "Online registration required ($0 entry). Generally available outside peak long weekends."
+                    avail_window = "Online registration required ($0). Live site availability is not published — check the booking page for your dates."
                 else:
                     booking_type = "ONLINE_BOOKING_REQUIRED"
                     status = "Online Booking Required (NPWS)"
-                    avail_window = "Bookings open 180 days in advance via NPWS. Typically booked out 2–3 weeks ahead for summer/autumn weekends."
+                    avail_window = "Online booking required via NPWS. Live site availability is not published — check the booking page for your dates."
             else:
                 booking_type = "OPERATOR_PORTAL"
                 status = "Operator Booking Required"
-                avail_window = "Bookings open on operator portal. Peak weekend sites typically fill 1–2 weeks ahead in warm seasons."
+                avail_window = "Booking required via the operator. Live site availability is not published."
 
             # Honest badge derivation
             if dist_km < 120:
@@ -223,7 +223,11 @@ class RecommendationEngine:
                 booking_url=booking_url,
                 management_type=site.management_type,
                 facilities=site.facilities,
-                fees=site.fees
+                fees=site.fees,
+                fire_district=site.fire_district,
+                data_status=site.data_status,
+                source_url=site.source_url,
+                evidence_url=site.evidence_url
             ))
 
         return FindWeekendResponse(cards=cards)

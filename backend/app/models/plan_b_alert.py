@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -13,8 +13,15 @@ class PlanBAlert(Base):
     alert_type = Column(String, nullable=False)  # "WEATHER_WARNING", "FIRE_DANGER", "PARK_CLOSURE"
     details = Column(String, nullable=False)
     triggered_at = Column(DateTime, default=datetime.utcnow)
-    delivery_status = Column(String, default="DELIVERED")  # "DELIVERED", "FAILED", "PENDING"
+    # "SENT", "FAILED", "QUEUED_OUTBOX", "DISABLED", "PENDING" — must reflect what
+    # actually happened. Never recorded as SENT unless SMTP accepted the message.
+    delivery_status = Column(String, default="PENDING")
     retry_count = Column(Integer, default=0)
+    # Coarse escalation level (1-3) used to suppress repeat alerts for an
+    # unchanged condition while still allowing through a genuine worsening.
+    severity = Column(Integer, default=1, nullable=False)
+    # Origin URL for news-derived alerts, so one headline alerts a trip once.
+    source_url = Column(Text, nullable=True)
     suggested_alternatives = Column(JSON, default=list)  # [{"id": 1, "name": "...", "reason": "..."}]
 
     # Relationships

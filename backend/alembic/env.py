@@ -11,7 +11,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import settings
 from app.core.database import Base
-from app.models.campsite import Campsite
+
+# Import every model so Base.metadata is fully populated for autogenerate.
+from app.models.campsite import Campsite  # noqa: F401
+from app.models.saved_trip import SavedTrip  # noqa: F401
+from app.models.trip_room import TripRoom  # noqa: F401
+from app.models.plan_b_alert import PlanBAlert  # noqa: F401
+from app.models.magic_token import MagicToken  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

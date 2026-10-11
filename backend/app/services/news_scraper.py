@@ -19,7 +19,15 @@ def check_campsite_news(campsite_name: str, state: str) -> dict:
             # Get up to 3 recent text results
             ddg_results = list(ddgs.text(query, max_results=3, safesearch="off", timelimit="w"))
             if ddg_results:
-                results = [{"title": r.get("title"), "body": r.get("body"), "source": "DuckDuckGo"} for r in ddg_results]
+                results = [
+                    {
+                        "title": r.get("title"),
+                        "body": r.get("body"),
+                        "url": r.get("href"),
+                        "source": "DuckDuckGo",
+                    }
+                    for r in ddg_results
+                ]
                 
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}. Falling back to Tavily.")
@@ -38,7 +46,15 @@ def check_campsite_news(campsite_name: str, state: str) -> dict:
                     max_results=3
                 )
                 if response and "results" in response:
-                    results = [{"title": r.get("title"), "body": r.get("content"), "source": "Tavily"} for r in response["results"]]
+                    results = [
+                        {
+                            "title": r.get("title"),
+                            "body": r.get("content"),
+                            "url": r.get("url"),
+                            "source": r.get("source") or "Tavily",
+                        }
+                        for r in response["results"]
+                    ]
             except Exception as e:
                 logger.error(f"Tavily search failed: {e}")
         else:

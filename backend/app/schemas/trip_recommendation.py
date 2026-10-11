@@ -35,6 +35,12 @@ class TripRecommendationCard(BaseModel):
     management_type: Optional[str] = None
     facilities: Optional[Dict[str, Any]] = None
     fees: Optional[str] = None
+    fire_district: Optional[str] = None
+    # Provenance: lets the UI label a card "Not verified yet" instead of
+    # presenting hand-written values as if they were sourced.
+    data_status: Optional[str] = None
+    source_url: Optional[str] = None
+    evidence_url: Optional[str] = None
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]

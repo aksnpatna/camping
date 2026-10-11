@@ -18,9 +18,13 @@ export async function generateMetadata(
   }
 }
 
-async function getFireStatus(state: string) {
+async function getFireStatus(state: string, district?: string | null) {
   try {
-    const res = await fetch(`${getApiUrl()}/fire-status?state=${state}`, { 
+    const params = new URLSearchParams({ state });
+    if (district) {
+      params.set('district', district);
+    }
+    const res = await fetch(`${getApiUrl()}/fire-status?${params.toString()}`, { 
       cache: 'no-store' // CRITICAL: Do NOT cache and present stale fire rules per AGENTS.md
     });
     if (!res.ok) {
@@ -84,7 +88,8 @@ export default async function ExplorePage(props: Props) {
             <div>
               <h3 className="text-xl font-bold text-red-500 mb-2">FIRE STATUS UNAVAILABLE</h3>
               <p className="text-gray-300">
-                The official state fire emergency feed is currently unreachable. For your safety, do not light any campfires until you can independently verify local conditions with the NSW RFS or local park authority.
+                {fireStatus?.message ||
+                  'The official state fire emergency feed is currently unreachable. For your safety, do not light any campfires until you can independently verify local conditions with the state fire authority or local park office.'}
               </p>
             </div>
           </div>
@@ -95,29 +100,41 @@ export default async function ExplorePage(props: Props) {
               <h3 className={`text-4xl font-black ${
                 fireStatus.rating === 'Catastrophic' || fireStatus.rating === 'Extreme' 
                 ? 'text-[var(--color-sunset-orange)]' 
+                : fireStatus.rating === 'No Rating'
+                ? 'text-gray-400'
                 : 'text-[var(--color-neon-green)]'
               }`}>
                 {fireStatus.rating}
               </h3>
+              {fireStatus.district && (
+                <p className="text-xs text-gray-500 mt-1">District: {fireStatus.district}</p>
+              )}
             </div>
             <div className="h-full w-px bg-white/10 hidden md:block"></div>
             <div>
               <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Total Fire Ban</p>
-              <p className={`text-xl font-bold flex items-center gap-2 ${fireStatus.total_fire_ban ? 'text-red-400' : 'text-green-400'}`}>
-                {fireStatus.total_fire_ban ? (
-                  <>
-                    <ShieldAlert className="text-red-400" />
-                    DECLARED (No Campfires)
-                  </>
-                ) : (
-                  "Not Declared"
-                )}
-              </p>
+              {fireStatus.total_fire_ban === true ? (
+                <p className="text-xl font-bold flex items-center gap-2 text-red-400">
+                  <ShieldAlert className="text-red-400" />
+                  DECLARED (No Campfires)
+                </p>
+              ) : fireStatus.total_fire_ban === false ? (
+                <p className="text-xl font-bold text-green-400">Not Declared</p>
+              ) : (
+                // Unknown must never render as a reassuring "Not Declared".
+                <p className="text-xl font-bold flex items-center gap-2 text-gray-400">
+                  <AlertTriangle className="text-gray-400 w-5 h-5" />
+                  Not Stated In Feed — Verify
+                </p>
+              )}
             </div>
             <div className="h-full w-px bg-white/10 hidden md:block"></div>
             <div>
               <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Source</p>
               <p className="text-xs text-gray-400 max-w-xs">{fireStatus.source}</p>
+              {fireStatus.action_required && (
+                <p className="text-xs text-gray-500 max-w-xs mt-2">{fireStatus.action_required}</p>
+              )}
             </div>
           </div>
         )}

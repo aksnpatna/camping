@@ -1,47 +1,48 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
 from app.core.database import get_db
-from app.schemas.saved_trip import SavedTripCreate, SavedTripResponse
 from app.crud import saved_trip as crud_saved_trip
+from app.models.campsite import Campsite
+from app.models.plan_b_alert import PlanBAlert
+from app.models.saved_trip import SavedTrip
+from app.schemas.saved_trip import (
+    SavedTripCreate,
+    SavedTripResponse,
+    SimulateAlertRequest,
+    SwitchCampsiteRequest,
+)
+from app.services.magic_link import verify_magic_token
+from app.worker.plan_b import dispatch_alert_email, find_plan_b_alternatives
 
 router = APIRouter()
+
 
 @router.post("", response_model=SavedTripResponse)
 def create_saved_trip(trip: SavedTripCreate, db: Session = Depends(get_db)):
     return crud_saved_trip.create_saved_trip(db=db, trip=trip)
 
-import hmac
-import hashlib
-import os
-from fastapi import HTTPException
-
-def verify_magic_token(email: str, token: str, status_code: int = 403):
-    if not token:
-        raise HTTPException(status_code=status_code, detail="Authentication token required")
-    secret = os.environ.get("SECRET_KEY", "dev-secret-key").encode()
-    normalized_email = email.strip().lower()
-    expected_token = hmac.new(secret, normalized_email.encode(), hashlib.sha256).hexdigest()
-    if token != expected_token:
-        raise HTTPException(status_code=status_code, detail="Invalid magic link token")
 
 @router.get("/{email}", response_model=List[SavedTripResponse])
 def read_saved_trips(email: str, token: str = "", skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    verify_magic_token(email, token)
+    verify_magic_token(db, email, token)
     return crud_saved_trip.get_saved_trips_by_email(db, email=email, skip=skip, limit=limit)
 
-from app.models.campsite import Campsite
-from app.models.saved_trip import SavedTrip
-from app.models.plan_b_alert import PlanBAlert
 
 @router.get("/dashboard/{email}")
 def get_user_dashboard(email: str, token: str = "", db: Session = Depends(get_db)):
-    verify_magic_token(email, token)
+    verify_magic_token(db, email, token)
     trips = db.query(SavedTrip, Campsite).join(Campsite).filter(SavedTrip.user_email == email).all()
     result = []
     for t, c in trips:
-        alerts = db.query(PlanBAlert).filter(PlanBAlert.saved_trip_id == t.id).order_by(PlanBAlert.triggered_at.desc()).all()
+        alerts = (
+            db.query(PlanBAlert)
+            .filter(PlanBAlert.saved_trip_id == t.id)
+            .order_by(PlanBAlert.triggered_at.desc())
+            .all()
+        )
         alert_list = [
             {
                 "id": a.id,
@@ -49,7 +50,8 @@ def get_user_dashboard(email: str, token: str = "", db: Session = Depends(get_db
                 "details": a.details,
                 "triggered_at": a.triggered_at.isoformat() if a.triggered_at else None,
                 "delivery_status": a.delivery_status,
-                "suggested_alternatives": a.suggested_alternatives or []
+                "severity": a.severity,
+                "suggested_alternatives": a.suggested_alternatives or [],
             }
             for a in alerts
         ]
@@ -63,12 +65,10 @@ def get_user_dashboard(email: str, token: str = "", db: Session = Depends(get_db
             "plan_b_active": t.plan_b_alert_active,
             "is_shortlist": t.is_shortlist,
             "room_token": t.room_token,
-            "alerts": alert_list
+            "alerts": alert_list,
         })
     return result
 
-from app.schemas.saved_trip import SwitchCampsiteRequest, SimulateAlertRequest
-from app.worker.plan_b import find_plan_b_alternatives, dispatch_alert_email
 
 @router.post("/{trip_id}/switch-campsite", response_model=SavedTripResponse)
 def switch_campsite(trip_id: int, switch_data: SwitchCampsiteRequest, token: str = "", db: Session = Depends(get_db)):
@@ -78,8 +78,8 @@ def switch_campsite(trip_id: int, switch_data: SwitchCampsiteRequest, token: str
     trip = db.query(SavedTrip).filter(SavedTrip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Saved trip not found")
-    
-    verify_magic_token(trip.user_email, token, status_code=401)
+
+    verify_magic_token(db, trip.user_email, token, status_code=401)
 
     new_site = db.query(Campsite).filter(Campsite.id == switch_data.new_campsite_id).first()
     if not new_site:
@@ -90,22 +90,24 @@ def switch_campsite(trip_id: int, switch_data: SwitchCampsiteRequest, token: str
     db.refresh(trip)
     return trip
 
+
 @router.post("/{trip_id}/simulate-alert")
 def simulate_plan_b_alert(trip_id: int, sim_data: SimulateAlertRequest, token: str = "", db: Session = Depends(get_db)):
     """
-    Simulate a condition shift (weather warning / fire ban) and generate persistent Plan B alert with alternatives.
+    Simulate a condition shift (weather warning / fire ban) and generate a
+    persistent Plan B alert with alternatives.
     """
     trip = db.query(SavedTrip).filter(SavedTrip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Saved trip not found")
 
-    verify_magic_token(trip.user_email, token, status_code=401)
+    verify_magic_token(db, trip.user_email, token, status_code=401)
 
     campsite = db.query(Campsite).filter(Campsite.id == trip.campsite_id).first()
     alternatives = find_plan_b_alternatives(db, trip, campsite) if campsite else []
     details_text = sim_data.reason or "Simulated weather/condition shift detected in campground area."
     site_name = campsite.name if campsite else "Campsite"
-    sent_ok = dispatch_alert_email(trip, site_name, details_text, alternatives)
+    delivery_status = dispatch_alert_email(db, trip, site_name, details_text, alternatives)
 
     alert = PlanBAlert(
         saved_trip_id=trip.id,
@@ -114,8 +116,9 @@ def simulate_plan_b_alert(trip_id: int, sim_data: SimulateAlertRequest, token: s
         alert_type=sim_data.alert_type or "WEATHER_WARNING",
         details=details_text,
         suggested_alternatives=alternatives,
-        delivery_status="SENT" if sent_ok else "FAILED",
-        retry_count=0 if sent_ok else 1
+        delivery_status=delivery_status,
+        retry_count=0 if delivery_status == "SENT" else 1,
+        severity=1,
     )
     db.add(alert)
     db.commit()
@@ -128,7 +131,6 @@ def simulate_plan_b_alert(trip_id: int, sim_data: SimulateAlertRequest, token: s
         "details": alert.details,
         "triggered_at": alert.triggered_at.isoformat() if alert.triggered_at else None,
         "delivery_status": alert.delivery_status,
-        "suggested_alternatives": alert.suggested_alternatives
+        "severity": alert.severity,
+        "suggested_alternatives": alert.suggested_alternatives,
     }
-
-

@@ -1,16 +1,28 @@
-import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-
 from app.api.v1.router import api_router
+from app.services.email_service import warn_if_no_email_transport
+from app.services.magic_link import assert_secret_key_safe
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Fail closed on a development secret in a production-like environment, and
+    # make it unmistakable when outbound email cannot reach campers.
+    assert_secret_key_safe()
+    warn_if_no_email_transport("api")
+    yield
+
 
 app = FastAPI(
-    title="Camp Smart Australia API", 
+    title="Camp Smart Australia API",
     description="Backend for the Camp Smart Answer-First Trip Finder",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
-
 
 
 app.add_middleware(

@@ -1,158 +1,160 @@
-# Camp Smart AU — Implementation Review: Data Readiness, Camper Value & Competitive Position
+ **SEED / Data.NSW — NPWS Assets Geodatabase (`AMS_Assets` ArcGIS MapServer).** Verified live:
+- Publisher: NSW Dept of Climate Change, Energy, the Environment and Water. **Licence: CC-BY 4.0** — commercial use permitted with attribution. Attribution text specified by SEED: *"© State Government of NSW and NSW Department of Climate Change, Energy, the Environment and Water 2017"*.
+- Currency: Visitor Area last updated **2025-12-16**; Facility Point last updated **2026-08-13**. Both actively maintained.
+- **Layer 24 "Visitor Area" → `SubtypeCD=5001` (Camping Area) = 729 records statewide.** (Live `returnCountOnly` query.)
+- **273 of those fall inside the Sydney catchment envelope** (148.5–153.8 E, −36.2 to −31.3 N) — live spatial count.
+- Layer 7 "Facility Point" = **10,287 assets** statewide (BBQs, picnic tables, shelters, fish-cleaning tables, seats, playground equipment associated with camping/day-use areas).
+- Per-record attributes actually exposed: `OBJECTID`, **`SAPFLID`** (stable asset ID, e.g. `N0068X-V0118-CGBLU` → ideal `source_id`), `AssetName`, `AssetType` (1=Vehicle Based, 2=Remote Walk-in, 3=Short Walk-in, +3), `AssetStyle` (**1=Bush Camping Area C1, 2=Basic C2, 3=Medium C3, +1** — a facility-tier proxy that maps onto NPWS fee tiers).
+- Layer metadata additionally documents `CaravansAllowed` / `CamperTrailersAllowed` / `MotorhomesAllowed` as coded `0=False, 1=True, **9999=Unknown**` — exactly the tri-state design already in `models/campsite.py`.
+- Service facts: SRID **4283 (GDA94)**, `maxRecordCount=5000`, query formats JSON + geoJSON, capabilities `Map,Query,Data`.
+- ⚠️ **Verified blocker: the REST query does not return geometry.** Both `f=geojson` (`"geometry": null`) and `f=json` (no `geometry` key) came back empty with `returnGeometry=true`. **Coordinates must come from the SEED/Data.NSW download (shapefile / GeoPackage / CSV) or the CKAN `datastore_search` API — not from this MapServer.** Design the ingester around the download artefact.
+- Adjacent layers worth joining later: 23 Treatment Disposal System (toilet waste), 9/10/11 Hydraulic Point/Storage/Valve (water), 32/38 Road Section (access surface → 2WD/4WD), 1 Building (amenities blocks), 36 Parking Area.
 
-**Scope:** Audit of features implemented from `PLAN.md` (v1) and `plan_v2.md` against the data actually available; verdict on camper usefulness; competitor comparison (Oct 2026); prioritized enhancement backlog.
+**Forestry Corporation NSW — no open dataset exists.** Verified by exhaustive search of their ArcGIS Hub DCAT catalogue (`data-fcnsw.opendata.arcgis.com/api/feed/dcat-us/1.1.json`): **39 datasets, zero** referencing camp/camping/campground/recreation/visitor/picnic/facility/amenity/toilet/4WD/trail. It is purely forestry-operations data (plantations, harvest coupes, IFOA compliance, management zones, aviation obstructions, soils).
+→ State-forest campgrounds must be harvested from the published HTML: the *"ultimate guide to free camping in NSW State forests"* (campground names **with GPS coordinates**, e.g. Dalys Clearing `-34.527643, 150.241341`) plus per-forest pages listing `Camping / BBQ / Picnic facilities / Toilets area / Disabled toilets` per camping area.
+→ Scale: **~500 NSW state forests**, many with camping; ~15 named campgrounds reachable within 3.5h of Sydney in the guide alone.
+→ **Licence risk verified:** the 39-dataset catalogue is **not** uniformly reusable — 15 × `CC-BY-NC-SA 4.0`, 1 × `CC-BY-NC`, 2 × `CC-BY-NC-ND` (**all non-commercial**), vs only 4 × `CC-BY 4.0` and 3 × `CC0`; 9 have blank licences, 1 is the literal string `"null"`, 2 embed the licence in raw HTML. Data.NSW separately lists the State Forest boundary as plain "Creative Commons Attribution". **Conflicting metadata → obtain written confirmation per dataset before any commercial reuse.** (Moot for camping, since no camping dataset is published there.)
 
----
+**Rule-based facts that need NO per-site data (highest-value, lowest-cost win).** Each is one authoritative citation covering hundreds of sites:
+- **Dogs in NSW national parks: prohibited** (NPWS) → `dog_friendly=False` for the 729, minus documented exceptions.
+- **Dogs in NSW state forests: welcome under effective control** (Forestry Corporation, statewide) → `dog_friendly=True` for all state-forest campgrounds.
+- **State-forest camping: free, no booking required** → `fees="$0 (Free)"`, `booking_status="No booking required"`.
+- **NPWS: online booking required for ALL campgrounds** → `booking_status="Booking required"` even where the fee is $0.
+These four rules convert ~1,000 records from `unknown` to `sourced known` and simultaneously invalidate several current seed values (see A2-9).
 
-## A. Implementation status vs the plans
+### B2. Coverage / discovery layer
 
-### plan_v2.md "Specific Fixes to Apply Now" (9 items)
+**OpenStreetMap** — global `tourism=camp_site` = **4,101,652 objects** (3,315,922 nodes / 759,365 ways / 26,365 relations), taginfo as of **2026-10-10**. Licence **ODbL 1.0** (confirmed in the live Overpass response and on Geofabrik). Per PLAN.md, OSM-derived data must stay in a **separable layer** so the share-alike clause cannot reach the proprietary canonical records. Use it strictly for **gap discovery** ("does a campground exist here that SEED/Forestry don't list?"), never as authority for dogs, fees or facilities.
+⚠️ Overpass `out count` was unreachable from this environment (406 on `overpass-api.de`, 500 on `kumi.systems`, and the working mirror `overpass.osm.ch` returned all-zero counts for both area and bbox queries). **The Australia/NSW camp_site count is therefore unmeasured — Task 1 below must measure it before any OSM work is scoped.**
 
-| # | Fix | Status | Evidence |
-|---|-----|--------|----------|
-| 1 | Auth on `GET /saved-trips/{email}` + email sign-in flow | **Half done** | HMAC token ownership check done (`saved_trips.py:20`). But **no email is ever sent anywhere** (no SMTP/sender code exists) — the dashboard UI asks for an "Access Token (from email)" that no flow can issue. Real campers cannot use My Trips. |
-| 2 | Standardize frontend fetches to `/api/v1` | **Done** | No hardcoded `localhost:8021` remains; `config.ts` uses `NEXT_PUBLIC_API_URL`/`/api/v1`. |
-| 3 | Plan B persistence, delivery tracking, retries | **Partial** | `PlanBAlert` model + dashboard + alternatives + 1-click switch done (`plan_b_alert.py`, `saved_trips.py:37-128`). But worker hardcodes `delivery_status="DELIVERED"` when **nothing is delivered** (no email/SMS/push), `retry_count` is never used, and after one alert the worker sets `plan_b_alert_active = False` (`plan_b.py:79,110`) — contradicting plan_v2's "do not just silently disable monitoring after an alert". |
-| 4 | Gear advice from real forecasts, historical data labeled | **Done** | Live Open-Meteo forecast; historical archive distinctly labeled "Historical Record (Xmm)" (`TripCard.tsx:125-154`). |
-| 5 | Replace `sentiment_score` with attributed observations | **NOT done** | `sentiment_score: int` still extracted over raw DuckDuckGo snippets (`campsites.py:19-24,125-137`), charted as "Score: X/100" in `TripCard.tsx:261-263`, cached 24h in-process (`campsites.py:26-27`). No attribution, no nullable unknowns. |
-| 6 | Dog tri-state `True/False/None` preserved | **Done** | Model nullable, engine requires `is not True` to disqualify (avoids disqualifying unknowns), no "Leave the pets at home" default remains. |
-| 7 | Separate vehicle access (`4WD_ONLY`) from accommodation types | **Partial** | Single mixed `rig_access` array still holds both (e.g. `["TENT","4WD_ONLY"]` in seed); a `vehicle_clearance` card field is derived downstream (`recommendation_engine.py:174`). |
-| 8 | Fix `test_create_campsite` (admin_key, 201) | **Done** | `test_campsites.py:23-43` passes admin key and asserts 201. |
-| 9 | Real NSW fire ratings, TFB separate, degradation rule | **Mostly done, 2 weaknesses** | Live RFS fetch, AFDRS valid ratings, 503 + frontend banner on outage (`fire_status.py`, `explore/[slug]/page.tsx:23-34`). Weaknesses: (a) rating is picked by scanning **whole-feed text** for Catastrophic→Moderate keywords — one district at Catastrophic escalates the whole state; (b) **non-NSW requests return a synthesized `"Moderate"/"status": "live"`** (`fire_status.py:17-26`) — a simulated rating that violates the product's own degradation rule. TFB partially separated (inferred from rating). |
+**Fee reality (why fees must not be hardcoded).** NPWS is transitioning to a **six-tier, per-site-per-night** schedule: Tier 1 (vehicle/walk-in access) **Free**; T2 pit toilet **$13 / $22**; T3 + tables/BBQ **$20 / $36**; T4 + shelters **$28 / $54**; T5 + flush toilet & cold shower **$38 / $65**; T6 + hot shower **$54 / $89** (low / peak season), ~**86% of campgrounds in tiers 2–5**, ~90 peak days per year, CPI-indexed annually. Sources **conflict on whether it is live**: the official consultation paper and a 22-Sep-2026 analysis say still *proposed* ("check current pricing before you book"; the Benerembah page still shows a $6 booking fee), while an Aug-2026 booking guide says it took effect 1 July 2026. **Treat the tier schedule as a model, not a price list.**
 
-### plan_v2.md user journeys: all 3 built end-to-end
+### B3. Realistic growth trajectory
 
-- **Choose:** NL prompt → LLM/deterministic extraction → strict eligibility → 3 ranked cards with why-it-fits + compromise + limiting-constraint explanations. ✔
-- **Prepare Together:** localStorage gear profile → reasoned checklist (borrow-first philosophy), food/shopping, departure tasks; shared Trip Room (`/trip/[token]` page) with votes, gear claims, tasks, preferences; shortlist overlap logic fixed (`crud/saved_trip.py`). ✔
-- **Stay Informed:** hourly worker → Open-Meteo forecast + web news scan → persistent alert → dashboard with Test Condition Shift + 1-click Switch Here. ✔ (delivery mechanism missing, see B3)
+| Stage | Records | How | Attribute completeness |
+|---|---|---|---|
+| Today | 32 | hand-written seed | Coordinates **wrong** (A2-7); fees **inconsistent** (A2-8) |
+| Stage 1 | **~1,000** | SEED bulk ingest (729 NPWS camping areas) + Forestry guide harvest (~15–40 in catchment) + rule-based dog/booking/free inference | Name, coords, `source_id`, access type, facility-tier proxy, dog policy, booking requirement — **all sourced**. Fees = tier *range*. Toilets/showers = tier proxy or `unknown` |
+| Stage 2 | ~1,000 enriched | Per-campground page harvest for the **top 60–100 catchment sites** | Explicit toilets/showers/water/BBQ, exact fee, deep booking link, park-entry fee |
+| Stage 3 | 273 → catchment-complete | Join Facility Point (10,287) + Hydraulic + Treatment Disposal + Road Section to the 273 catchment campgrounds | Derived facilities with per-asset provenance |
+| Discovery only | +N | OSM gap-detection (count TBD) | Coordinates + existence only |
 
-### PLAN.md v1 items
-
-- Answer-first finder, Plan B engine, tri-state trust dog/rig, printable pack, fire degradation rule, licensing-conscious stack (Open-Meteo, OSM/OSRM, FastAPI/PostGIS/Next.js/MapLibre), local-first LLM with Groq + deterministic fallbacks (Qwen3-9B via :8002 → Ollama → Groq → heuristics): **implemented, pilot-scale**.
-- Postponed items (crowd prediction, stargazing, comfort micro-forecasts, voice-to-text, rig-aware Valhalla routing): **correctly postponed** per plan.
-- Gaps vs v1: provenance fields (`source_id`, `source_url`, `last_verified_at`) exist in the model but are **not surfaced anywhere in the UI**; SEO is a single generic `/explore/[slug]` page, not the 30-50 targeted campground pages; programmatic booking "not checked" labeling not implemented (no booking data at all).
-
----
-
-## B. Data-availability audit: where features outrun the data
-
-**Data actually available today:** 22 seed campsites × 5 attributes (name, state, management_type, dog_friendly, rig_access, geometry), live Open-Meteo forecasts, live NSW RFS feed, raw DuckDuckGo/Tavily snippets, local LLM. That's it — no facilities, no fees, no booking data, no per-site fire rules, no reviews/photos.
-
-**B1. Fabricated content in the flagship recommendation cards** (trust-critical):
-- `main_compromise` is 5 **hardcoded canned lines rotated by index** (`recommendation_engine.py:142-149`) — invented site facts ("Basic drop toilets only", "Unsealed access track") applied to sites regardless of truth.
-- `estimated_cost` is templated from management type ("$24/night", "$18/night", "$38–$50") — **no fee data exists**.
-- `booking_url` defaults to `nationalparks.nsw.gov.au` (`recommendation_engine.py:182`) — seed.py sets no `source_url` at all, so **all 22 cards link to the NPWS homepage**, wrong for 6 of 8 states.
-- `highlight_badge` ("Conditions Pick", "Secluded Escape") is position-based, not data-based (`recommendation_engine.py:120`). No weather enters ranking.
-These directly contradict PLAN.md's defensible advantage ("accurate records, reliable monitoring, useful explanations, strict provenance") — the product's one proposed moat.
-
-**B2. Flagship demo presets mostly empty due to seed geometry.** Seed data has only **2 NSW sites** (national-icon spread across 8 states, vs PLAN.md's "regional pilot catchment"). Of the 4 homepage preset queries: "Sydney + Dog <3.5h" → **0 results** (nearest dog site is Johanna Beach VIC); "Family <2h" → **0 results**; "90-min overnight" → **0 results**; "4WD <4h" → 2 results. The answer-first hook showcases its limiting-constraint message instead of trips.
-
-**B3. Plan B's value is stranded on the server.** Alerts are written to DB as DELIVERED but **nothing notifies the camper** (no email exists in the codebase), and one alert turns monitoring off. TripCard's "Confirm & Monitor — We will alert you if the weather turns bad" is an unkeepable promise today.
-
-**B4. Promised-but-unmodeled constraints.** The preset prompt includes "toilets essential" — there is no facilities field anywhere, so this requirement is silently dropped, which plan_v2's own golden rule forbids ("Never silently drop requirements"). "Show options with showers" (What-If spec) is likewise unimplementable with current data.
-
-**B5. NL understanding gaps.** Extraction schema biases origin to "Sydney" or null (`llm_inference.py:140-146`); dates (Friday–Sunday) and party size are never extracted (`FindWeekendRequest` has `start_date/end_date` fields that nothing populates); planner hardcodes Sydney origin despite homepage geolocation (`FindWeekendPlanner.tsx:102-104`).
-
-**B6. Weak evidence channel for safety alerts.** Closure/fire alerts come from keyword-matching unvetted web snippets (`plan_b.py:87-112`) — any article containing "fire" escalates to a FIRE_DANGER alert and disables monitoring. PLAN.md specified structured feeds (RFS, BOM warnings, NPWS alerts) with evidence records.
-
-**B7. Drive times are approximations.** Ranking uses haversine × 1.25 (`recommendation_engine.py:26-29`) while the map view already uses real OSRM routing client-side — the two numbers a user sees can disagree.
+**Bottom line: 32 → ~1,000 sourced NSW records is realistic and mostly automatable, and the catchment subset is 273 NPWS camping areas alone — ~8.5× the current dataset from one CC-BY source.** The constraint is not *quantity*; it is that **exact fees and explicit facility booleans require per-page harvesting**, and everything else can be sourced in bulk today.
 
 ---
 
-## C. Verdict: does this help camp users?
+## Part C — Storage and space budget
 
-**Genuinely useful, differentiated today:**
-- Honest live NSW fire status with a real degradation rule (503 → banner) — competitors have documented data-drift complaints (campers "cross-check before driving"); this is the trust differentiator working as designed.
-- Plan B **pattern**: persistent alert → concrete alternatives preserving original constraints → 1-click switch. No competitor does this.
-- Group Trip Room (vote primary/backup, claim gear, shared tasks) — **no Australian competitor coordinates groups**; WikiCamps trips are solo.
-- Answer-first "3 trips that fit" vs 50,000 dots on a map — right differentiation thesis, and 2026 market commentary (post-G'day-Parks WikiCamps backlash: feature gutting, removed free-camp listings, forced rewrite) confirms the appetite for a trustworthy alternative.
+**Canonical records (Postgres + PostGIS).** A row with the current schema (name 40, state, management_type, two JSON blobs, fees, two URLs, `source_id`, `fire_district`, timestamps, one `POINT`) is ≈ **0.6–0.7 KB heap** + ≈ **0.3 KB indexes** (btree on name/state/source_id + GiST on location) ≈ **~1 KB/row all-in**.
 
-**Actively harmful or broken today:**
-- Fabricated cost/toilet/compromise claims and statewide-wrong booking links can mislead real campers planning real trips — worse than no answer.
-- "Toilets essential" accepted then ignored — erodes trust in the NL interface.
-- Plan B alerts never reach the user; monitoring self-disables; My Trips is unusable without the unbuilt email flow.
-- Non-NSW fire status synthesizes a "live Moderate" rating — a safety-adjacent fabrication.
+| Records | Table + indexes |
+|---|---|
+| 32 (today) | ~32 KB |
+| 1,000 | **~1 MB** |
+| 10,000 | ~10 MB |
+| 100,000 | ~100 MB |
+| 1,000,000 | ~1 GB |
 
-**Net:** the journeys and architecture match the plans well (~85% of plan_v2 fixes done), but the product currently outruns its data. It helps campers as a promising pilot, not yet as a trustworthy tool.
+**The database is a rounding error.** Even the full 729-record NPWS ingest plus every state-forest campground in Australia would not reach 10 MB. `db.query(Campsite).all()` + Python-side filtering (`recommendation_engine.py:38`) stays acceptable to ~10k rows; beyond that, push filtering into PostGIS (`ST_DWithin` / `ST_Distance`).
 
----
+**Everything else that actually consumes space:**
 
-## D. Competitive comparison (October 2026)
+| Item | Size | Notes |
+|---|---|---|
+| Geofabrik **NSW** extract (incl. ACT + JBT) | **256 MB** `.osm.pbf` | as of 2026-10-09; `.gpkg.zip` also offered |
+| Geofabrik **Australia** extract | **922 MB** `.osm.pbf` | only needed for national discovery |
+| Filtered `camp_site`-only GeoJSON (NSW) | ~3–8 MB | a few thousand features |
+| SEED download (Visitor Area + Facility Point) | ~10–50 MB | shapefile/GeoPackage/CSV |
+| Harvest cache — 1,000 campground pages | ~150 MB | ~150 KB/page |
+| Harvest cache with 4-week retention, weekly re-harvest | ~600 MB–1 GB | cap retention; do **not** keep raw responses forever |
+| Provenance/evidence rows (10 facts × 1,000 sites × weekly snapshots) | ~125 MB/yr | keep latest + last N snapshots only |
+| Offline **vector** tiles, NSW catchment z0–z13 | ~150–400 MB | Geofabrik publishes an experimental Shortbread MVT package for MapLibre |
+| Offline vector tiles, Australia z0–z13 | ~1.5–3 GB | |
+| Offline **raster** tiles (same areas) | 5–10× the vector figure | avoid unless required |
+| Photos (deferred) | ~1.2 GB / 1,000 sites at 5×200 KB | 10 GB at 10,000 sites |
+| Full `osm2pgsql` Australia import | hundreds of GB | **not needed** — use the filtered extract |
 
-| Capability | **Camp Smart** | WikiCamps AU | CamperMate | CAMPS Aus Wide | Hipcamp AU | NSW NPWS app |
-|---|---|---|---|---|---|---|
-| Scale | 22 curated, pilot | 65K+ crowd | Large AU/NZ | 15.5K verified | 50K+ private land | All NPWS sites |
-| Cost | Free (web) | $9.99 once (was $0.99 sale) | Free + ads | Free app | Booking + 10–15% fee | Free |
-| Answer-first ranked trips | ✔ unique | ✖ browse/filter | ✖ | ✖ | ✖ | ✖ |
-| Conditions monitoring + Plan B alternatives | Pattern ✔ (delivery ✖) | ✖ | ✖ | ✖ | ✖ | ✖ |
-| Group coordination (votes, gear, tasks) | ✔ unique | ✖ | ✖ | ✖ | ✖ | ✖ |
-| Freshness/provenance display | Designed, not surfaced | Crowd drift (2026 top complaint) | Similar drift | Editorial verify | Host-managed | Official |
-| Offline | Printable web pack only | **Full offline mode** | Full offline | Full offline | App-based | Partial |
-| Booking | Fallback links (NPWS default, wrong for 6 of 7 seeded states) | In-app, 4K+ sites, availability calendar | Bookable stays | ✖ | Core marketplace | Official booking |
-| Reviews/photos | ✖ | Rich community | Moderate | Some | Host-driven | ✖ |
-| Fire/ban safety | Live NSW only, honest degrade | ✖ | ✖ | ✖ | ✖ | Alerts |
-
-**Strategic takeaways:**
-1. **Don't compete on database size** (22 vs 65K is unfixable solo) — compete on *20–40 deeply verified answers within the pilot catchment* matched to PLAN.md's regional-pilot strategy. (CAMPS Australia Wide proves a small verified database wins trust.)
-2. **WikiCamps' ownership backlash is a documented opening**, but the trust pitch only lands once fabricated card fields are gone — trust must be shipped before scale.
-3. **Availability stays out of scope** (first-party booking APIs remain the unsolved industry gap; NPWS requires its own app) — the "Availability not checked" honest label from PLAN.md remains the right move.
-4. **Offline is the #1 user expectation** (RESEARCH.md + every 2026 review) — the printable pack is table stakes at best; PWA caching is the cheapest parity step.
+**Recommended budget: 20 GB for the pilot** (DB < 1 GB, archives ~1.5 GB, harvest cache ~1 GB, vector tiles ~0.5 GB, logs + headroom). **40 GB** if Australia-wide tiles or photos are added. 2 GB of Postgres `shared_buffers` is ample at this scale.
+⚠️ The DB currently shares an instance (`config.py:7`: `localhost:15432`, user `realestate_user`, db `camping_db`) with an unrelated project — isolate storage quotas and backups per database.
 
 ---
 
-## E. Recommended enhancement backlog (prioritized)
+## Part D — Will we have *relevant* data? (honest coverage matrix)
 
-### P0 — Make the product honest (trust fixes, before any growth)
+| Camper question | Best source | Obtainable at scale? | Today |
+|---|---|---|---|
+| Where can I camp ≤2h from Sydney? | SEED Visitor Area (273 in catchment) | **Yes** — bulk, CC-BY | 32 records, coords partly wrong |
+| Are dogs allowed? | Rule: NPWS no / State Forest yes | **Yes** — 2 citations cover ~1,000 sites | 13 hardcoded values |
+| Do I need to book? | Rule: NPWS all / Forestry none | **Yes** — rule-based | Engine emits the wrong value for free NPWS sites |
+| Is it free? | Tier 1 / State forest rule | **Yes** | 15 marked free, booking status wrong |
+| What does it cost? | NPWS tier schedule + per-campground page | **Partial** — tier derivable from `AssetStyle`; exact fee needs harvest; policy in transition | 8 sites share one invented figure |
+| Toilets / showers? | `AssetStyle` proxy + Facility Point (10,287) + page harvest | **Partial** — proxy in bulk, booleans via harvest | Invented per site; `bbq`/`shelter` not even modelled |
+| 2WD or 4WD? | `AssetType` + Road Section surface | **Partial** | Mixed into `rig_access` (plan_v2 #7 still open) |
+| Fire danger *at this site*? | RFS `fdrToban.xml` + `fire_district` | **Yes** — already built | Stored, **never wired up** |
+| Is it closed right now? | NPWS alerts + Forestry closures pages | **Yes** for closures | None; only keyword web search |
+| Is a site *available*? | No public API | **No** — industry-wide gap | Correctly out of scope; must render "Availability not checked" |
+| Reviews / photos? | None authoritative | **No** | None |
 
-1. **De-fabricate the recommendation card:**
-   - Remove the canned `main_compromise` rotation and templated `estimated_cost` (`recommendation_engine.py:142-163`).
-   - Add nullable structured fields to the Campsite model/seed: `fees` (nullable str), `facilities` (nullable JSON: toilets/showers/potable water), `booking_url` per site; render "Not verified yet" for nulls — the honest-unknowns rule already used for dogs.
-   - Seed all 22 sites with real `source_url` values; remove the statewide NPWS booking fallback.
-2. **Fix Plan B alert reach and persistence:**
-   - Add email delivery (transactional provider; per PLAN.md default channel) with honest `delivery_status` transitions (PENDING → SENT → FAILED + `retry_count` increments).
-   - Keep `plan_b_alert_active = True` across alerts (or explicit re-arm), per plan_v2's persistence requirement.
-   - Complete the sign-in flow: send the magic token by email (endpoint that issues + delivers it), since dashboard access currently has no legal path for real users.
-3. **Fix remaining safety fictions:**
-   - Non-NSW fire requests: return explicit "no live feed for this state — check official sources" (degradation pattern), never a synthesized `Moderate/live`.
-   - Parse the RFS feed per-district (or pin a pilot district) instead of first-keyword-in-whole-feed; determine Total Fire Ban from the declared TFB field, not the rating.
-4. **Finish plan_v2 fix #5:** replace `sentiment_score` with attributed observations (nullable; "unknown" for missing) and surface retrieval time; delete the 24h insights cache for anything freshness-relevant.
-
-### P1 — Make the flagship flow real with pilot-catchment data (data depth)
-
-5. **Reseed for the pilot:** 25–40 canonical records within one catchment (e.g., ≤3.5h of Sydney per PLAN.md's "one state and city catchment"), with facilities, fees, booking URLs, per-site fire-rule notes and provenance (`source_url`, `last_verified_at`) — target PLAN.md's own Week-1 bar of 25 proven records, concentrated instead of national. Ensure ≥8 dog-friendly and ≥1 within 90 min so all 4 preset queries return trips.
-6. **Facilities constraints end-to-end:** extend NL extraction + `FindWeekendRequest` + eligibility with `toilets`/`showers`; never accept a constraint the data can't evaluate — echo it back as unsupported ("facility info not yet verified for this region").
-7. **Weather-conditioned ranking:** extract dates + party size into `start_date`/`end_date`; rank eligible sites by Open-Meteo forecast for the actual window; make "Conditions Pick" and per-trip weather on planner cards real.
-8. **Real drive times server-side:** call OSRM (already used in the map view) from the recommendation engine, with the haversine ×1.25 approximation as explicit fallback; use browser geolocation origin in the planner instead of hardcoded Sydney.
-
-### P2 — Parity and growth
-
-9. Wire the What-If `/trips/adjust` through the LLM path (currently deterministic-only) for instructions the heuristics can't parse ("leave Saturday morning"), with heuristic fallback — matches plan_v2's conversational AI spec.
-10. Trip Room polish: surface `room_token` linkage from Save Trip flow and shortlist dedupe already in crud; add per-campsite SEO pages for the 25-40 canonical records (PLAN.md's 30-50 page target) with live fire-state rendering and the degradation banner.
-11. Offline parity step: PWA caching of saved trips/pack content (service worker), ahead of any native app.
-
-### Explicitly out of scope (unchanged from plans)
-Real-time booking availability, crowd prediction, stargazing/comfort micro-forecasts, SMS (email-first per PLAN.md), national coverage.
+**Verdict: yes — relevant data is realistically obtainable, and cheaply.** Three of the four highest-value camper questions (dogs, booking, free/paid) become *sourced* for ~1,000 sites from two rules plus one CC-BY bulk download. Coverage grows ~30× on coordinates and identity alone. The genuinely hard residue is exact fees and explicit facility booleans, which need a rate-limited page harvester — and the honest fallback for those is a **tier-derived range plus `unknown`**, not a plausible-looking number. That is precisely the trust posture the plans claim as the moat, and it is the opposite of what the current seed does.
 
 ---
 
-## F. Validation plan
+## Part E — Execution plan
 
-- **Existing suite:** `make test-backend` (7 test files cover campsites auth/201, recommendations incl. golden rules, saved-trips auth, plan B persistence/switch/simulate, fire degradation, preparation, health) — must stay green.
-- **New tests to add with the backlog:**
-  - Recommendation card provenance: cards contain no canned compromise text; cost/booking fields are null or sourced (assert against seed fixture).
-  - Fire: non-NSW returns the unavailable contract (not `live/Moderate`); mock feed high-rating in one district → state rating not escalated.
-  - Plan B: alert does not flip `plan_b_alert_active`; delivery status transitions PENDING→SENT with mocked sender; FAILED increments retry.
-  - Facilities: prompt with "toilets essential" filters correctly when data exists and reports unsupported when null.
-- **Manual pilot check:** run all 4 preset queries after reseeding — each returns ≥1 trip card, each card's booking link resolves to the correct booking body, My Trips token arrives by email end-to-end.
+### Phase 0 — Stop the bleeding (correctness/security; do first)
+1. **Remove the token from the magic-link response.** `MagicLinkResponse` → `{message}` only; delete `token`/`magic_link` from `schemas/auth.py`. Add nonce + expiry + `used_at` to a token table; fail closed on default `SECRET_KEY`. Update `test_auth.py` to assert the response body contains **no** token and that a guessed token is rejected.
+2. **Add alert dedupe/cooldown** in `plan_b.py` (suppress same `(trip, alert_type)` within 24h unless severity escalates; one alert per news source URL per trip). Test: two consecutive worker passes with an unchanged forecast produce **exactly one** alert row and one email.
+3. **Make delivery status truthful.** `_send()` returns `False`/`DISABLED` with no transport configured; persist outbox to a table; assert transport at worker startup. Test: with `SMTP_HOST` unset, status is **not** `SENT`.
+4. **Wire `fire_district` end-to-end** (API → card → campsite/SEO/pack pages → `/fire-status?district=`). Test: an Illawarra/Shoalhaven site queries that district, not Greater Sydney.
+5. **Fix rating coercion** to `"No Rating"` and route unparseable feeds to 503. Test both.
+6. **Make Plan B alternatives intent-aware and weather-checked** by reusing `RecommendationEngine`; generate the reason string only from checked facts. Test: alternatives respect `max_drive_hours`/`origin`/`has_dog`/`rig_access` and each candidate's own forecast is evaluated.
+
+### Phase 1 — Quarantine and re-source the existing 32 records
+7. **Freeze hand-written values as `unverified`.** Add `data_status` (`verified` | `rule_derived` | `unverified`) and `verified_at`/`evidence_url` per fact; mark all 32 current records `unverified` so nothing invented is presented as canonical.
+8. **Correct the three provable coordinate errors** (Daly's Clearing, Wingello, The Pines/Turpentine) against the published Forestry GPS, and move Green Patch to Jervis Bay Territory with its own fire-district rule.
+9. **Replace flat fee strings with a fee model:** `fee_tier` (1–6, nullable), `fee_low`, `fee_peak`, `fee_basis`, `fee_as_of`, `fee_source_url`; render as a range with "verify at booking". Never a single invented number.
+10. **Fix booking status** to honour the NPWS "booking required for all campgrounds" rule, distinct from Forestry "no booking required".
+
+### Phase 2 — Bulk ingest the authoritative NSW layer (32 → ~1,000)
+11. **Measure the OSM baseline first** (Overpass was unreachable here): count `tourism=camp_site` for NSW and Australia so the discovery layer can be scoped on facts.
+12. **Build the SEED ingester.** Download the Visitor Area + Facility Point artefacts from Data.NSW/SEED (**not** the REST query — geometry is suppressed). Page through `maxRecordCount=5000`. Map `SAPFLID`→`source_id`, `AssetName`→`name`, `AssetType`→access mode, `AssetStyle`→`fee_tier` proxy + facility expectations. **Reproject GDA94 (EPSG:4283) → WGS84 (EPSG:4326)** to match `Geometry(srid=4326)`. Split JBT/ACT out of the NSW extract explicitly.
+13. **Apply the four rule-based inferences** (dogs NPWS/Forestry, booking, free) with the citation stored as evidence per record.
+14. **Build the Forestry harvester** for campground names + GPS + facility lines from the guide and per-forest pages: rate-limited, cached with `retrieved_at`, robots/ToS-checked, parser-versioned, and idempotent.
+15. **Keep OSM in a separate table** (`osm_discovery`) with no foreign key into `canonical_campsites`, per PLAN.md's ODbL isolation requirement. Use it only to surface gaps for human review.
+
+### Phase 3 — Enrich the catchment, then wire the product
+16. **Harvest per-campground NPWS pages for the top 60–100 catchment sites** to obtain explicit toilets/showers/water/BBQ, exact fees, deep booking links and park-entry fees. Extend the `facilities` JSON with `bbq`, `shelter`, `disabled_access` (required before tier derivation is meaningful).
+17. **Build facility constraints end-to-end** (plan_v3 Task 4.1, still open): add `requires_toilets/showers/drinking_water/campfires` to `FindWeekendRequest`, extract them in `llm_inference` (regex + LLM), filter strictly in eligibility, and **echo unsupported requirements back** instead of silently dropping them.
+18. **Server-side OSRM routing** with the haversine ×1.25 fallback, so card drive-times match the map view; finish geolocation forwarding on the on-mount path.
+19. **Surface provenance in the UI** — `last_verified_at`, `data_status`, source link, and the SEED attribution string — delivering PLAN.md's "see where every answer came from" promise, which is still invisible to users.
+20. **Publish a data-provenance/attribution page** listing every source, licence, retrieval time and the CC-BY attribution text.
+
+### Phase 4 — Parity (unchanged from plan_v3 Phase 5)
+21. Conversational `/trips/adjust` via the local LLM with deterministic fallback.
+22. Per-campground SEO pages for the verified catchment set, rendering **live** fire status with the degradation banner, plus `sitemap.ts`.
+23. PWA service worker caching saved trips and the offline pack.
 
 ---
 
-## G. Key evidence index
-- Canned compromises/costs/booking fallback: `backend/app/services/recommendation_engine.py:142-182`
-- Monitoring self-disable + fake DELIVERED: `backend/app/worker/plan_b.py:74-80`
-- Synthesized non-NSW fire rating + naive parsing: `backend/app/api/v1/endpoints/fire_status.py:17-41`
-- Sentiment insights + 24h cache: `backend/app/api/v1/endpoints/campsites.py:19-27`
-- Sydney-biased/limited extraction, no dates/party size: `backend/app/services/llm_inference.py:138-146`, `app/schemas/trip_recommendation.py:4-14`
-- Seed: 22 sites, 2 NSW, 4 dog-friendly, zero `source_url`/facilities/fees: `backend/seed.py`
-- Historical-vs-forecast honesty done right: `frontend/src/components/TripCard.tsx:125-154`
--Competitor sources: wikicamps.com.au, Periple RV app guide (Sep 2026), Conquer Australia app guide (Jul 2026), Big Lap Bible (Feb 2026), OzBargain community thread (Dec 2025).
+## Part F — Validation
+
+- **Regression suite:** `make test-backend` must stay green (7 existing files), plus `npx tsc --noEmit` and `npm run lint` at 0 errors, per plan_v3's quality gates.
+- **New tests required by this plan:**
+  - Auth: magic-link response body contains **no** token; expired/used/guessed tokens rejected; default `SECRET_KEY` fails closed.
+  - Plan B: two identical worker passes → one alert, one email; alternatives honour saved origin/drive limit/rig/dog; each candidate's forecast evaluated.
+  - Delivery: no transport → status is not `SENT`.
+  - Fire: site in Illawarra/Shoalhaven queries its own district; missing/unparseable rating → `"No Rating"`, not `"Moderate"`; non-NSW → `status:"unavailable"`.
+  - Data integrity: **no two campgrounds may share an identical non-null fee string unless they share a `fee_tier` and source** (this single assertion would have caught A2-8); every record with `data_status="verified"` has `evidence_url` and `verified_at`.
+  - Ingest: SEED row count matches 729 statewide / 273 in catchment; EPSG:4283→4326 reprojection round-trips within 1 m; JBT records are not labelled NSW.
+  - Facilities: a prompt containing "toilets essential" either filters correctly or reports the constraint as unsupported — never silently ignored.
+- **Manual pilot check:** all 4 homepage presets return ≥1 card; each card's fee shows a sourced range; each booking link resolves to the correct body; a saved trip receives exactly one email per condition change; campsite pages show the correct district's live fire rating.
+
+---
+
+## Part G — Open decision and out-of-scope
+
+**One decision materially changes Phase 2–3 scope** (recommended default baked into the plan above):
+
+> **Enrichment depth vs breadth.** *Recommended:* bulk-ingest ~1,000 sourced records now (identity, coordinates, `source_id`, access type, tier proxy, plus rule-based dogs/booking/free), then page-harvest **only the top 60–100 catchment sites** for exact facilities and fees, rendering tier-derived **ranges + `unknown`** everywhere else. *Alternative:* skip bulk ingest and hand-verify 60 sites deeply — faster to "all verified", but forfeits the ~8.5× catchment coverage and the provenance story that differentiates the product. The recommendation follows PLAN.md's pilot strategy while making the honest-unknown state visible rather than papering over it.
+
+**Explicitly out of scope:** real-time campsite availability (no public API exists; render "Availability not checked"), crowd prediction, stargazing/comfort micro-forecasts, SMS delivery (email-first per PLAN.md), reviews/photos, national (non-NSW) coverage, and any reuse of `CC-BY-NC*` Forestry datasets in the monetized product without written confirmation.

@@ -7,12 +7,29 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Delivery outcomes. These are recorded verbatim on PlanBAlert.delivery_status,
+# so they must never overstate what actually happened.
+STATUS_SENT = "SENT"                      # accepted by the SMTP transport
+STATUS_FAILED = "FAILED"                  # transport configured, send raised
+STATUS_QUEUED_OUTBOX = "QUEUED_OUTBOX"    # dev/test outbox: recorded, NOT delivered
+STATUS_DISABLED = "DISABLED"              # no transport configured: nothing left the process
+
+
 class EmailService:
     def __init__(self):
-        # In-memory outbox for testing, verification, and inspection
+        # In-memory outbox for testing, verification, and inspection.
+        # Recording here is NOT delivery.
         self.outbox: List[Dict[str, Any]] = []
 
-    def send_magic_link(self, recipient_email: str, magic_url: str) -> bool:
+    @property
+    def transport(self) -> str:
+        return (settings.EMAIL_TRANSPORT or "none").strip().lower()
+
+    @property
+    def delivers_for_real(self) -> bool:
+        return self.transport == "smtp" and bool(settings.SMTP_HOST)
+
+    def send_magic_link(self, recipient_email: str, magic_url: str) -> str:
         subject = "Your Camp Smart Australia Access Link"
         html = f"""
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #071714; color: #ffffff; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid rgba(0, 255, 136, 0.2);">
@@ -40,7 +57,7 @@ class EmailService:
         reason: str,
         switch_url: str,
         alternatives: List[Dict[str, Any]]
-    ) -> bool:
+    ) -> str:
         subject = f"⚠️ Plan B Alert: Important condition shift for {trip_name}"
         alts_items = ""
         for a in alternatives:
@@ -82,7 +99,7 @@ class EmailService:
     def clear_outbox(self):
         self.outbox.clear()
 
-    def _send(self, to_email: str, subject: str, html_body: str) -> bool:
+    def _send(self, to_email: str, subject: str, html_body: str) -> str:
         record = {
             "to": to_email,
             "to_email": to_email,
@@ -91,10 +108,16 @@ class EmailService:
             "body_html": html_body
         }
         self.outbox.append(record)
-        logger.info(f"📧 [Email Dispatched] To: {to_email} | Subject: {subject}")
 
-        # If SMTP settings are configured, deliver via SMTP
-        if settings.SMTP_HOST:
+        transport = self.transport
+
+        if transport == "smtp":
+            if not settings.SMTP_HOST:
+                logger.error(
+                    "EMAIL_TRANSPORT=smtp but SMTP_HOST is unset; cannot deliver to %s",
+                    to_email,
+                )
+                return STATUS_FAILED
             try:
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = subject
@@ -106,11 +129,48 @@ class EmailService:
                         server.starttls()
                         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                     server.sendmail(msg["From"], [to_email], msg.as_string())
-                return True
+                logger.info("📧 [Email Sent] To: %s | Subject: %s", to_email, subject)
+                return STATUS_SENT
             except Exception as e:
-                logger.error(f"Failed to send email via SMTP: {e}")
-                return False
-        return True
+                logger.error("Failed to send email via SMTP to %s: %s", to_email, e)
+                return STATUS_FAILED
+
+        if transport == "outbox":
+            logger.info(
+                "📧 [Queued to outbox — NOT delivered] To: %s | Subject: %s",
+                to_email,
+                subject,
+            )
+            return STATUS_QUEUED_OUTBOX
+
+        logger.warning(
+            "📧 [NOT delivered — no email transport configured] To: %s | Subject: %s. "
+            "Set EMAIL_TRANSPORT=smtp (or 'outbox' for development) to deliver mail.",
+            to_email,
+            subject,
+        )
+        return STATUS_DISABLED
+
+
+def warn_if_no_email_transport(context: str) -> None:
+    """
+    Loud startup notice when Plan B alerts and magic links cannot reach campers.
+    The feature is only as good as its delivery, so this must not fail silently.
+    """
+    if email_service.delivers_for_real:
+        logger.info("[%s] Email transport ready (smtp -> %s)", context, settings.SMTP_HOST)
+        return
+
+    logger.warning(
+        "[%s] EMAIL_TRANSPORT='%s' — outbound email will NOT reach campers. "
+        "Magic sign-in links and Plan B alerts will be recorded as %s, not %s. "
+        "Configure SMTP_HOST and EMAIL_TRANSPORT=smtp for real delivery.",
+        context,
+        email_service.transport,
+        STATUS_QUEUED_OUTBOX if email_service.transport == "outbox" else STATUS_DISABLED,
+        STATUS_SENT,
+    )
+
 
 # Global singleton
 email_service = EmailService()

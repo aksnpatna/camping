@@ -42,6 +42,12 @@ export interface TripCardData {
   availability_window?: string;
   booking_url: string | null;
   management_type: string | null;
+  facilities?: Record<string, unknown> | null;
+  fees?: string | null;
+  fire_district?: string | null;
+  data_status?: string | null;
+  source_url?: string | null;
+  evidence_url?: string | null;
 }
 
 interface FindWeekendResponse {

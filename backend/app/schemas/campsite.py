@@ -14,6 +14,13 @@ class CampsiteBase(BaseModel):
     fire_district: Optional[str] = None
     source_id: Optional[str] = None
     source_url: Optional[str] = None
+    # Provenance, so a consumer can tell a sourced record from a hand-written one.
+    data_status: Optional[str] = None
+    evidence_url: Optional[str] = None
+    access_type: Optional[str] = None
+    lga: Optional[str] = None
+    npws_branch: Optional[str] = None
+    asset_comments: Optional[str] = None
 
 class CampsiteCreate(CampsiteBase):
     longitude: float
@@ -23,6 +30,7 @@ class CampsiteResponse(CampsiteBase):
     id: int
     longitude: float
     latitude: float
+    verified_at: Optional[datetime] = None
     last_verified_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
