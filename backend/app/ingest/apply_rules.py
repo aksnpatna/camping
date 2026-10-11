@@ -105,6 +105,38 @@ CANONICAL_RULES = [
         "description": "Standard QPWS camping fee is $7.75 per person per night ($31.00 per family per night).",
         "effective_from": date(2026, 7, 1),
     },
+    {
+        "land_manager": "DBCA",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://exploreparks.dbca.wa.gov.au/know-before-you-go/pets-parks",
+        "description": "Domestic pets are strictly prohibited in Western Australia national parks due to native wildlife protection and 1080 baiting.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "DBCA",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://parkstay.dbca.wa.gov.au/",
+        "description": "Advance booking via Park Stay WA is required for bookable DBCA campgrounds.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "NPWSA",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://www.parks.sa.gov.au/know-before-you-go/pets-in-parks",
+        "description": "Dogs are prohibited in South Australian national parks and conservation reserves under the National Parks and Wildlife Act 1972.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "NPWSA",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://www.parks.sa.gov.au/booking",
+        "description": "Advance online booking is required for all campgrounds managed by National Parks and Wildlife Service South Australia.",
+        "effective_from": date(2020, 1, 1),
+    },
 ]
 
 
@@ -214,11 +246,6 @@ def apply_policy_rules(db: Session, overwrite_verified: bool = False) -> Dict[st
                 site.evidence_url = pv_rules["dog_friendly"].evidence_url
                 site.data_status = DATA_STATUS_RULE_DERIVED
                 changed = True
-            if "booking_status" in pv_rules and not site.booking_status:
-                site.booking_status = pv_rules["booking_status"].value
-                site.evidence_url = pv_rules["booking_status"].evidence_url
-                site.data_status = DATA_STATUS_RULE_DERIVED
-                changed = True
             if not site.booking_url:
                 site.booking_url = "https://www.parks.vic.gov.au/stay"
                 changed = True
@@ -238,6 +265,30 @@ def apply_policy_rules(db: Session, overwrite_verified: bool = False) -> Dict[st
                 changed = True
             if not site.booking_url:
                 site.booking_url = "https://parks.des.qld.gov.au/camping"
+                changed = True
+
+        # 6. DBCA Western Australia rules
+        elif "DBCA" in mgmt or site.state == "WA":
+            dbca_rules = rules_by_manager.get("DBCA", {})
+            if "dog_friendly" in dbca_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = dbca_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://parkstay.dbca.wa.gov.au/"
+                changed = True
+
+        # 7. NPWSA South Australia rules
+        elif "NPWSA" in mgmt or "DEW" in mgmt or site.state == "SA":
+            sa_rules = rules_by_manager.get("NPWSA", {})
+            if "dog_friendly" in sa_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = sa_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://www.parks.sa.gov.au/booking"
                 changed = True
 
         if changed:
