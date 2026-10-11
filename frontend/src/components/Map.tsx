@@ -16,6 +16,9 @@ export interface Campsite {
   management_type?: string;
   dog_friendly?: boolean;
   rig_access?: string[];
+  booking_url?: string;
+  facilities?: Record<string, unknown>;
+  fees?: string;
   source_url?: string;
 }
 

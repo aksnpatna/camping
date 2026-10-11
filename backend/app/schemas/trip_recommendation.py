@@ -29,6 +29,8 @@ class TripRecommendationCard(BaseModel):
     main_compromise: str
     estimated_cost: str
     booking_status: str
+    booking_type: str = "FIRST_COME_FIRST_SERVED"
+    availability_window: str = ""
     booking_url: Optional[str] = None
     management_type: Optional[str] = None
     facilities: Optional[Dict[str, Any]] = None

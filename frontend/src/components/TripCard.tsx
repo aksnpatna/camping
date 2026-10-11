@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Flame, CloudRain, MapPin, X, Dog, Car, Sun } from "lucide-react";
+import { Flame, CloudRain, MapPin, X, Dog, Car, Sun, Clock, ExternalLink } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
 
@@ -410,23 +410,69 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
             {saveError && <div className="text-red-400 text-xs text-center">{saveError}</div>}
           </div>
         ) : (
-          <button 
-            onClick={() => setIsSaving(true)}
-            className="w-full py-3 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-bold rounded-xl transition-all shadow-[0_4px_20px_rgba(0,255,136,0.2)] hover:shadow-[0_4px_25px_rgba(0,255,136,0.4)]"
-          >
-            Save Trip & Monitor for Plan B
-          </button>
+          <div className="space-y-3">
+            {/* AVAILABILITY STRATEGY & BOOKING WINDOW */}
+            {(() => {
+              const mLower = (campsite.management_type || "").toLowerCase();
+              const feeLower = (campsite.fees || "").toLowerCase();
+              const isFree = feeLower.includes("$0") || feeLower.includes("free");
+
+              let badgeText = "Operator Booking";
+              let badgeColor = "bg-blue-500/20 text-blue-300 border-blue-500/30";
+              let strategy = "Bookings open via operator portal. Weekend sites typically fill 1–2 weeks ahead in warm seasons.";
+
+              if (mLower.includes("forestry") || mLower.includes("state forest") || (mLower.includes("council") && isFree)) {
+                badgeText = "No Booking Required (First-Come)";
+                badgeColor = "bg-emerald-500/20 text-[var(--color-neon-green)] border-emerald-500/30";
+                strategy = "100% Free & Unreserved. Arrive before 4:00 PM on Friday to secure a prime creek or forest camp.";
+              } else if (mLower.includes("npws") || mLower.includes("national park") || mLower.includes("parks australia")) {
+                if (isFree) {
+                  badgeText = "Free Permit ($0)";
+                  badgeColor = "bg-teal-500/20 text-teal-300 border-teal-500/30";
+                  strategy = "Online registration required ($0 entry). Generally available outside peak public holiday weekends.";
+                } else {
+                  badgeText = "Online Booking Required (NPWS)";
+                  badgeColor = "bg-amber-500/20 text-amber-300 border-amber-500/30";
+                  strategy = "180-day advance booking window via NPWS. Popular beach and valley spots book 2–3 weeks in advance.";
+                }
+              }
+
+              return (
+                <div className="bg-black/40 border border-emerald-500/20 p-3 rounded-xl text-xs">
+                  <div className="flex items-center justify-between mb-1.5 gap-2">
+                    <span className="font-bold text-[10px] uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                      <Clock size={12} /> Availability Strategy
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${badgeColor}`}>
+                      {badgeText}
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-[11px] leading-relaxed">
+                    {strategy}
+                  </p>
+                </div>
+              );
+            })()}
+
+            <button 
+              onClick={() => setIsSaving(true)}
+              className="w-full py-3 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-bold rounded-xl transition-all shadow-[0_4px_20px_rgba(0,255,136,0.2)] hover:shadow-[0_4px_25px_rgba(0,255,136,0.4)] cursor-pointer"
+            >
+              Save Trip & Monitor for Plan B
+            </button>
+          </div>
         )}
       </div>
 
       <div className="mt-2">
         <a 
-          href={campsite.source_url || `https://www.google.com/search?q=book+${encodeURIComponent(campsite.name)}+camping`}
+          href={campsite.booking_url || campsite.source_url || `https://www.google.com/search?q=book+${encodeURIComponent(campsite.name)}+camping`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex justify-center items-center w-full py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-all text-sm border border-white/20"
+          className="flex justify-center items-center gap-1.5 w-full py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all text-xs border border-white/20 cursor-pointer"
         >
-          View Booking Info & Availability
+          <span>View Booking / Permit Details</span>
+          <ExternalLink size={13} />
         </a>
       </div>
     </div>

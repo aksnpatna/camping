@@ -138,5 +138,27 @@ def test_preset_4wd_under_4h():
     for card in data["cards"]:
         assert card["driving_time_minutes"] <= 4.0 * 60 + 30
 
+def test_cards_provide_availability_window_and_modality():
+    payload = {
+        "prompt": "Sydney camping trip with dog under 3.5h",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    cards = response.json()["cards"]
+    assert len(cards) >= 1
+    valid_modalities = {
+        "FIRST_COME_FIRST_SERVED",
+        "ONLINE_BOOKING_REQUIRED",
+        "FREE_REGISTRATION_REQUIRED",
+        "OPERATOR_PORTAL"
+    }
+    for card in cards:
+        assert "booking_type" in card
+        assert card["booking_type"] in valid_modalities
+        assert "availability_window" in card
+        assert len(card["availability_window"]) >= 20
+
 
 

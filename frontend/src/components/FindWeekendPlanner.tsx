@@ -15,7 +15,8 @@ import {
   Search,
   ArrowRight,
   Users,
-  ClipboardList
+  ClipboardList,
+  Clock
 } from "lucide-react";
 import { getApiUrl } from "@/config";
 import PreparationBoard from "./PreparationBoard";
@@ -37,6 +38,8 @@ export interface TripCardData {
   main_compromise: string;
   estimated_cost: string;
   booking_status: string;
+  booking_type?: string;
+  availability_window?: string;
   booking_url: string | null;
   management_type: string | null;
 }
@@ -392,14 +395,43 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                       <p>{card.main_compromise}</p>
                     </div>
 
-                    {/* COST & BOOKING */}
-                    <div className="flex items-center justify-between text-xs text-gray-300 py-2 border-t border-white/10 mb-4">
+                    {/* AVAILABILITY STRATEGY & BOOKING WINDOW */}
+                    <div className="bg-black/40 border border-emerald-500/20 p-3 rounded-xl mb-4 text-xs">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <span className="font-bold text-[10px] uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                          <Clock size={12} /> Availability Strategy
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                          card.booking_type === "FIRST_COME_FIRST_SERVED"
+                            ? "bg-emerald-500/20 text-[var(--color-neon-green)] border border-emerald-500/30"
+                            : card.booking_type === "ONLINE_BOOKING_REQUIRED"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : card.booking_type === "FREE_REGISTRATION_REQUIRED"
+                            ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                            : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                        }`}>
+                          {card.booking_type === "FIRST_COME_FIRST_SERVED"
+                            ? "No Booking Required"
+                            : card.booking_type === "ONLINE_BOOKING_REQUIRED"
+                            ? "Online Booking Req"
+                            : card.booking_type === "FREE_REGISTRATION_REQUIRED"
+                            ? "Free Permit ($0)"
+                            : "Operator Portal"}
+                        </span>
+                      </div>
+                      <p className="text-gray-300 text-[11px] leading-relaxed">
+                        {card.availability_window || card.booking_status}
+                      </p>
+                    </div>
+
+                    {/* COST */}
+                    <div className="flex items-center justify-between text-xs text-gray-300 py-1.5 border-t border-white/10 mb-4">
                       <div>
                         <span className="text-gray-400">Estimated Cost: </span>
                         <span className="font-bold text-white">{card.estimated_cost}</span>
                       </div>
-                      <div className="font-medium text-[11px] text-emerald-300">
-                        {card.booking_status}
+                      <div className="font-medium text-[11px] text-gray-400">
+                        {card.management_type || "Verified Reserve"}
                       </div>
                     </div>
                   </div>

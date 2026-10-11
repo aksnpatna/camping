@@ -525,6 +525,32 @@ db.commit()
 
 ---
 
+### Task 3.2: Truthful Availability Windows, Booking Modality & Date Deep-Links
+**Goal:** Answer the camper's primary dilemma (*"Do I need to book in advance or can I just pack the car and go?"*) with truthful booking modalities and realistic availability windows, without violating the `AGENTS.md` legal constraint against fragile/prohibited NPWS headless scraping.
+
+**Modality Architecture:**
+1. **`FIRST_COME_FIRST_SERVED` (Forestry Corporation NSW & Free Council Reserves):**
+   - E.g.: *The Pines*, *Turpentine*, *Daly's Clearing*, *Telegherry*, *Old Ford Reserve*.
+   - Badge: `🟢 No Booking Required (First-Come, First-Served)`
+   - Window Advice: *"No booking required. Arrive before 4:00 PM on Friday to secure a prime creek/forest spot."*
+2. **`ONLINE_BOOKING_REQUIRED` (Popular NPWS Campgrounds):**
+   - E.g.: *Bonnie Vale*, *Euroka*, *Green Patch*, *Pebbly Beach*, *Depot Beach*.
+   - Badge: `🟡 Online Booking Required`
+   - Window Advice: *"Bookings open 180 days in advance via NPWS. Typically booked out 2–3 weeks ahead for summer/autumn weekends."*
+3. **`FREE_REGISTRATION_REQUIRED` (Low-pressure NPWS Bush Camps):**
+   - E.g.: *Murphy's Glen*, *Newnes*, *Coorongooba*, *Wheeny Creek*.
+   - Badge: `🟢 Free Permit / Registration ($0)`
+   - Window Advice: *"Online registration required ($0 entry). Generally available outside peak long weekends."*
+4. **`OPERATOR_PORTAL` (Councils, WaterNSW, Private):**
+   - E.g.: *Bendeela*, *Upper Colo Reserve*, *Lake Lyell*, *Glenworth Valley*.
+   - Badge: `🔵 Operator Booking Required`
+   - Window Advice: *"Bookings open on operator portal. Weekend sites fill 1–2 weeks ahead in peak seasons."*
+
+**Date Deep-Linking:**
+When trip start and end dates are specified in the search query, generate prefilled booking deep-links where supported by the operator portal, directing users directly to the specific campground date picker.
+
+---
+
 ## Phase 4 (P1): Facilities Constraints & Server-Side OSRM
 
 ### Task 4.1: Natural Language Facilities Extraction & Strict Filtering

@@ -168,12 +168,27 @@ class RecommendationEngine:
             cost = site.fees or "Fee unverified"
             booking_url = site.booking_url or site.source_url
             
-            if booking_url:
-                status = "Direct Reservation Required"
-            elif site.fees and ("$0" in site.fees or "free" in site.fees.lower()):
-                status = "Free / First-Come, First-Served"
+            m_lower = (site.management_type or "").lower()
+            fee_lower = (site.fees or "").lower()
+            is_free = "$0" in fee_lower or "free" in fee_lower
+
+            if "forestry" in m_lower or "state forest" in m_lower or ("council" in m_lower and is_free):
+                booking_type = "FIRST_COME_FIRST_SERVED"
+                status = "No Booking Required (First-Come, First-Served)"
+                avail_window = "No booking required. Arrive before 4:00 PM on Friday to secure a prime creek or forest spot."
+            elif "npws" in m_lower or "national park" in m_lower or "parks australia" in m_lower:
+                if is_free:
+                    booking_type = "FREE_REGISTRATION_REQUIRED"
+                    status = "Free Permit / Registration ($0)"
+                    avail_window = "Online registration required ($0 entry). Generally available outside peak long weekends."
+                else:
+                    booking_type = "ONLINE_BOOKING_REQUIRED"
+                    status = "Online Booking Required (NPWS)"
+                    avail_window = "Bookings open 180 days in advance via NPWS. Typically booked out 2–3 weeks ahead for summer/autumn weekends."
             else:
-                status = "Booking Details Unverified"
+                booking_type = "OPERATOR_PORTAL"
+                status = "Operator Booking Required"
+                avail_window = "Bookings open on operator portal. Peak weekend sites typically fill 1–2 weeks ahead in warm seasons."
 
             # Honest badge derivation
             if dist_km < 120:
@@ -203,6 +218,8 @@ class RecommendationEngine:
                 main_compromise=main_compromise,
                 estimated_cost=cost,
                 booking_status=status,
+                booking_type=booking_type,
+                availability_window=avail_window,
                 booking_url=booking_url,
                 management_type=site.management_type,
                 facilities=site.facilities,
