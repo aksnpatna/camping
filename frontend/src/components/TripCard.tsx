@@ -176,27 +176,33 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
   if (!campsite) return null;
 
   return (
-    <div className="absolute top-6 left-6 w-96 max-w-[calc(100vw-3rem)] glass-panel rounded-2xl p-6 z-10 animate-fade-in flex flex-col gap-5 text-[var(--foreground)]">
-      <button 
-        onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors"
-      >
-        <X size={18} />
-      </button>
-
-      <div>
-        <div className="flex items-center gap-2 text-[var(--color-neon-green)] text-sm font-semibold mb-1 uppercase tracking-wider">
-          <MapPin size={14} />
-          {campsite.state} • {campsite.management_type || "Verified"}
+    <div className="absolute top-4 left-4 md:top-6 md:left-6 w-96 max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100%-2rem)] md:max-h-[calc(100%-3rem)] glass-panel rounded-2xl z-20 animate-fade-in flex flex-col text-[var(--foreground)] shadow-2xl overscroll-contain overflow-hidden border border-white/20">
+      {/* Sticky Header with Title and Close Button */}
+      <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md px-5 pt-4 pb-3 border-b border-white/10 flex justify-between items-start shrink-0">
+        <div className="pr-4">
+          <div className="flex items-center gap-2 text-[var(--color-neon-green)] text-xs font-semibold mb-0.5 uppercase tracking-wider">
+            <MapPin size={13} />
+            {campsite.state} • {campsite.management_type || "Verified"}
+          </div>
+          <h2 className="text-xl md:text-2xl font-bold leading-tight">{campsite.name}</h2>
         </div>
-        <h2 className="text-2xl font-bold">{campsite.name}</h2>
+        <button 
+          onClick={onClose}
+          className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
+          aria-label="Close campsite details"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Scrollable Body */}
+      <div className="p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-4 custom-scrollbar">
         {aiSummary && (
-          <p className="text-sm text-gray-300 mt-2 leading-relaxed border-l-2 border-white/20 pl-3">
+          <p className="text-sm text-gray-300 leading-relaxed border-l-2 border-white/20 pl-3">
             <span className="font-semibold text-white/50 text-xs block mb-1">AI Pitch</span>
             {aiSummary}
           </p>
         )}
-      </div>
 
       {routeDistance !== undefined && routeDistance !== null && (
         <div className="flex gap-4 text-xs font-medium text-[var(--color-neon-green)] bg-white/5 p-2 rounded-lg border border-white/10">
@@ -474,6 +480,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
           <span>View Booking / Permit Details</span>
           <ExternalLink size={13} />
         </a>
+      </div>
       </div>
     </div>
   );
