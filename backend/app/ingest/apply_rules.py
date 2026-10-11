@@ -49,6 +49,62 @@ CANONICAL_RULES = [
         "description": "Camping in NSW State Forests is free and first-come, first-served with no booking required.",
         "effective_from": date(2020, 1, 1),
     },
+    {
+        "land_manager": "Parks Victoria",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://www.parks.vic.gov.au/things-to-do/dog-walking",
+        "description": "Dogs are prohibited in Victorian national parks and state parks under the National Parks Act 1975.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "Parks Victoria",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://www.parks.vic.gov.au/stay",
+        "description": "Advance online booking is required for bookable campgrounds managed by Parks Victoria.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "DEECA State Forests",
+        "field": "dog_friendly",
+        "value": "True",
+        "evidence_url": "https://www.exploreoutdoors.vic.gov.au/activities/dog-walking",
+        "description": "Dogs are welcome in Victorian State Forests under effective control on leash.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "DEECA State Forests",
+        "field": "fees",
+        "value": "$0 (Free)",
+        "evidence_url": "https://www.exploreoutdoors.vic.gov.au/activities/camping",
+        "description": "Camping in Victorian State Forests is free statewide with no booking required.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "QPWS",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://parks.des.qld.gov.au/plan-your-visit/rules",
+        "description": "Domestic dogs are prohibited in Queensland national parks under the Nature Conservation Act 1992.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "QPWS",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://parks.des.qld.gov.au/camping/booking-information",
+        "description": "Camping permits must be secured and paid online prior to arrival for all QPWS parks.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "QPWS",
+        "field": "fees",
+        "value": "$7.75/person/night",
+        "evidence_url": "https://parks.des.qld.gov.au/camping/fees",
+        "description": "Standard QPWS camping fee is $7.75 per person per night ($31.00 per family per night).",
+        "effective_from": date(2026, 7, 1),
+    },
 ]
 
 
@@ -116,8 +172,8 @@ def apply_policy_rules(db: Session, overwrite_verified: bool = False) -> Dict[st
                 site.booking_url = "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds"
                 changed = True
 
-        # 2. Forestry Corporation rules
-        elif "Forestry" in mgmt or "State Forest" in mgmt:
+        # 2. NSW Forestry Corporation rules
+        elif ("Forestry" in mgmt or "State Forest" in mgmt) and site.state == "NSW":
             fc_rules = rules_by_manager.get("Forestry Corporation", {})
             if "dog_friendly" in fc_rules and site.dog_friendly != True:
                 site.dog_friendly = True
@@ -131,6 +187,57 @@ def apply_policy_rules(db: Session, overwrite_verified: bool = False) -> Dict[st
                 changed = True
             if not site.booking_url:
                 site.booking_url = "https://www.forestrycorporation.com.au/visit/activities/camping"
+                changed = True
+
+        # 3. Victorian DEECA State Forests
+        elif ("DEECA" in mgmt or "State Forest" in mgmt) and site.state == "VIC":
+            deeca_rules = rules_by_manager.get("DEECA State Forests", {})
+            if "dog_friendly" in deeca_rules and site.dog_friendly != True:
+                site.dog_friendly = True
+                site.evidence_url = deeca_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if "fees" in deeca_rules and (not site.fees or site.data_status != DATA_STATUS_VERIFIED):
+                site.fees = deeca_rules["fees"].value
+                site.evidence_url = deeca_rules["fees"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://www.exploreoutdoors.vic.gov.au/activities/camping"
+                changed = True
+
+        # 4. Parks Victoria
+        elif "Parks Victoria" in mgmt or (site.state == "VIC" and "National Park" in mgmt):
+            pv_rules = rules_by_manager.get("Parks Victoria", {})
+            if "dog_friendly" in pv_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = pv_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if "booking_status" in pv_rules and not site.booking_status:
+                site.booking_status = pv_rules["booking_status"].value
+                site.evidence_url = pv_rules["booking_status"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://www.parks.vic.gov.au/stay"
+                changed = True
+
+        # 5. QPWS Queensland rules
+        elif "QPWS" in mgmt or site.state == "QLD":
+            qpws_rules = rules_by_manager.get("QPWS", {})
+            if "dog_friendly" in qpws_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = qpws_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if "fees" in qpws_rules and (not site.fees or site.data_status != DATA_STATUS_VERIFIED):
+                site.fees = qpws_rules["fees"].value
+                site.evidence_url = qpws_rules["fees"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://parks.des.qld.gov.au/camping"
                 changed = True
 
         if changed:
