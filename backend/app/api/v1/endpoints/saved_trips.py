@@ -22,6 +22,11 @@ router = APIRouter()
 
 @router.post("", response_model=SavedTripResponse)
 def create_saved_trip(trip: SavedTripCreate, db: Session = Depends(get_db)):
+    email = trip.user_email.strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1] or len(email) < 5:
+        raise HTTPException(status_code=400, detail="Invalid email address format")
+    if trip.start_date > trip.end_date:
+        raise HTTPException(status_code=400, detail="Start date cannot be after end date")
     return crud_saved_trip.create_saved_trip(db=db, trip=trip)
 
 
@@ -97,6 +102,13 @@ def simulate_plan_b_alert(trip_id: int, sim_data: SimulateAlertRequest, token: s
     Simulate a condition shift (weather warning / fire ban) and generate a
     persistent Plan B alert with alternatives.
     """
+    from app.core.config import settings
+    if settings.ENVIRONMENT in ("production", "prod"):
+        raise HTTPException(
+            status_code=403,
+            detail="Simulated alert generation is disabled in production",
+        )
+
     trip = db.query(SavedTrip).filter(SavedTrip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Saved trip not found")

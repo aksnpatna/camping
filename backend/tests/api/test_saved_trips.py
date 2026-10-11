@@ -57,3 +57,42 @@ def test_create_and_read_saved_trip(magic_token_for):
     assert dash_res.status_code == 200
     dash_trips = dash_res.json()
     assert any(t["id"] == created_data["id"] for t in dash_trips)
+
+
+def test_create_saved_trip_rejects_invalid_email():
+    payload = {
+        "campsite_id": 1,
+        "user_email": "not-an-email",
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-03",
+        "plan_b_alert_active": True,
+    }
+    res = client.post("/api/v1/saved-trips", json=payload)
+    assert res.status_code == 422
+
+
+def test_create_saved_trip_rejects_inverted_dates():
+    payload = {
+        "campsite_id": 1,
+        "user_email": "camper@example.com",
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-01",
+        "plan_b_alert_active": True,
+    }
+    res = client.post("/api/v1/saved-trips", json=payload)
+    assert res.status_code == 400
+    assert "start date" in res.json()["detail"].lower()
+
+
+def test_simulate_alert_blocked_in_production(monkeypatch):
+    from app.core import config
+    monkeypatch.setattr(config.settings, "ENVIRONMENT", "production")
+
+    res = client.post(
+        "/api/v1/saved-trips/999/simulate-alert?token=any",
+        json={"reason": "test alert"}
+    )
+    assert res.status_code == 403
+    assert "disabled in production" in res.json()["detail"].lower()
+
+

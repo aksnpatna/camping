@@ -51,7 +51,7 @@ export default function SearchFilter({ onFilterChange }: { onFilterChange: (filt
             onChange={handleStateChange}
             className="w-full bg-slate-800/80 text-white text-sm rounded-lg pl-9 pr-3 py-2 border border-white/10 focus:outline-none focus:border-neon-green/50 appearance-none transition-colors"
           >
-            <option value="ALL">All Australia (2,965 Sites)</option>
+            <option value="ALL">All Australia (2,964 Sites)</option>
             <option value="NSW">New South Wales (746)</option>
             <option value="QLD">Queensland (1,000)</option>
             <option value="VIC">Victoria (360)</option>
@@ -60,7 +60,7 @@ export default function SearchFilter({ onFilterChange }: { onFilterChange: (filt
             <option value="TAS">Tasmania (112)</option>
             <option value="NT">Northern Territory (96)</option>
             <option value="ACT">ACT (86)</option>
-            <option value="JBT">Jervis Bay Territory (4)</option>
+            <option value="JBT">Jervis Bay Territory (3)</option>
           </select>
         </div>
       </div>

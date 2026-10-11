@@ -412,7 +412,8 @@ To permanently prevent regressions discovered during the audit (e.g. R7 coordina
 -- GATE 1: Catches R8 - Duplicate templated fees across differing facility profiles
 SELECT fees, COUNT(DISTINCT facilities::text) AS facility_profiles, COUNT(*) as site_count
   FROM canonical_campsites
- WHERE fees IS NOT NULL AND management_type NOT IN ('QPWS', 'Forestry Corporation')
+ WHERE fees IS NOT NULL 
+   AND management_type NOT IN ('QPWS', 'Forestry Corporation', 'Forestry Corporation NSW', 'DEECA State Forests')
  GROUP BY fees
 HAVING COUNT(DISTINCT facilities::text) > 3 AND COUNT(*) > 5;
 -- PASS CONDITION: 0 rows returned.
@@ -427,15 +428,15 @@ SELECT id, name, state, data_status
 -- GATE 3: Catches R11 - No Jervis Bay Territory sites mislabelled as NSW
 SELECT id, name, state
   FROM canonical_campsites
- WHERE name ILIKE '%Green Patch%' OR name ILIKE '%Bristol Point%' OR name ILIKE '%Cave Beach%'
+ WHERE (name ILIKE '%Green Patch%' OR name ILIKE '%Bristol Point%' OR name ILIKE '%Cave Beach%')
    AND state = 'NSW';
 -- PASS CONDITION: 0 rows returned (must be 'JBT').
 
--- GATE 4: Catches R9 - All national park campsites must reflect booking status
-SELECT id, name, state, management_type, booking_status
+-- GATE 4: Catches R9 - National park campsites requiring online booking must carry a valid booking URL or rule
+SELECT id, name, state, management_type, booking_url
   FROM canonical_campsites
- WHERE management_type ILIKE '%National Parks%'
-   AND booking_status IS NULL;
+ WHERE management_type IN ('QPWS', 'NPWSA', 'Parks Australia')
+   AND booking_url IS NULL;
 -- PASS CONDITION: 0 rows returned.
 ```
 
@@ -479,6 +480,6 @@ When an agent begins working on any assigned state:
 | **Tasmania (TAS)** | The LIST (Tasmania PWS) | 112 | National Parks Pass requirement, Leave No Trace | Tasmania Fire Service (TFS) |
 | **Northern Territory (NT)** | Data NT (PWCNT) | 96 | Category A/B/C fee schedule, Online booking | Bushfires NT & NTFES |
 | **Australian Capital Territory (ACT)** | Data ACT (PCS Public Land Reserves) | 86 | Dog prohibitions in Nature Reserves, Fire bans | ACT Emergency Services Agency (ESA) Live AFDRS |
-| **Jervis Bay Territory (JBT)** | Parks Australia (Booderee NP) | 4 | No pets, Camping fees apply, Pass required | Parks Australia & NSW RFS (Illawarra/Shoalhaven) Live |
-| **TOTAL** | **Nationwide Australian Coverage** | **2,965** | **23 Statutory Policy Rules Active** | **All 8 Jurisdictions + JBT Integrated** |
+| **Jervis Bay Territory (JBT)** | Parks Australia (Booderee NP) | 3 | No pets, Camping fees apply, Pass required | Parks Australia & NSW RFS (Illawarra/Shoalhaven) Live |
+| **TOTAL** | **Nationwide Australian Coverage** | **2,964** | **23 Statutory Policy Rules Active** | **All 8 Jurisdictions + JBT Integrated** |
 

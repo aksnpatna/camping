@@ -41,9 +41,14 @@ export default async function ExplorePage(props: Props) {
   // Extract a readable name and state from the slug
   const parts = params.slug.split('-');
   const titleSlug = parts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const state = parts[parts.length - 1].toUpperCase() || "NSW";
+  const lastPart = parts[parts.length - 1].toUpperCase();
+  const validStates = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT", "JBT"];
+  const state = validStates.includes(lastPart) ? lastPart : "NSW";
+  const potentialDistrict = parts.length > 1 && validStates.includes(lastPart) 
+    ? parts.slice(0, parts.length - 1).join(' ') 
+    : undefined;
 
-  const fireStatus = await getFireStatus(state);
+  const fireStatus = await getFireStatus(state, potentialDistrict);
 
   return (
     <div className="min-h-screen bg-[var(--color-forest-900)] text-white font-sans selection:bg-[var(--color-neon-green)] selection:text-[var(--color-forest-900)]">
