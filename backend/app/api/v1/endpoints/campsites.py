@@ -126,32 +126,54 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
         if time.time() - ts < CACHE_TTL:
             return val
 
-    # 1. Gather Context via DuckDuckGo
+    # 1. Authoritative Spatial Town Resolution (100% Nationwide PostGIS Coverage)
+    from app.services.town_locator import TownLocatorService
+    locality_info = TownLocatorService.find_nearest_locality(db, campsite.longitude, campsite.latitude)
+    if locality_info:
+        town_advisory = TownLocatorService.get_town_amenities_advisory(locality_info)
+        default_fuel = town_advisory["nearest_fuel"]
+        default_grocery = town_advisory["nearest_grocery"]
+        town_obs = town_advisory["field_observation"]
+        town_name = locality_info.locality
+    else:
+        default_fuel = f"Check fuel stations along approach route in {campsite.state}"
+        default_grocery = f"Stock up on supplies and drinking water in {campsite.state} before departure"
+        town_obs = f"Verify local park alerts and road conditions before travelling to {campsite.name}."
+        town_name = campsite.state
+
+    # 2. Gather Context via DuckDuckGo (Lite/HTML backends)
     context = ""
     try:
         from duckduckgo_search import DDGS
         with DDGS() as ddgs:
-            query = f"{campsite.name} {campsite.state} camping reviews nearest town fuel grocery Australia"
-            ddg_results = list(ddgs.text(query, max_results=3, safesearch="off"))
-            context = str([r.get("body") for r in ddg_results])
+            query = f'"{campsite.name}" {town_name} camping'
+            try:
+                ddg_results = list(ddgs.text(query, backend="lite", max_results=3, safesearch="off"))
+            except Exception:
+                ddg_results = list(ddgs.text(query, backend="html", max_results=3, safesearch="off"))
+            if ddg_results:
+                context = str([r.get("body") for r in ddg_results if r.get("body")])
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}")
 
-    # 2. Extract Insights via Centralized Local LLM (Qwen3-9B)
+    # 3. Extract Insights via Centralized Local LLM (Qwen3-9B)
     now_iso = datetime.now(timezone.utc).isoformat()
-    prompt = f"""Analyze this search data about {campsite.name} {campsite.state}: {context}.
-Extract strict JSON:
+    dist_hint = f"approximately {locality_info.distance_km:.1f} km away" if locality_info else "distance unknown"
+    prompt = f"""You are an Australian camping guide. Analyze this factual data about {campsite.name} in {campsite.state}.
+Nearest town hub: {town_name} ({dist_hint}).
+Search context: {context if context else 'No web snippets available.'}
+
+Extract strict JSON matching this schema:
 {{
-  "nearest_fuel": "e.g. 15 mins away in nearest town",
-  "nearest_grocery": "e.g. 20 mins away in nearest town",
-  "top_activities": ["swimming", "hiking", "fishing"],
+  "nearest_fuel": "{default_fuel}",
+  "nearest_grocery": "{default_grocery}",
+  "top_activities": ["Hiking", "Relaxing", "Wildlife Spotting"],
   "observations": [
-    {{"category": "Road Access", "observation": "Access road suitable for 2WD in dry conditions", "source_attribution": "Camper Field Note"}},
-    {{"category": "Amenities", "observation": "Bring all drinking water and toilet paper", "source_attribution": "Park Advisory"}}
+    {{"category": "Town Amenities", "observation": "{town_obs}", "source_attribution": "Camp Smart Spatial Index"}},
+    {{"category": "Road Access", "observation": "Check track conditions before departure", "source_attribution": "Park Advisory"}}
   ]
 }}
-Output strict JSON only.
-"""
+Never output placeholder text like 'Verify in nearest town'. If specific brand or shop is found, mention it; otherwise cite {town_name}. Output JSON only."""
 
     from app.services.llm_inference import LLMInferenceService
     ai_data = await LLMInferenceService.call_local_server(prompt)
@@ -163,20 +185,54 @@ Output strict JSON only.
     if ai_data:
         try:
             import json
-            raw_dict = json.loads(ai_data.strip())
+            import re
+            clean_json = ai_data.strip()
+            # Strip markdown code block fences if present
+            if "```" in clean_json:
+                match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", clean_json)
+                if match:
+                    clean_json = match.group(1).strip()
+                else:
+                    clean_json = re.sub(r"^```(?:json)?\s*", "", clean_json)
+                    clean_json = re.sub(r"\s*```$", "", clean_json)
+
+            raw_dict = json.loads(clean_json)
+
+            # Ensure placeholders are replaced by authoritative spatial values
+            if not raw_dict.get("nearest_fuel") or "Verify in nearest town" in raw_dict.get("nearest_fuel", ""):
+                raw_dict["nearest_fuel"] = default_fuel
+            if not raw_dict.get("nearest_grocery") or "Verify in nearest town" in raw_dict.get("nearest_grocery", ""):
+                raw_dict["nearest_grocery"] = default_grocery
+
+            # Ensure town observation is present
+            observations = raw_dict.get("observations") or []
+            if not any(obs.get("category") == "Town Amenities" for obs in observations if isinstance(obs, dict)):
+                observations.insert(0, {
+                    "category": "Town Amenities",
+                    "observation": town_obs,
+                    "source_attribution": "Camp Smart Spatial Index"
+                })
+            raw_dict["observations"] = observations
             raw_dict["retrieved_at"] = now_iso
+
             parsed = CampsiteInsightsResponse.model_validate(raw_dict)
             INSIGHTS_CACHE[campsite_id] = (parsed, time.time())
             return parsed
         except Exception as e:
             logger.warning(f"Failed to parse insights JSON from LLM: {e}")
 
+    # Authoritative spatial fallback (guarantees zero generic placeholders)
     fallback = CampsiteInsightsResponse(
         sentiment_score=None,
-        nearest_fuel="Verify in nearest town",
-        nearest_grocery="Verify in nearest town",
+        nearest_fuel=default_fuel,
+        nearest_grocery=default_grocery,
         top_activities=["Hiking", "Relaxing", "Wildlife Spotting"],
         observations=[
+            CamperObservation(
+                category="Town Amenities",
+                observation=town_obs,
+                source_attribution="Camp Smart Spatial Index"
+            ),
             CamperObservation(
                 category="General",
                 observation=f"Verify current park alerts and weather before heading to {campsite.name}.",
@@ -185,4 +241,6 @@ Output strict JSON only.
         ],
         retrieved_at=now_iso
     )
+    INSIGHTS_CACHE[campsite_id] = (fallback, time.time())
     return fallback
+

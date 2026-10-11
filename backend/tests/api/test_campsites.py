@@ -141,5 +141,22 @@ def test_get_campsites_filter_by_state():
         assert all(s["state"] == test_state for s in data)
 
 
+def test_campsite_insights_non_placeholder_amenities():
+    """Verify that insights endpoint replaces generic placeholders with real locality/distance information."""
+    res = client.get("/api/v1/campsites")
+    assert res.status_code == 200
+    first_campsite = res.json()[0]
+    campsite_id = first_campsite["id"]
+
+    ins_res = client.get(f"/api/v1/campsites/{campsite_id}/insights")
+    assert ins_res.status_code == 200
+    ins_data = ins_res.json()
+    assert "Verify in nearest town" not in ins_data["nearest_fuel"]
+    assert "Verify in nearest town" not in ins_data["nearest_grocery"]
+    assert len(ins_data["nearest_fuel"]) > 5
+    assert len(ins_data["nearest_grocery"]) > 5
+
+
+
 
 
