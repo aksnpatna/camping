@@ -42,6 +42,15 @@ def test_create_campsite_authorized(monkeypatch):
     assert "id" in data
     assert data["dog_friendly"] is True
 
+    # Clean up created test campsite
+    from app.core.database import SessionLocal
+    from app.models.campsite import Campsite
+    with SessionLocal() as db:
+        test_site = db.query(Campsite).filter(Campsite.id == data["id"]).first()
+        if test_site:
+            db.delete(test_site)
+            db.commit()
+
 def test_get_campsites():
     response = client.get("/api/v1/campsites")
     assert response.status_code == 200

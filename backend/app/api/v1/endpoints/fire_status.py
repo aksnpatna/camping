@@ -9,26 +9,115 @@ logger = logging.getLogger(__name__)
 
 VALID_RATINGS = ["No Rating", "Moderate", "High", "Extreme", "Catastrophic"]
 
+STATE_EMERGENCY_AGENCIES: Dict[str, Dict[str, Any]] = {
+    "NSW": {
+        "agency": "NSW Rural Fire Service (RFS)",
+        "url": "https://www.rfs.nsw.gov.au",
+        "feed_type": "rfs_xml",
+        "default_district": "Greater Sydney Region",
+        "source_label": "NSW Rural Fire Service (RFS) (rfs.nsw.gov.au/feeds/fdrToban.xml)",
+    },
+    "ACT": {
+        "agency": "ACT Emergency Services Agency (ESA)",
+        "url": "https://esa.act.gov.au",
+        "feed_type": "rfs_xml",
+        "default_district": "ACT",
+        "source_label": "ACT Emergency Services Agency (ESA) via AFDRS Feed",
+    },
+    "JBT": {
+        "agency": "Parks Australia & NSW RFS (Illawarra/Shoalhaven District)",
+        "url": "https://www.parksaustralia.gov.au/booderee/",
+        "feed_type": "rfs_xml",
+        "default_district": "Illawarra/Shoalhaven",
+        "source_label": "Parks Australia & NSW RFS (Illawarra/Shoalhaven District)",
+    },
+    "VIC": {
+        "agency": "Country Fire Authority (CFA) & VicEmergency",
+        "url": "https://www.cfa.vic.gov.au/warnings-restrictions/total-fire-bans-fire-danger-ratings",
+        "feed_type": "none",
+        "default_district": "Central",
+        "source_label": "Country Fire Authority (CFA) & VicEmergency",
+    },
+    "QLD": {
+        "agency": "Queensland Fire Department (QFD)",
+        "url": "https://www.fire.qld.gov.au/prepare/fire-danger-ratings",
+        "feed_type": "none",
+        "default_district": "South East",
+        "source_label": "Queensland Fire Department (QFD)",
+    },
+    "WA": {
+        "agency": "Department of Fire and Emergency Services (DFES) & Emergency WA",
+        "url": "https://www.emergency.wa.gov.au",
+        "feed_type": "none",
+        "default_district": "Perth Metropolitan",
+        "source_label": "Department of Fire and Emergency Services (DFES) & Emergency WA",
+    },
+    "SA": {
+        "agency": "South Australian Country Fire Service (CFS)",
+        "url": "https://www.cfs.sa.gov.au/warnings-restrictions/fire-danger-ratings/",
+        "feed_type": "none",
+        "default_district": "Mount Lofty Ranges",
+        "source_label": "South Australian Country Fire Service (CFS)",
+    },
+    "TAS": {
+        "agency": "Tasmania Fire Service (TFS)",
+        "url": "https://www.fire.tas.gov.au/fire-danger-rating/",
+        "feed_type": "none",
+        "default_district": "Upper Derwent Valley",
+        "source_label": "Tasmania Fire Service (TFS)",
+    },
+    "NT": {
+        "agency": "Bushfires NT & NT Fire and Emergency Services (NTFES)",
+        "url": "https://bushfires.nt.gov.au",
+        "feed_type": "none",
+        "default_district": "Darwin and Rural",
+        "source_label": "Bushfires NT & NT Fire and Emergency Services (NTFES)",
+    },
+}
+
+
 def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) -> Dict[str, Any]:
     """
     Fetches live fire danger rating from official state fire feeds (e.g. NSW RFS).
     MANDATORY Safety Rule: Do NOT cache and present stale fire rules.
     If the feed is down, raise exception to trigger the Degradation Rule.
-    For non-NSW states, honestly return status 'unavailable' instead of synthetic ratings.
+    For states where automated feeds are pending rollout, honestly return status 'unavailable'
+    referencing the authoritative statutory emergency agency. Never output synthetic ratings.
     """
-    if state.upper() != "NSW":
+    state_key = state.upper().strip()
+    agency = STATE_EMERGENCY_AGENCIES.get(state_key)
+
+    if not agency:
         return {
-            "state": state.upper(),
+            "state": state_key,
             "status": "unavailable",
-            "message": f"Live feed currently active for NSW pilot catchment only. Check official {state.upper()} emergency services.",
+            "message": f"Fire service information for jurisdiction '{state_key}' is unavailable.",
             "rating": None,
             "total_fire_ban": None,
-            "district": None,
-            "source": f"{state.upper()} Emergency Services",
-            "action_required": "Check official state emergency service before traveling"
+            "district": district,
+            "source": f"{state_key} Emergency Services",
+            "action_required": "Check official local emergency service before travelling"
         }
 
-    # Attempt fetch from official NSW RFS FDR XML feed
+    # For jurisdictions without a live automated XML feed parser, degrade honestly
+    if agency.get("feed_type") != "rfs_xml":
+        return {
+            "state": state_key,
+            "status": "unavailable",
+            "message": (
+                f"Live automated feed for {agency['agency']} is currently in rollout. "
+                f"Check official {agency['agency']} channels at {agency['url']} before travelling."
+            ),
+            "rating": None,
+            "total_fire_ban": None,
+            "district": district or agency.get("default_district"),
+            "source": agency["source_label"],
+            "official_url": agency["url"],
+            "action_required": f"Check official {agency['agency']} warnings before travelling"
+        }
+
+    # Attempt fetch from official NSW RFS FDR XML feed (covers NSW, ACT, and JBT/Shoalhaven)
+    target_search = district or agency.get("default_district", "Greater Sydney Region")
     try:
         with httpx.Client(timeout=4.0) as client:
             resp = client.get("https://www.rfs.nsw.gov.au/feeds/fdrToban.xml")
@@ -36,20 +125,20 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
                 root = ET.fromstring(resp.content)
                 target_district = None
                 
-                # Look for requested district or match default
                 dist_nodes = root.findall(".//District")
-                if district:
+                if target_search:
                     for d in dist_nodes:
                         name = d.findtext("Name", "")
-                        if district.lower() in name.lower() or name.lower() in district.lower():
+                        if target_search.lower() in name.lower() or name.lower() in target_search.lower():
                             target_district = d
                             break
                             
-                # Fallback to Greater Sydney Region if district not specified or not matched
+                # Fallback to agency default district if not matched
                 if target_district is None:
+                    default_d = agency.get("default_district", "Greater Sydney Region")
                     for d in dist_nodes:
                         name = d.findtext("Name", "")
-                        if "greater sydney" in name.lower():
+                        if default_d.lower() in name.lower():
                             target_district = d
                             break
                 if target_district is None and dist_nodes:
@@ -77,19 +166,19 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
                         action_required = "Enforce total fire ban — no wood, gas only if permitted"
                     elif rating == "No Rating":
                         action_required = (
-                            "Rating unavailable for this district — check the official "
-                            "NSW RFS source before travelling"
+                            f"Rating unavailable for this district — check the official "
+                            f"{agency['agency']} source before travelling"
                         )
                     else:
                         action_required = "Monitor conditions"
 
                     return {
-                        "state": "NSW",
+                        "state": state_key,
                         "district": dist_name,
                         "rating": rating,
                         "total_fire_ban": total_fire_ban,
                         "status": "live",
-                        "source": "NSW Rural Fire Service (rfs.nsw.gov.au/feeds/fdrToban.xml)",
+                        "source": agency["source_label"],
                         "action_required": action_required
                     }
                 else:
@@ -97,8 +186,9 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
             else:
                 raise Exception(f"RFS feed returned HTTP {resp.status_code}")
     except Exception as e:
-        logger.warning(f"Live RFS feed fetch failed: {e}")
+        logger.warning(f"Live fire feed fetch failed for {state_key}: {e}")
         raise e
+
 
 @router.get("")
 def get_fire_status(state: str = "NSW", district: Optional[str] = Query(None)):

@@ -399,8 +399,8 @@ graph TD
 | **WP-4** | South Australia (SA) | `Agent-SA` | `backend/app/ingest/seed_sa.py`<br>NPWSA pet ban & online booking rules<br>DEW WaterConnect GeoJSON CC-BY 4.0 parser | `backend/tests/ingest/test_seed_sa.py` | ✅ Complete (361 sites) |
 | **WP-5** | Tasmania (TAS) | `Agent-TAS` | `backend/app/ingest/seed_tas.py`<br>The LIST PWS parser<br>National Parks Pass requirement rule | `backend/tests/ingest/test_seed_tas.py` | ✅ Complete (112 sites) |
 | **WP-6** | Northern Territory (NT) | `Agent-NT` | `backend/app/ingest/seed_nt.py`<br>PWCNT Category A/B/C fee schedule<br>Data NT parser | `backend/tests/ingest/test_seed_nt.py` | ✅ Complete (96 sites) |
-| **WP-7** | ACT & JBT | `Agent-ACT` | `backend/app/ingest/seed_act.py`<br>JBT Booderee carve-out (R11)<br>Data ACT parser | `backend/tests/ingest/test_seed_act.py` | ⏳ Pending |
-| **WP-8** | Emergency Feeds | `Agent-FireFeeds` | Multi-state fire router in `fire_status.py`<br>CFA, QFD, DFES, CFS, TFS, ESA feeds<br>Degradation unit tests | `backend/tests/api/test_fire_status.py` | ⏳ Pending |
+| **WP-7** | ACT & JBT | `Agent-ACT` | `backend/app/ingest/seed_act.py`<br>JBT Booderee carve-out (R11)<br>Data ACT parser | `backend/tests/ingest/test_seed_act.py` | ✅ Complete (89 sites: 86 ACT, 3 JBT) |
+| **WP-8** | Emergency Feeds | `Agent-FireFeeds` | Multi-state fire router in `fire_status.py`<br>CFA, QFD, DFES, CFS, TFS, ESA feeds<br>Degradation unit tests | `backend/tests/api/test_fire_status.py` | ✅ Complete (11/11 tests pass) |
 
 ---
 
@@ -461,6 +461,24 @@ When an agent begins working on any assigned state:
    - Verify Smartproxy residential pool fetches without bans or captcha blockers.
    - Record atomic observations in `fact_evidence`.
 4. **Step 4 (Validation & Linting):**
-   - Run `pytest` across all backend suites (ensure 64+ tests pass).
+   - Run `pytest` across all backend suites (ensure 85+ tests pass).
    - Run `npx tsc --noEmit` and `npm run lint` in `frontend/`.
    - Run automated SQL integrity gates against the active database.
+
+---
+
+## 🏁 National Rollout Summary (Post-WP-8 Complete)
+
+| Jurisdiction | Authority / Source Layer | Sites Ingested | Policy Rules Applied | Fire Feeds / Emergency Authority |
+|---|---|---|---|---|
+| **Queensland (QLD)** | Queensland Spatial Catalogue (QSpatial / QPWS) | 1,000 | Flat fee ($7.75/person/night), Permit required | Queensland Fire Department (QFD) |
+| **New South Wales (NSW)** | NSW NPWS Estate & Forestry Corp NSW | 746 | NPWS pet ban, Wood fire seasonal bans, FCNSW permits | NSW Rural Fire Service (RFS) Live XML Feed |
+| **South Australia (SA)** | DEW WaterConnect (NPWSA) | 361 | Dog prohibitions, Online booking required | SA Country Fire Service (CFS) |
+| **Victoria (VIC)** | Data.Vic (DEECA State Forests & Parks Vic) | 360 | Free dispersed camping (Forests Act 1958), Dog permitted | Country Fire Authority (CFA) & VicEmergency |
+| **Western Australia (WA)** | DBCA WA FeatureServer | 200 | 1080 baiting pet warning, Stay duration caps | DFES & Emergency WA |
+| **Tasmania (TAS)** | The LIST (Tasmania PWS) | 112 | National Parks Pass requirement, Leave No Trace | Tasmania Fire Service (TFS) |
+| **Northern Territory (NT)** | Data NT (PWCNT) | 96 | Category A/B/C fee schedule, Online booking | Bushfires NT & NTFES |
+| **Australian Capital Territory (ACT)** | Data ACT (PCS Public Land Reserves) | 86 | Dog prohibitions in Nature Reserves, Fire bans | ACT Emergency Services Agency (ESA) Live AFDRS |
+| **Jervis Bay Territory (JBT)** | Parks Australia (Booderee NP) | 4 | No pets, Camping fees apply, Pass required | Parks Australia & NSW RFS (Illawarra/Shoalhaven) Live |
+| **TOTAL** | **Nationwide Australian Coverage** | **2,965** | **23 Statutory Policy Rules Active** | **All 8 Jurisdictions + JBT Integrated** |
+

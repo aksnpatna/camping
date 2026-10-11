@@ -144,3 +144,81 @@ def test_high_rating_without_declared_ban_is_not_inferred_as_ban():
 
     assert data["rating"] == "Extreme"
     assert data["total_fire_ban"] is False
+
+
+def test_fire_status_all_jurisdictions():
+    """Validates that all 8 states/territories plus JBT have valid routing and never simulate ratings."""
+    jurisdictions = {
+        "NSW": ["RFS"],
+        "VIC": ["CFA", "VicEmergency"],
+        "QLD": ["QFD", "Queensland Fire"],
+        "WA": ["DFES", "Emergency WA"],
+        "SA": ["CFS", "Country Fire Service"],
+        "TAS": ["TFS", "Tasmania Fire Service"],
+        "NT": ["Bushfires NT", "NTFES"],
+        "ACT": ["ESA", "RFS"],
+        "JBT": ["Parks Australia", "RFS"],
+    }
+    for state, agency_keywords in jurisdictions.items():
+        resp = client.get(f"/api/v1/fire-status?state={state}")
+        assert resp.status_code in [200, 503]
+        if resp.status_code == 200:
+            data = resp.json()
+            assert data["state"] == state
+            assert any(kw.lower() in data["source"].lower() for kw in agency_keywords)
+            if data["status"] == "unavailable":
+                assert data["rating"] is None
+                assert data["total_fire_ban"] is None
+                assert "official" in data["action_required"].lower() or "check" in data["action_required"].lower()
+            elif data["status"] == "live":
+                assert data["rating"] in VALID_AFDRS_RATINGS
+                assert data["total_fire_ban"] is None or isinstance(data["total_fire_ban"], bool)
+
+
+def test_fire_status_act_live_parsing():
+    """ACT district is parsed live from the official AFDRS XML feed."""
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    xml = (
+        '<?xml version="1.0"?>'
+        "<root><District>"
+        "<Name>ACT</Name>"
+        "<DangerLevelToday>Moderate</DangerLevelToday>"
+        "<FireBanToday>No</FireBanToday>"
+        "</District></root>"
+    )
+
+    with patch("httpx.Client.get", return_value=_feed_mock(xml)):
+        data = fetch_live_rfs_status(state="ACT")
+
+    assert data["state"] == "ACT"
+    assert data["district"] == "ACT"
+    assert data["status"] == "live"
+    assert data["rating"] == "Moderate"
+    assert data["total_fire_ban"] is False
+    assert "ACT" in data["source"] or "ESA" in data["source"]
+
+
+def test_fire_status_jbt_routes_to_illawarra_shoalhaven():
+    """Jervis Bay Territory correctly routes to Illawarra/Shoalhaven district."""
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    xml = (
+        '<?xml version="1.0"?>'
+        "<root><District>"
+        "<Name>Illawarra/Shoalhaven</Name>"
+        "<DangerLevelToday>High</DangerLevelToday>"
+        "<FireBanToday>Yes</FireBanToday>"
+        "</District></root>"
+    )
+
+    with patch("httpx.Client.get", return_value=_feed_mock(xml)):
+        data = fetch_live_rfs_status(state="JBT")
+
+    assert data["state"] == "JBT"
+    assert data["district"] == "Illawarra/Shoalhaven"
+    assert data["status"] == "live"
+    assert data["rating"] == "High"
+    assert data["total_fire_ban"] is True
+    assert "Parks Australia" in data["source"] or "Shoalhaven" in data["source"]
+

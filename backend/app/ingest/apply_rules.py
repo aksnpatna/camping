@@ -169,6 +169,38 @@ CANONICAL_RULES = [
         "description": "Advance online booking is mandatory for all campsites managed by Parks and Wildlife Commission of the NT.",
         "effective_from": date(2020, 1, 1),
     },
+    {
+        "land_manager": "ACT PCS",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://www.parks.act.gov.au/before-you-go/dogs-in-parks",
+        "description": "Dogs are prohibited in ACT national parks and nature reserves under the Nature Conservation Act 2014.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "ACT PCS",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://www.parks.act.gov.au/",
+        "description": "Advance booking is required for campgrounds managed by ACT Parks and Conservation Service.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "Parks Australia",
+        "field": "dog_friendly",
+        "value": "False",
+        "evidence_url": "https://parksaustralia.gov.au/booderee/plan/rules/",
+        "description": "Domestic pets are strictly prohibited in Commonwealth national parks including Booderee.",
+        "effective_from": date(2020, 1, 1),
+    },
+    {
+        "land_manager": "Parks Australia",
+        "field": "booking_status",
+        "value": "Booking required",
+        "evidence_url": "https://parksaustralia.gov.au/booderee/camp/",
+        "description": "Advance online booking is required for all campgrounds in Booderee National Park.",
+        "effective_from": date(2020, 1, 1),
+    },
 ]
 
 
@@ -345,6 +377,30 @@ def apply_policy_rules(db: Session, overwrite_verified: bool = False) -> Dict[st
                 changed = True
             if not site.booking_url:
                 site.booking_url = "https://parkbookings.nt.gov.au/"
+                changed = True
+
+        # 10. ACT PCS rules
+        elif "ACT" in mgmt or site.state == "ACT":
+            act_rules = rules_by_manager.get("ACT PCS", {})
+            if site.dog_friendly is None and "dog_friendly" in act_rules:
+                site.dog_friendly = False
+                site.evidence_url = act_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://www.parks.act.gov.au/"
+                changed = True
+
+        # 11. Parks Australia (JBT Booderee)
+        elif "Parks Australia" in mgmt or site.state == "JBT":
+            pa_rules = rules_by_manager.get("Parks Australia", {})
+            if "dog_friendly" in pa_rules and site.dog_friendly != False:
+                site.dog_friendly = False
+                site.evidence_url = pa_rules["dog_friendly"].evidence_url
+                site.data_status = DATA_STATUS_RULE_DERIVED
+                changed = True
+            if not site.booking_url:
+                site.booking_url = "https://parksaustralia.gov.au/booderee/camp/"
                 changed = True
 
         if changed:
