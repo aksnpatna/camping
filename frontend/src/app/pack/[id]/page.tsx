@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, AlertTriangle, ShieldCheck } from "lucide-react";
 import PrintButton from './PrintButton';
+import { getApiUrl } from '@/config';
 
 interface Campsite {
   id: number;
@@ -9,7 +10,7 @@ interface Campsite {
   latitude: number;
   longitude: number;
   management_type: string;
-  dog_friendly: boolean;
+  dog_friendly: boolean | null;
   rig_access: string[];
   source_url: string;
 }
@@ -18,7 +19,7 @@ export default async function OfflinePackPage({ params }: { params: Promise<{ id
   const resolvedParams = await params;
   const id = resolvedParams.id;
   
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1";
+  const apiUrl = getApiUrl();
   
   let campsite: Campsite | null = null;
   try {
@@ -58,7 +59,7 @@ export default async function OfflinePackPage({ params }: { params: Promise<{ id
             <h2 className="text-xl font-bold border-b-2 border-black pb-1 mb-3">Site Access</h2>
             <ul className="list-disc pl-5 space-y-2 text-lg">
               <li><strong>Rig Access:</strong> {campsite.rig_access?.length > 0 ? campsite.rig_access.join(', ') : "None"}</li>
-              <li><strong>Pets:</strong> {campsite.dog_friendly ? "Dogs Allowed" : "No Dogs Allowed"}</li>
+              <li><strong>Pets:</strong> {campsite.dog_friendly === true ? "Dogs Allowed" : campsite.dog_friendly === false ? "No Dogs Allowed" : "Policy Unknown (Check with park authority)"}</li>
             </ul>
           </div>
           <div>

@@ -2,10 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import type { Campsite } from '@/components/Map';
 const CampingMap = dynamic(() => import('@/components/Map'), { ssr: false });
 import TripCard from '@/components/TripCard';
 import SearchFilter, { FilterParams } from '@/components/SearchFilter';
+import FindWeekendPlanner from '@/components/FindWeekendPlanner';
+import { getApiUrl } from '@/config';
+
+interface PlanBAlertAlternative {
+  id: number;
+  name: string;
+  state: string;
+  management_type: string;
+  dog_friendly: boolean | null;
+  reason: string;
+}
+
+interface PlanBAlertItem {
+  id: number;
+  alert_type: string;
+  details: string;
+  triggered_at: string;
+  delivery_status: string;
+  suggested_alternatives: PlanBAlertAlternative[];
+}
 
 interface SavedTripDashboard {
   id: number;
@@ -15,9 +36,13 @@ interface SavedTripDashboard {
   start_date: string;
   end_date: string;
   plan_b_active: boolean;
+  is_shortlist?: boolean;
+  room_token?: string | null;
+  alerts?: PlanBAlertItem[];
 }
 
 export default function Home() {
+  const [viewMode, setViewMode] = useState<"planner" | "map">("planner");
   const [campsites, setCampsites] = useState<Campsite[]>([]);
   const [selectedSite, setSelectedSite] = useState<Campsite | null>(null);
   const [filters, setFilters] = useState<FilterParams>({ dog_friendly: null, rig_access: null });
@@ -32,7 +57,7 @@ export default function Home() {
 
   // Routing State
   const [startLocation, setStartLocation] = useState({ longitude: 151.2093, latitude: -33.8688 }); // Default to Sydney CBD
-  const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
+  const [routeGeoJson, setRouteGeoJson] = useState<GeoJSON.Geometry | GeoJSON.Feature | null>(null);
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -49,28 +74,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (selectedSite) {
-      // Fetch OSRM route
-      fetch(`https://router.project-osrm.org/route/v1/driving/${startLocation.longitude},${startLocation.latitude};${selectedSite.longitude},${selectedSite.latitude}?overview=full&geometries=geojson`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.routes && data.routes.length > 0) {
-            setRouteGeoJson(data.routes[0].geometry);
-            setRouteDistance(data.routes[0].distance);
-          }
-        })
-        .catch(err => console.error("OSRM Routing Error:", err));
-    } else {
-      setRouteGeoJson(null);
-      setRouteDistance(null);
+    if (!selectedSite) {
+      return;
     }
+    let isCancelled = false;
+    // Fetch OSRM route
+    fetch(`https://router.project-osrm.org/route/v1/driving/${startLocation.longitude},${startLocation.latitude};${selectedSite.longitude},${selectedSite.latitude}?overview=full&geometries=geojson`)
+      .then(res => res.json())
+      .then(data => {
+        if (!isCancelled && data.routes && data.routes.length > 0) {
+          setRouteGeoJson(data.routes[0].geometry);
+          setRouteDistance(data.routes[0].distance);
+        }
+      })
+      .catch(err => console.error("OSRM Routing Error:", err));
+
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedSite, startLocation]);
 
   useEffect(() => {
     // Fetch canonical campsites from our FastAPI backend
     const fetchCampsites = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+        const apiUrl = getApiUrl();
         const params = new URLSearchParams();
         if (filters.dog_friendly !== null) {
           params.append('dog_friendly', filters.dog_friendly.toString());
@@ -96,46 +124,113 @@ export default function Home() {
   }, [filters]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-[var(--color-forest-900)]">
-      {/* Dynamic Map Component */}
-      <CampingMap 
-        campsites={campsites} 
-        onSelectCampsite={setSelectedSite}
-        routeGeoJson={routeGeoJson}
-        startLocation={startLocation}
-      />
+    <main className="relative w-screen h-screen overflow-hidden bg-[var(--color-forest-900)] flex flex-col">
+      {/* TOP NAVIGATION BAR */}
+      <header className="w-full bg-black/60 border-b border-white/10 px-4 md:px-6 py-3.5 flex items-center justify-between z-30 backdrop-blur-md shrink-0">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setViewMode("planner")} 
+            className="text-xl md:text-2xl font-black text-white tracking-tighter flex items-center gap-1.5 cursor-pointer text-left"
+          >
+            <span>CAMP SMART</span>
+            <span className="text-[var(--color-neon-green)]">AU</span>
+          </button>
+          <span className="hidden lg:inline-block text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+            Condition-Aware Trip Engine
+          </span>
+        </div>
 
-      {/* My Trips Button */}
-      <div className="absolute top-4 left-4 z-10 pointer-events-auto">
-        <button 
-          onClick={() => setShowDashboard(true)}
-          className="glass-panel px-5 py-3 rounded-2xl font-bold text-white hover:bg-white/10 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap bg-black/40 backdrop-blur-md border border-white/10"
-        >
-          ⛺ My Trips
-        </button>
-      </div>
+        {/* VIEW MODE TOGGLE */}
+        <div className="bg-white/10 border border-white/15 p-1 rounded-xl flex items-center gap-1">
+          <button
+            onClick={() => setViewMode("planner")}
+            className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === "planner"
+                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow-md"
+                : "text-gray-300 hover:text-white"
+            }`}
+          >
+            🎯 3 Best Trips
+          </button>
+          <button
+            onClick={() => setViewMode("map")}
+            className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === "map"
+                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow-md"
+                : "text-gray-300 hover:text-white"
+            }`}
+          >
+            🗺️ Interactive Map
+          </button>
+        </div>
 
-      {/* Filter Panel */}
-      <div className="absolute top-20 md:top-4 right-4 left-4 md:left-auto md:w-80 z-10 pointer-events-auto">
-        <SearchFilter onFilterChange={(newFilters) => setFilters(newFilters)} />
-      </div>
+        {/* HEADER ACTIONS */}
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowDashboard(true)}
+            className="bg-white/10 hover:bg-white/20 border border-white/10 px-3.5 py-1.5 rounded-xl font-bold text-white text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            ⛺ My Trips
+          </button>
+          <Link
+            href="/explore/nsw"
+            className="hidden sm:inline-flex bg-white/5 hover:bg-white/15 border border-white/10 px-3 py-1.5 rounded-xl font-semibold text-gray-300 text-xs transition-all"
+          >
+            Fire Rules
+          </Link>
+        </div>
+      </header>
 
-      {/* Answer-First Overlay */}
-      {selectedSite && (
-        <TripCard 
-          key={selectedSite.id}
-          campsite={selectedSite} 
-          onClose={() => setSelectedSite(null)}
-          routeDistance={routeDistance}
-        />
-      )}
+      {/* MAIN VIEW CONTAINER */}
+      <div className="relative flex-1 w-full h-[calc(100vh-61px)] overflow-hidden">
+        {viewMode === "planner" ? (
+          <div className="w-full h-full overflow-y-auto">
+            <FindWeekendPlanner 
+              onSelectSiteOnMap={(campsiteId) => {
+                const s = campsites.find(c => c.id === campsiteId);
+                if (s) {
+                  setSelectedSite(s);
+                  setViewMode("map");
+                }
+              }}
+              onOpenSaveModal={(campsiteId) => {
+                const s = campsites.find(c => c.id === campsiteId);
+                if (s) {
+                  setSelectedSite(s);
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <div className="relative w-full h-full">
+            {/* Dynamic Map Component */}
+            <CampingMap 
+              campsites={campsites} 
+              onSelectCampsite={setSelectedSite}
+              routeGeoJson={routeGeoJson}
+              startLocation={startLocation}
+            />
 
-      {/* Brand Header */}
-      <div className="absolute bottom-6 right-6 pointer-events-none z-10 flex flex-col items-end">
-        <h1 className="text-3xl font-black text-white tracking-tighter">
-          CAMP SMART <span className="text-[var(--color-neon-green)]">AU</span>
-        </h1>
-        <p className="text-gray-400 font-medium text-sm">Condition-Aware Trip Engine</p>
+            {/* Filter Panel */}
+            <div className="absolute top-4 right-4 left-4 md:left-auto md:w-80 z-10 pointer-events-auto">
+              <SearchFilter onFilterChange={(newFilters) => setFilters(newFilters)} />
+            </div>
+          </div>
+        )}
+
+        {/* Answer-First Overlay (Active when a site is selected) */}
+        {selectedSite && (
+          <TripCard 
+            key={selectedSite.id}
+            campsite={selectedSite} 
+            onClose={() => {
+              setSelectedSite(null);
+              setRouteGeoJson(null);
+              setRouteDistance(null);
+            }}
+            routeDistance={routeDistance}
+          />
+        )}
       </div>
 
       {/* My Trips Dashboard Modal */}
@@ -172,13 +267,13 @@ export default function Home() {
                     setLoadingTrips(true);
                     setDashError("");
                     try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
+                      const res = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
                       if (res.ok) {
                         setMyTrips(await res.json());
                       } else {
                         setDashError("Invalid token or email");
                       }
-                    } catch (e) {
+                    } catch {
                       setDashError("Network error. Please try again.");
                     }
                     setLoadingTrips(false);
@@ -207,13 +302,60 @@ export default function Home() {
                       <div className="text-xs text-gray-400 mb-3">
                         {trip.start_date} to {trip.end_date}
                       </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        {trip.plan_b_active ? (
-                          <span className="text-neon-green flex items-center gap-1 font-semibold">🟢 Plan B Monitor Active</span>
-                        ) : (
-                          <span className="text-gray-500">⚪ Monitor Inactive</span>
-                        )}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          {trip.plan_b_active ? (
+                            <span className="text-neon-green flex items-center gap-1 font-semibold">🟢 Plan B Monitor Active</span>
+                          ) : (
+                            <span className="text-gray-500">⚪ Monitor Inactive</span>
+                          )}
+                          {trip.is_shortlist && (
+                            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded font-bold">
+                              Shortlist Candidate
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {/* PLAN B ALERT BANNER WITH ALTERNATIVES */}
+                      {trip.alerts && trip.alerts.length > 0 && (
+                        <div className="mt-3 bg-red-950/60 border border-red-500/50 p-3 rounded-xl text-xs space-y-2">
+                          <div className="flex items-center gap-1.5 text-red-300 font-bold">
+                            <span className="animate-pulse">🚨</span>
+                            <span>{trip.alerts[0].details}</span>
+                          </div>
+                          {trip.alerts[0].suggested_alternatives && trip.alerts[0].suggested_alternatives.length > 0 && (
+                            <div className="space-y-1.5 pt-1.5 border-t border-red-500/20">
+                              <span className="text-[11px] text-gray-300 font-bold block">
+                                Recommended Plan B Alternatives:
+                              </span>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {trip.alerts[0].suggested_alternatives.map((alt) => (
+                                  <div key={alt.id} className="bg-black/50 p-2.5 rounded-lg border border-white/10 flex items-start justify-between gap-2">
+                                    <div>
+                                      <div className="font-bold text-white text-[11px]">{alt.name} ({alt.state})</div>
+                                      <div className="text-[10px] text-gray-400 mt-0.5">{alt.reason}</div>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const s = campsites.find(c => c.id === alt.id);
+                                        if (s) {
+                                          setSelectedSite(s);
+                                          setShowDashboard(false);
+                                          setViewMode("map");
+                                        }
+                                      }}
+                                      className="text-[10px] bg-white/10 hover:bg-white/20 text-[var(--color-neon-green)] px-2.5 py-1 rounded font-bold shrink-0 cursor-pointer"
+                                    >
+                                      View Site →
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

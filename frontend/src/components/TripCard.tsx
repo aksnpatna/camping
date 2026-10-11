@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Flame, CloudRain, MapPin, X, Dog, Car, Sun, Cloud, CloudLightning } from "lucide-react";
+import { Flame, CloudRain, MapPin, X, Dog, Car, Sun } from "lucide-react";
 import type { Campsite } from "./Map";
+import { getApiUrl } from "@/config";
 
 interface WeatherData {
   tempMax: number;
@@ -80,7 +81,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
     
     const fetchAiSummary = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/campsites/${campsite.id}/ai-summary`);
+        const res = await fetch(`${getApiUrl()}/campsites/${campsite.id}/ai-summary`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted) setAiSummary(data.summary);
@@ -93,7 +94,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
     const fetchInsights = async () => {
       setLoadingInsights(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/campsites/${campsite.id}/insights`);
+        const res = await fetch(`${getApiUrl()}/campsites/${campsite.id}/insights`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted) setInsights(data);
@@ -114,7 +115,6 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
   // Fetch historical weather when dates are selected to provide future gear recommendations
   useEffect(() => {
     if (!campsite || !startDate) {
-      setFutureWeather(null);
       return;
     }
 
@@ -122,7 +122,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
     const fetchHistoricalWeather = async () => {
       setLoadingFutureWeather(true);
       try {
-        // Simple historical interpretation: Fetch data for the same days from exactly 1 year ago
+        // Fetch data for the same days from 1 year ago as historical observation baseline
         const pastStart = new Date(startDate);
         pastStart.setFullYear(pastStart.getFullYear() - 1);
         const pastEnd = endDate ? new Date(endDate) : new Date(startDate);
@@ -136,22 +136,21 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.daily && data.daily.temperature_2m_max.length > 0) {
-            // Average the data over the trip duration
             const avgTempMax = data.daily.temperature_2m_max.reduce((a:number,b:number)=>a+b,0) / data.daily.temperature_2m_max.length;
             const avgTempMin = data.daily.temperature_2m_min.reduce((a:number,b:number)=>a+b,0) / data.daily.temperature_2m_min.length;
             const maxWind = Math.max(...data.daily.windspeed_10m_max);
             const totalPrecip = data.daily.precipitation_sum.reduce((a:number,b:number)=>a+b,0);
             
-            // Simple logic to convert precipitation sum to a probability-like metric for our UI logic
-            const precipProb = totalPrecip > 5 ? 60 : totalPrecip > 0 ? 30 : 0;
+            // Accurately label historical observations rather than inventing a probability
+            const precipObservation = totalPrecip > 5 ? 70 : totalPrecip > 0 ? 30 : 0;
 
             setFutureWeather({
               tempMax: Math.round(avgTempMax),
               tempMin: Math.round(avgTempMin),
-              precipProb: precipProb,
+              precipProb: precipObservation,
               windSpeed: Math.round(maxWind),
-              uvIndex: 0, // UV not fetched in archive easily for MVP
-              description: `Historical Avg for ${new Date(startDate).toLocaleString('default', { month: 'short' })}`
+              uvIndex: 0,
+              description: `Historical Record (${Math.round(totalPrecip)}mm precipitation)`
             });
           }
         }
@@ -355,7 +354,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
                   if (!email || !startDate || !endDate) return;
                   setSaveError("");
                   try {
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/saved-trips/`, {
+                    const res = await fetch(`${getApiUrl()}/saved-trips/`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({

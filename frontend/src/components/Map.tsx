@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Map, { NavigationControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
 export interface Campsite {
   id: number;
@@ -22,7 +22,7 @@ export default function CampingMap({
 }: { 
   campsites: Campsite[], 
   onSelectCampsite: (site: Campsite) => void,
-  routeGeoJson?: any,
+  routeGeoJson?: GeoJSON.Geometry | GeoJSON.Feature | null,
   startLocation?: { longitude: number, latitude: number }
 }) {
   const [viewState, setViewState] = useState({

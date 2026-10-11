@@ -1,7 +1,8 @@
 import React from 'react';
 import { Metadata, ResolvingMetadata } from 'next';
 import Link from 'next/link';
-import { AlertTriangle, MapPin, CheckCircle, Flame } from 'lucide-react';
+import { AlertTriangle, Flame, ShieldAlert } from 'lucide-react';
+import { getApiUrl } from '@/config';
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -9,7 +10,7 @@ type Props = {
 
 export async function generateMetadata(
   props: Props,
-  parent: ResolvingMetadata
+  _parent: ResolvingMetadata
 ): Promise<Metadata> {
   const params = await props.params;
   const titleSlug = params.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -21,14 +22,14 @@ export async function generateMetadata(
 
 async function getFireStatus(state: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8021/api/v1"}/fire-status?state=${state}`, { 
+    const res = await fetch(`${getApiUrl()}/fire-status?state=${state}`, { 
       cache: 'no-store' // CRITICAL: Do NOT cache and present stale fire rules per AGENTS.md
     });
     if (!res.ok) {
       return null; // Indicates feed is down or error
     }
     return await res.json();
-  } catch (error) {
+  } catch {
     return null; // Feed unreachable
   }
 }
@@ -78,40 +79,21 @@ export default async function ExplorePage(props: Props) {
           Live Fire Safety Rules
         </h2>
         
-        {!fireStatus ? (
+        {!fireStatus || fireStatus.status !== 'live' ? (
           // DEGRADATION RULE: Prominent "status unavailable" banner if feed is down
           <div className="bg-red-900/50 border border-red-500 p-6 rounded-2xl flex items-start gap-4 shadow-lg">
             <AlertTriangle className="text-red-500 w-8 h-8 shrink-0" />
             <div>
-              <h3 className="text-xl font-bold text-red-500 mb-2">STATUS UNAVAILABLE</h3>
+              <h3 className="text-xl font-bold text-red-500 mb-2">FIRE STATUS UNAVAILABLE</h3>
               <p className="text-gray-300">
-                The official RFS/BOM fire safety feed is currently unreachable. For your safety, do not light any campfires until you can independently verify local conditions.
-              </p>
-            </div>
-          </div>
-        ) : fireStatus.status === 'simulated' ? (
-          <div className="bg-red-900/50 border border-red-500 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
-            <div>
-              <p className="text-sm text-red-300 uppercase tracking-widest font-semibold mb-1 flex items-center gap-2">
-                <AlertTriangle size={16} /> STATUS UNAVAILABLE (SIMULATED FOR {fireStatus.state})
-              </p>
-              <h3 className="text-4xl font-black text-red-500">
-                {fireStatus.rating}
-              </h3>
-            </div>
-            <div className="h-full w-px bg-red-500/30 hidden md:block"></div>
-            <div>
-              <p className="text-sm text-red-300 uppercase tracking-widest font-semibold mb-1">Action Required</p>
-              <p className="text-xl font-medium text-white flex items-center gap-2">
-                <AlertTriangle className="text-red-500" />
-                {fireStatus.action_required}
+                The official state fire emergency feed is currently unreachable. For your safety, do not light any campfires until you can independently verify local conditions with the NSW RFS or local park authority.
               </p>
             </div>
           </div>
         ) : (
           <div className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
-              <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Current Rating ({fireStatus.state})</p>
+              <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Live FDR ({fireStatus.state})</p>
               <h3 className={`text-4xl font-black ${
                 fireStatus.rating === 'Catastrophic' || fireStatus.rating === 'Extreme' 
                 ? 'text-[var(--color-sunset-orange)]' 
@@ -122,15 +104,22 @@ export default async function ExplorePage(props: Props) {
             </div>
             <div className="h-full w-px bg-white/10 hidden md:block"></div>
             <div>
-              <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Action Required</p>
-              <p className="text-xl font-medium text-white flex items-center gap-2">
-                {fireStatus.action_required.includes('ban') ? (
-                  <AlertTriangle className="text-[var(--color-sunset-orange)]" />
+              <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Total Fire Ban</p>
+              <p className={`text-xl font-bold flex items-center gap-2 ${fireStatus.total_fire_ban ? 'text-red-400' : 'text-green-400'}`}>
+                {fireStatus.total_fire_ban ? (
+                  <>
+                    <ShieldAlert className="text-red-400" />
+                    DECLARED (No Campfires)
+                  </>
                 ) : (
-                  <CheckCircle className="text-[var(--color-neon-green)]" />
+                  "Not Declared"
                 )}
-                {fireStatus.action_required}
               </p>
+            </div>
+            <div className="h-full w-px bg-white/10 hidden md:block"></div>
+            <div>
+              <p className="text-sm text-gray-400 uppercase tracking-widest font-semibold mb-1">Source</p>
+              <p className="text-xs text-gray-400 max-w-xs">{fireStatus.source}</p>
             </div>
           </div>
         )}

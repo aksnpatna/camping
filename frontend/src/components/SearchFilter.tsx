@@ -1,6 +1,6 @@
 "use client";
 
-import { Dog, Truck, Tent, Search } from "lucide-react";
+import { Dog, Truck, Search } from "lucide-react";
 import { useState } from "react";
 
 export interface FilterParams {

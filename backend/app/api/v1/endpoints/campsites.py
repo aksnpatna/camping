@@ -80,33 +80,22 @@ async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
     if not campsite:
         raise HTTPException(status_code=404, detail="Campsite not found")
         
-    pet_text = "It is pet friendly." if campsite.dog_friendly else "Leave the pets at home."
+    pet_text = "It is pet friendly." if campsite.dog_friendly is True else ("Pets are not permitted." if campsite.dog_friendly is False else "Pet policy is unverified.")
     rig_text = f"accessible for {', '.join(campsite.rig_access)}" if campsite.rig_access else "a great spot"
     
     prompt = f"You are a helpful travel guide. Write exactly 2 short, enthusiastic sentences pitching a camping trip to {campsite.name} in {campsite.state}. Mention that it is {rig_text} and {pet_text}. Do not use emojis."
     
-    # Try Ollama (Local-First AI Engine per AGENTS.md)
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            res = await client.post("http://localhost:11434/api/generate", json={
-                "model": "qwen2", 
-                "prompt": prompt,
-                "stream": False
-            })
-            if res.status_code == 200:
-                data = res.json()
-                return {"summary": data.get("response", "").strip()}
-            else:
-                raise Exception("Ollama returned non-200")
-    except Exception as e:
-        logger.info(f"Ollama local AI unavailable, trying Groq fallback: {e}")
-        try:
-            summary = await call_groq_fallback(prompt)
-            return {"summary": summary.strip()}
-        except Exception as e2:
-            logger.info(f"Groq fallback failed: {e2}")
+    from app.services.llm_inference import LLMInferenceService
+    summary = await LLMInferenceService.call_local_server(prompt)
+    if not summary:
+        summary = await LLMInferenceService.call_ollama(prompt, is_json=False)
+    if not summary:
+        summary = await LLMInferenceService.call_groq(prompt, is_json=False)
+
+    if summary:
+        return {"summary": summary.strip()}
         
-    # Fallback heuristic if local AI is not running
+    # Fallback heuristic if AI is not running
     fallback = f"Discover the perfect getaway at {campsite.name} in {campsite.state}. {pet_text} It is {rig_text}, making it an ideal destination for your next trip."
     return {"summary": fallback}
 
@@ -121,8 +110,6 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
         if time.time() - ts < CACHE_TTL:
             return val
 
-    import json
-    
     # 1. Gather Context via DuckDuckGo
     context = ""
     try:
@@ -134,38 +121,28 @@ async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db))
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}")
 
-    # 2. Extract Insights via AI Engine
+    # 2. Extract Insights via Centralized Local LLM (Qwen3-9B)
     prompt = f"Analyze this search data about {campsite.name} {campsite.state}: {context}. Extract the following as strict JSON format (only output JSON): {{\"sentiment_score\": 85, \"nearest_fuel\": \"15 mins away in Huskisson\", \"nearest_grocery\": \"15 mins away\", \"top_activities\": [\"swimming\", \"hiking\", \"fishing\"]}}"
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            local_res = await client.post("http://localhost:11434/api/generate", json={
-                "model": "qwen2.5", 
-                "prompt": prompt,
-                "stream": False,
-                "format": "json"
-            })
-            if local_res.status_code == 200:
-                ai_data = local_res.json().get("response", "")
-                parsed = CampsiteInsightsResponse.parse_raw(ai_data.strip())
-                INSIGHTS_CACHE[campsite_id] = (parsed, time.time())
-                return parsed
-            else:
-                raise Exception("Local LLM returned non-200 status")
-    except Exception as e:
-        logger.error(f"Error getting insights from Ollama: {e}")
+    from app.services.llm_inference import LLMInferenceService
+    ai_data = await LLMInferenceService.call_local_server(prompt)
+    if not ai_data:
+        ai_data = await LLMInferenceService.call_ollama(prompt, is_json=True)
+    if not ai_data:
+        ai_data = await LLMInferenceService.call_groq(prompt, is_json=True)
+
+    if ai_data:
         try:
-            groq_prompt = prompt + "\nProvide the JSON only without any markdown blocks or backticks."
-            ai_data = await call_groq_fallback(groq_prompt, is_json=True)
             parsed = CampsiteInsightsResponse.parse_raw(ai_data.strip())
             INSIGHTS_CACHE[campsite_id] = (parsed, time.time())
             return parsed
-        except Exception as e2:
-            logger.error(f"Error getting insights from Groq: {e2}")
-            fallback = CampsiteInsightsResponse(
-                sentiment_score=0,
-                nearest_fuel="Unavailable",
-                nearest_grocery="Unavailable",
-                top_activities=["Unavailable"]
-            )
-            return fallback
+        except Exception as e:
+            logger.warning(f"Failed to parse insights JSON from LLM: {e}")
+
+    fallback = CampsiteInsightsResponse(
+        sentiment_score=0,
+        nearest_fuel="Unavailable",
+        nearest_grocery="Unavailable",
+        top_activities=["Unavailable"]
+    )
+    return fallback
