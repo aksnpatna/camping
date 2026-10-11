@@ -51,6 +51,7 @@ interface FindWeekendResponse {
 interface FindWeekendPlannerProps {
   onSelectSiteOnMap: (campsiteId: number) => void;
   onOpenSaveModal: (campsiteId: number, campsiteName: string) => void;
+  startLocation?: { latitude: number; longitude: number };
 }
 
 const PRESET_QUERIES = [
@@ -72,7 +73,7 @@ const PRESET_QUERIES = [
   }
 ];
 
-export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal }: FindWeekendPlannerProps) {
+export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal, startLocation }: FindWeekendPlannerProps) {
   const [prompt, setPrompt] = useState(PRESET_QUERIES[0].prompt);
   const [loading, setLoading] = useState(false);
   const [cards, setCards] = useState<TripCardData[]>([]);
@@ -86,8 +87,8 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal 
   const [adjusting, setAdjusting] = useState(false);
   const [lastRequest, setLastRequest] = useState<Record<string, unknown>>({
     prompt: PRESET_QUERIES[0].prompt,
-    origin_lat: -33.8688,
-    origin_lng: 151.2093,
+    origin_lat: startLocation?.latitude ?? -33.8688,
+    origin_lng: startLocation?.longitude ?? 151.2093,
     max_drive_hours: 3.5
   });
 
@@ -100,8 +101,8 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal 
     try {
       const payload = {
         prompt: q,
-        origin_lat: -33.8688,
-        origin_lng: 151.2093
+        origin_lat: startLocation?.latitude ?? -33.8688,
+        origin_lng: startLocation?.longitude ?? 151.2093
       };
       setLastRequest(payload);
 

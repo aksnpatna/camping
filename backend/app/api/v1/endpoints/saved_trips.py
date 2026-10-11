@@ -21,7 +21,8 @@ def verify_magic_token(email: str, token: str, status_code: int = 403):
     if not token:
         raise HTTPException(status_code=status_code, detail="Authentication token required")
     secret = os.environ.get("SECRET_KEY", "dev-secret-key").encode()
-    expected_token = hmac.new(secret, email.encode(), hashlib.sha256).hexdigest()
+    normalized_email = email.strip().lower()
+    expected_token = hmac.new(secret, normalized_email.encode(), hashlib.sha256).hexdigest()
     if token != expected_token:
         raise HTTPException(status_code=status_code, detail="Invalid magic link token")
 
@@ -67,7 +68,7 @@ def get_user_dashboard(email: str, token: str = "", db: Session = Depends(get_db
     return result
 
 from app.schemas.saved_trip import SwitchCampsiteRequest, SimulateAlertRequest
-from app.worker.plan_b import find_plan_b_alternatives
+from app.worker.plan_b import find_plan_b_alternatives, dispatch_alert_email
 
 @router.post("/{trip_id}/switch-campsite", response_model=SavedTripResponse)
 def switch_campsite(trip_id: int, switch_data: SwitchCampsiteRequest, token: str = "", db: Session = Depends(get_db)):
@@ -102,16 +103,19 @@ def simulate_plan_b_alert(trip_id: int, sim_data: SimulateAlertRequest, token: s
 
     campsite = db.query(Campsite).filter(Campsite.id == trip.campsite_id).first()
     alternatives = find_plan_b_alternatives(db, trip, campsite) if campsite else []
+    details_text = sim_data.reason or "Simulated weather/condition shift detected in campground area."
+    site_name = campsite.name if campsite else "Campsite"
+    sent_ok = dispatch_alert_email(trip, site_name, details_text, alternatives)
 
     alert = PlanBAlert(
         saved_trip_id=trip.id,
         user_email=trip.user_email,
         campsite_id=trip.campsite_id,
         alert_type=sim_data.alert_type or "WEATHER_WARNING",
-        details=sim_data.reason or "Simulated weather/condition shift detected in campground area.",
+        details=details_text,
         suggested_alternatives=alternatives,
-        delivery_status="DELIVERED",
-        retry_count=0
+        delivery_status="SENT" if sent_ok else "FAILED",
+        retry_count=0 if sent_ok else 1
     )
     db.add(alert)
     db.commit()

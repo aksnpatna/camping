@@ -55,6 +55,8 @@ export default function Home() {
   const [myTrips, setMyTrips] = useState<SavedTripDashboard[] | null>(null);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [dashError, setDashError] = useState("");
+  const [requestingMagicLink, setRequestingMagicLink] = useState(false);
+  const [magicLinkFeedback, setMagicLinkFeedback] = useState("");
 
   // Routing State
   const [startLocation, setStartLocation] = useState({ longitude: 151.2093, latitude: -33.8688 }); // Default to Sydney CBD
@@ -70,9 +72,34 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const roomParam = new URLSearchParams(window.location.search).get("room");
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get("room");
       if (roomParam) {
         router.replace(`/trip/${roomParam}`);
+        return;
+      }
+      const emailParam = params.get("email");
+      const tokenParam = params.get("token");
+      if (emailParam && tokenParam) {
+        setTimeout(async () => {
+          setDashEmail(emailParam);
+          setDashToken(tokenParam);
+          setShowDashboard(true);
+          setLoadingTrips(true);
+          setDashError("");
+          try {
+            const res = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(emailParam)}?token=${encodeURIComponent(tokenParam)}`);
+            if (res.ok) {
+              setMyTrips(await res.json());
+            } else {
+              setDashError("Invalid magic token or expired session");
+            }
+          } catch {
+            setDashError("Network error loading trips.");
+          } finally {
+            setLoadingTrips(false);
+          }
+        }, 0);
       }
     }
   }, [router]);
@@ -203,6 +230,7 @@ export default function Home() {
         {viewMode === "planner" ? (
           <div className="w-full h-full overflow-y-auto">
             <FindWeekendPlanner 
+              startLocation={startLocation}
               onSelectSiteOnMap={(campsiteId) => {
                 const s = campsites.find(c => c.id === campsiteId);
                 if (s) {
@@ -264,21 +292,71 @@ export default function Home() {
               <button onClick={() => setShowDashboard(false)} className="text-gray-400 hover:text-white p-2">✕</button>
             </div>
             
-            <div className="flex flex-col gap-2 mb-6">
-              <input 
-                type="email" 
-                placeholder="Enter your email" 
-                value={dashEmail}
-                onChange={e => setDashEmail(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
-              />
+            <div className="flex flex-col gap-2.5 mb-6">
+              <div className="flex gap-2">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email" 
+                  value={dashEmail}
+                  onChange={e => {
+                    setDashEmail(e.target.value);
+                    setDashError("");
+                    setMagicLinkFeedback("");
+                  }}
+                  className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
+                />
+                <button
+                  type="button"
+                  disabled={requestingMagicLink || !dashEmail}
+                  onClick={async () => {
+                    if (!dashEmail) {
+                      setDashError("Please enter your email first");
+                      return;
+                    }
+                    setRequestingMagicLink(true);
+                    setDashError("");
+                    setMagicLinkFeedback("");
+                    try {
+                      const res = await fetch(`${getApiUrl()}/auth/request-magic-link`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: dashEmail })
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setMagicLinkFeedback("✨ Magic sign-in link dispatched! Auto-filling session token...");
+                        if (data.token) {
+                          setDashToken(data.token);
+                          // Auto load trips immediately
+                          setLoadingTrips(true);
+                          const dashRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(data.token)}`);
+                          if (dashRes.ok) {
+                            setMyTrips(await dashRes.json());
+                          }
+                          setLoadingTrips(false);
+                        }
+                      } else {
+                        setDashError("Failed to dispatch magic link. Please check email address.");
+                      }
+                    } catch {
+                      setDashError("Network error requesting magic link.");
+                    } finally {
+                      setRequestingMagicLink(false);
+                    }
+                  }}
+                  className="bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-2 rounded-lg font-bold text-xs text-white transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                >
+                  {requestingMagicLink ? "Sending..." : "Send Magic Link 📧"}
+                </button>
+              </div>
+
               <div className="flex gap-2">
                 <input 
                   type="text" 
                   placeholder="Access Token (from email)" 
                   value={dashToken}
                   onChange={e => setDashToken(e.target.value)}
-                  className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
+                  className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green font-mono text-xs"
                 />
                 <button 
                   onClick={async () => {
@@ -301,11 +379,16 @@ export default function Home() {
                     }
                     setLoadingTrips(false);
                   }}
-                  className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a] cursor-pointer"
+                  className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a] cursor-pointer shrink-0"
                 >
                   Load
                 </button>
               </div>
+              {magicLinkFeedback && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-2 rounded-lg text-center font-medium">
+                  {magicLinkFeedback}
+                </div>
+              )}
               {dashError && <div className="text-red-400 text-xs text-center mt-1">{dashError}</div>}
               {actionMessage && (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-2.5 rounded-lg text-center font-bold">

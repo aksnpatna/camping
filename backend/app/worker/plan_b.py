@@ -1,13 +1,33 @@
 import logging
 import httpx
+import hmac
+import hashlib
 from datetime import date
 from app.core.database import SessionLocal
+from app.core.config import settings
 from app.models.saved_trip import SavedTrip
 from app.models.campsite import Campsite
 from app.models.plan_b_alert import PlanBAlert
 from app.services.news_scraper import check_campsite_news
+from app.services.email_service import email_service
 
 logger = logging.getLogger(__name__)
+
+def dispatch_alert_email(trip: SavedTrip, campsite_name: str, details: str, alts: list) -> bool:
+    secret = (settings.SECRET_KEY or "dev-secret-key").encode()
+    token = hmac.new(secret, trip.user_email.strip().lower().encode(), hashlib.sha256).hexdigest()
+    switch_url = f"{settings.FRONTEND_URL.rstrip('/')}/?email={trip.user_email.strip().lower()}&token={token}"
+    try:
+        return email_service.send_plan_b_alert(
+            recipient_email=trip.user_email,
+            trip_name=campsite_name,
+            reason=details,
+            switch_url=switch_url,
+            alternatives=alts
+        )
+    except Exception as err:
+        logger.error(f"Failed to send Plan B alert email to {trip.user_email}: {err}")
+        return False
 
 def find_plan_b_alternatives(db, trip: SavedTrip, original_campsite: Campsite):
     query = db.query(Campsite).filter(Campsite.id != original_campsite.id)
@@ -65,18 +85,19 @@ def run_plan_b_check():
                                 )
                                 logger.warning(f"PLAN B ALERT! {details}")
                                 alts = find_plan_b_alternatives(db, trip, campsite)
+                                sent_ok = dispatch_alert_email(trip, campsite.name, details, alts)
                                 alert = PlanBAlert(
                                     saved_trip_id=trip.id,
                                     user_email=trip.user_email,
                                     campsite_id=campsite.id,
                                     alert_type="WEATHER_WARNING",
                                     details=details,
-                                    delivery_status="DELIVERED",
-                                    retry_count=0,
+                                    delivery_status="SENT" if sent_ok else "FAILED",
+                                    retry_count=0 if sent_ok else 1,
                                     suggested_alternatives=alts
                                 )
                                 db.add(alert)
-                                trip.plan_b_alert_active = False
+                                # Preserve trip.plan_b_alert_active = True for persistent condition monitoring
                                 db.commit()
                                 continue  # Skip news if weather already triggered
                             else:
@@ -96,18 +117,19 @@ def run_plan_b_check():
                             details = f"Danger alert for {campsite.name}: {result['title']} ({result['source']})"
                             logger.warning(f"PLAN B ALERT! {details}")
                             alts = find_plan_b_alternatives(db, trip, campsite)
+                            sent_ok = dispatch_alert_email(trip, campsite.name, details, alts)
                             alert = PlanBAlert(
                                 saved_trip_id=trip.id,
                                 user_email=trip.user_email,
                                 campsite_id=campsite.id,
                                 alert_type=alert_type,
                                 details=details,
-                                delivery_status="DELIVERED",
-                                retry_count=0,
+                                delivery_status="SENT" if sent_ok else "FAILED",
+                                retry_count=0 if sent_ok else 1,
                                 suggested_alternatives=alts
                             )
                             db.add(alert)
-                            trip.plan_b_alert_active = False
+                            # Preserve trip.plan_b_alert_active = True for persistent condition monitoring
                             db.commit()
                             break
             except Exception as e:

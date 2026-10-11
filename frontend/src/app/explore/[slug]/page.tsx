@@ -1,5 +1,4 @@
-import React from 'react';
-import { Metadata, ResolvingMetadata } from 'next';
+import { Metadata } from 'next';
 import Link from 'next/link';
 import { AlertTriangle, Flame, ShieldAlert } from 'lucide-react';
 import { getApiUrl } from '@/config';
@@ -9,8 +8,7 @@ type Props = {
 }
 
 export async function generateMetadata(
-  props: Props,
-  _parent: ResolvingMetadata
+  props: Props
 ): Promise<Metadata> {
   const params = await props.params;
   const titleSlug = params.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

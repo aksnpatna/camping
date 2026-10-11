@@ -65,11 +65,15 @@ def test_plan_b_creates_persistent_alerts_with_alternatives():
         alert = alerts[0]
         assert alert.alert_type == "WEATHER_WARNING"
         assert "Rain Prob" in alert.details or "Weather alert" in alert.details
-        assert alert.delivery_status in ["DELIVERED", "PENDING"]
+        assert alert.delivery_status == "SENT"
         assert len(alert.suggested_alternatives) >= 2
         # Alternative sites should not be the primary site
         alt_ids = [a["id"] for a in alert.suggested_alternatives]
         assert primary_campsite_id not in alt_ids
+
+        # Verify plan_b_alert_active remains True (monitoring is persistent)
+        db_trip = db.query(SavedTrip).filter(SavedTrip.id == trip_id).first()
+        assert db_trip.plan_b_alert_active is True
 
     # 4. Verify Dashboard endpoint returns persistent alerts and alternatives
     dash_res = client.get(f"/api/v1/saved-trips/dashboard/{email}?token={token}")
@@ -143,6 +147,7 @@ def test_simulate_alert_creates_alternatives():
     alert_data = sim_res.json()
     assert alert_data["alert_type"] == "WEATHER_WARNING"
     assert "Severe gale" in alert_data["details"]
+    assert alert_data["delivery_status"] == "SENT"
     assert len(alert_data["suggested_alternatives"]) >= 2
     assert site_id not in [a["id"] for a in alert_data["suggested_alternatives"]]
 

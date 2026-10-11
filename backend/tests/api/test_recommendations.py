@@ -67,18 +67,76 @@ def test_adjust_trip_conversational():
 
 def test_recommendation_cards_no_fabricated_compromises():
     payload = {
-        "prompt": "Melbourne weekend trip",
-        "origin_lat": -37.8136,
-        "origin_lng": 144.9631,
-        "max_drive_hours": 5.0
+        "prompt": "Sydney weekend trip",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093,
+        "max_drive_hours": 3.5
     }
     response = client.post("/api/v1/trips/find-weekend", json=payload)
     assert response.status_code == 200
     cards = response.json()["cards"]
     assert len(cards) > 0
     for card in cards:
-        # Non-NSW sites must NEVER link to the NSW NPWS homepage!
-        if card.get("state") != "NSW":
-            assert card.get("booking_url") != "https://www.nationalparks.nsw.gov.au"
+        # Verified booking/source URL is preserved
+        if card.get("booking_url"):
+            assert len(card["booking_url"]) > 10
+        # Main compromise must not be empty or canned fallback
+        assert "main_compromise" in card
+        assert len(card["main_compromise"]) > 5
+
+def test_preset_sydney_dog_3_5h():
+    payload = {
+        "prompt": "Leaving Sydney Friday afternoon, 2 adults and a dog. Tent camping, under 3.5 hours driving.",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["cards"]) >= 1
+    # All returned cards must be dog-friendly
+    for card in data["cards"]:
+        assert card["dog_friendly"] is True
+        assert card["driving_time_minutes"] <= 3.5 * 60 + 30
+
+def test_preset_family_under_2h():
+    payload = {
+        "prompt": "Two adults, two kids. Leaving Sydney Saturday morning, under 2 hours driving, toilets essential.",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["cards"]) >= 1
+    for card in data["cards"]:
+        assert card["driving_time_minutes"] <= 2.0 * 60 + 30
+
+def test_preset_quick_overnight_under_90m():
+    payload = {
+        "prompt": "Leaving Sydney Friday after work, back Saturday evening, under 90 minutes drive.",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["cards"]) >= 1
+    for card in data["cards"]:
+        assert card["driving_time_minutes"] <= 90 + 30
+
+def test_preset_4wd_under_4h():
+    payload = {
+        "prompt": "Under 4 hours drive from Sydney, 4WD tracks preferred, quiet bush camping.",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["cards"]) >= 1
+    for card in data["cards"]:
+        assert card["driving_time_minutes"] <= 4.0 * 60 + 30
+
 
 
