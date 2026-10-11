@@ -124,25 +124,41 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
             if resp.status_code == 200:
                 root = ET.fromstring(resp.content)
                 target_district = None
-                
+
                 dist_nodes = root.findall(".//District")
-                if target_search:
+                wanted = (target_search or "").strip().lower()
+
+                def _name(node) -> str:
+                    return (node.findtext("Name") or "").strip().lower()
+
+                # Exact (case-insensitive) match first, then the requested name
+                # contained in a feed name. Never fall back to a different
+                # district: a rating for the wrong area is worse than none.
+                for d in dist_nodes:
+                    if wanted and _name(d) == wanted:
+                        target_district = d
+                        break
+                if target_district is None and wanted:
                     for d in dist_nodes:
-                        name = d.findtext("Name", "")
-                        if target_search.lower() in name.lower() or name.lower() in target_search.lower():
+                        if wanted in _name(d):
                             target_district = d
                             break
-                            
-                # Fallback to agency default district if not matched
+
                 if target_district is None:
-                    default_d = agency.get("default_district", "Greater Sydney Region")
-                    for d in dist_nodes:
-                        name = d.findtext("Name", "")
-                        if default_d.lower() in name.lower():
-                            target_district = d
-                            break
-                if target_district is None and dist_nodes:
-                    target_district = dist_nodes[0]
+                    return {
+                        "state": state_key,
+                        "status": "unavailable",
+                        "message": (
+                            f"District '{target_search}' was not found in the live "
+                            f"{agency['agency']} feed. Check the official source before travelling."
+                        ),
+                        "rating": None,
+                        "total_fire_ban": None,
+                        "district": target_search,
+                        "source": agency["source_label"],
+                        "official_url": agency["url"],
+                        "action_required": f"Check official {agency['agency']} warnings before travelling",
+                    }
 
                 if target_district is not None:
                     dist_name = (target_district.findtext("Name") or "").strip() or None

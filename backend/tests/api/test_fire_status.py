@@ -222,3 +222,55 @@ def test_fire_status_jbt_routes_to_illawarra_shoalhaven():
     assert data["total_fire_ban"] is True
     assert "Parks Australia" in data["source"] or "Shoalhaven" in data["source"]
 
+
+_TWO_DISTRICT_XML = (
+    '<?xml version="1.0"?>'
+    "<root>"
+    "<District><Name>Far North Coast</Name><DangerLevelToday>Low</DangerLevelToday>"
+    "<FireBanToday>No</FireBanToday></District>"
+    "<District><Name>Greater Sydney Region</Name><DangerLevelToday>Extreme</DangerLevelToday>"
+    "<FireBanToday>Yes</FireBanToday></District>"
+    "</root>"
+)
+
+
+def test_unmatched_requested_district_is_never_substituted():
+    """A district the feed does not know must degrade to 'unavailable', not
+    silently return another district's live rating or total fire ban."""
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    with patch("httpx.Client.get", return_value=_feed_mock(_TWO_DISTRICT_XML)):
+        data = fetch_live_rfs_status(state="NSW", district="Atlantis")
+
+    assert data["status"] == "unavailable"
+    assert data["rating"] is None
+    assert data["total_fire_ban"] is None
+
+
+def test_feed_missing_default_district_does_not_fall_back_to_first_node():
+    """If the agency's default district is absent, do not present the first
+    district in the feed as the answer."""
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    xml = (
+        '<?xml version="1.0"?><root><District><Name>Far North Coast</Name>'
+        "<DangerLevelToday>Low</DangerLevelToday><FireBanToday>No</FireBanToday>"
+        "</District></root>"
+    )
+    with patch("httpx.Client.get", return_value=_feed_mock(xml)):
+        data = fetch_live_rfs_status(state="NSW")
+
+    assert data["status"] == "unavailable"
+    assert data["rating"] is None
+
+
+def test_matched_district_still_returns_live():
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    with patch("httpx.Client.get", return_value=_feed_mock(_TWO_DISTRICT_XML)):
+        data = fetch_live_rfs_status(state="NSW", district="Far North Coast")
+
+    assert data["status"] == "live"
+    assert data["district"] == "Far North Coast"
+    assert data["total_fire_ban"] is False
+
