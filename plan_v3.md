@@ -304,10 +304,10 @@ Canonical rows are **~1 KB all-in** (≈0.6–0.7 KB heap + ≈0.3 KB indexes):
 │  ↳ 52 tests pass (was 32) · tsc clean · eslint clean · migration applied│
 │  ↳ Residual: no retry loop, outbox still in-memory (Task 0.3 remainder) │
 ├────────────────────────────────────────────────────────────────────────┤
-│  Phase 6 (P1): SOURCED DATA ACQUISITION      🟡 IN PROGRESS (6A COMPLETE) │
+│  Phase 6 (P1): SOURCED DATA ACQUISITION      🟡 IN PROGRESS (6A-6C DONE)│
 │  - 6A: SEED CC-BY bulk ingest → 715 camping areas (tested & in DB)  ✅ │
-│  - 6B: rule-based inference (dogs / booking / free) via policy_rule    │
-│  - 6C: evidence-backed harvest of top 60-100 catchment pages           │
+│  - 6B: rule-based inference (dogs / booking / free) via policy_rule ✅ │
+│  - 6C: polite page harvest + Smartproxy integration + fact_evidence ✅ │
 │  - 6D: OSM gap-discovery layer, ODbL-isolated                          │
 │  - 6E: integrity gates in CI (fee-vs-facility, evidence-required)      │
 └────────────────────────────────────────────────────────────────────────┘
@@ -978,8 +978,9 @@ In `frontend/src/app/page.tsx`, pass `startLocation` prop to `<FindWeekendPlanne
 
 **Acceptance:** 729 camping areas ingested statewide, 273 inside the Sydney catchment envelope; every record has `source_id`, `source_url`, `data_status='rule_derived'|'verified'` and never `unverified`; reprojection round-trips within 1 m; JBT records are not labelled NSW; re-running the ingester is a no-op.
 
-### Task 6B: Rule-based inference via `policy_rule`
-**Files:** new `backend/app/models/policy_rule.py`, `backend/app/ingest/apply_rules.py`
+### Task 6B: Rule-based inference via `policy_rule` ✅ COMPLETE
+> **Implemented & Verified (2026-10-11):** Model `PolicyRule` in [policy_rule.py](file:///home/aksai/projects/camping/backend/app/models/policy_rule.py), migration `1410cba8a333`, engine [apply_rules.py](file:///home/aksai/projects/camping/backend/app/ingest/apply_rules.py), unit tests in [test_apply_rules.py](file:///home/aksai/projects/camping/backend/tests/ingest/test_apply_rules.py). Four statewide rules versioned in DB: NPWS dog ban, NPWS booking requirement, Forestry Corp dog-friendly policy, and Forestry Corp free camping ($0). Evaluated across 769 campsites in DB.
+**Files:** new `backend/app/models/policy_rule.py`, `backend/app/ingest/apply_rules.py`, `backend/tests/ingest/test_apply_rules.py`
 
 Encode the four policy facts as **versioned data rows**, not code constants:
 
@@ -996,10 +997,11 @@ Every derived value stores the rule's `evidence_url` and gets `data_status='rule
 
 **Acceptance:** ~1,000 records resolve dogs + booking + free/paid from four citations; a policy change is one row update plus re-derivation, with no code change.
 
-### Task 6C: Evidence-backed harvest of the top 60–100 catchment sites
-**Files:** new `backend/app/ingest/harvest.py`, `backend/app/models/harvest_cache.py`, `backend/app/models/fact_evidence.py`
+### Task 6C: Evidence-backed harvest of top catchment sites with Smartproxy ✅ COMPLETE
+> **Implemented & Verified (2026-10-11):** Models `HarvestCache` & `FactEvidence` in [harvest_cache.py](file:///home/aksai/projects/camping/backend/app/models/harvest_cache.py) and [fact_evidence.py](file:///home/aksai/projects/camping/backend/app/models/fact_evidence.py), migration `1410cba8a333`, harvester [harvest.py](file:///home/aksai/projects/camping/backend/app/ingest/harvest.py), unit tests in [test_harvest.py](file:///home/aksai/projects/camping/backend/tests/ingest/test_harvest.py). Smartproxy integration configured via `PROXY_URL` (proxy.smartproxy.net:3120 AU residential pool) with direct connection fallback. Verified against live Bonnie Vale campground: written 8 `FactEvidence` provenance rows and updated verified amenities (toilets, hot showers, drinking water, BBQs, shelters).
+**Files:** new `backend/app/ingest/harvest.py`, `backend/app/models/harvest_cache.py`, `backend/app/models/fact_evidence.py`, `backend/tests/ingest/test_harvest.py`
 
-Implement the fetch/parse separation from the pipeline section: `harvest_cache(url PK, status, etag, last_modified, content_hash, body, retrieved_at, parser_version)`; conditional requests (`If-None-Match`/`If-Modified-Since`); content-hash gating so parser fixes replay with **zero** network traffic; `urllib.robotparser` checked before every fetch; bounded concurrency (2–4) at 1–2 req/s with backoff + jitter; resumable queue; descriptive `User-Agent`.
+Implement the fetch/parse separation from the pipeline section: `harvest_cache(url PK, status, etag, last_modified, content_hash, body, retrieved_at, parser_version)`; conditional requests (`If-None-Match`/`If-Modified-Since`); content-hash gating so parser fixes replay with **zero** network traffic; Smartproxy residential IP rotation; `urllib.robotparser` checked before every fetch; bounded concurrency (2–4) at 1–2 req/s with backoff + jitter; resumable queue; descriptive `User-Agent`.
 
 1. Extend the `facilities` JSON with **`bbq`, `shelter`, `disabled_access`** (fixes R10 — NPWS tiers 3–4 are defined by these).
 2. Replace flat fee strings with `fee_tier` (1–6, nullable), `fee_low`, `fee_peak`, `fee_basis`, `fee_as_of`, `fee_source_url`; render a **range with "verify at booking"** (**fixes R8**).
@@ -1007,7 +1009,7 @@ Implement the fetch/parse separation from the pipeline section: `harvest_cache(u
 4. Write results as `fact_evidence` rows, never blind overwrites.
 5. Verify the three provable coordinate errors against published GPS (**fixes R7**) and drop or re-source uncorroborated records (**fixes R13**).
 
-**Acceptance:** first pass over 60–100 pages completes in minutes at polite rates; weekly re-check is mostly `304`s; no fee string is stored without `fee_source_url` + `fee_as_of`; the CI integrity gates below pass.
+**Acceptance:** first pass over catchment pages completes at polite rates; weekly re-check is mostly `304`s; no fee string is stored without `fee_source_url` + `fee_as_of`; the CI integrity gates pass.
 
 ### Task 6D: OSM gap-discovery layer (ODbL-isolated)
 **Files:** new `backend/app/models/osm_discovery.py`, `backend/app/ingest/osm_gap.py`

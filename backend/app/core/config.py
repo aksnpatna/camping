@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     MAGIC_TOKEN_TTL_MINUTES: int = int(os.getenv("MAGIC_TOKEN_TTL_MINUTES", "30"))
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://camping.akstest.win")
 
+    # Smartproxy / HTTP Proxy for data harvesting
+    PROXY_URL: Optional[str] = os.getenv("PROXY_URL", None)
+
     model_config = SettingsConfigDict(env_file=(".env", "backend/.env"), extra="ignore")
 
 
