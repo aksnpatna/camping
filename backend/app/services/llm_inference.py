@@ -119,6 +119,33 @@ class LLMInferenceService:
         elif "brisbane" in low:
             extracted["origin_lat"] = -27.4698
             extracted["origin_lng"] = 153.0251
+        elif "perth" in low:
+            extracted["origin_lat"] = -31.9505
+            extracted["origin_lng"] = 115.8605
+        elif "adelaide" in low:
+            extracted["origin_lat"] = -34.9285
+            extracted["origin_lng"] = 138.6007
+        elif "hobart" in low:
+            extracted["origin_lat"] = -42.8821
+            extracted["origin_lng"] = 147.3272
+        elif "darwin" in low:
+            extracted["origin_lat"] = -12.4634
+            extracted["origin_lng"] = 130.8456
+        elif "cairns" in low:
+            extracted["origin_lat"] = -16.9186
+            extracted["origin_lng"] = 145.7781
+        elif "gold coast" in low:
+            extracted["origin_lat"] = -28.0167
+            extracted["origin_lng"] = 153.4000
+        elif "newcastle" in low:
+            extracted["origin_lat"] = -32.9283
+            extracted["origin_lng"] = 151.7817
+        elif "wollongong" in low:
+            extracted["origin_lat"] = -34.4278
+            extracted["origin_lng"] = 150.8931
+        elif "geelong" in low:
+            extracted["origin_lat"] = -38.1499
+            extracted["origin_lng"] = 144.3617
 
         # Rig / Shelter
         if "caravan" in low:

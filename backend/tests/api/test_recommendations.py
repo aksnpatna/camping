@@ -161,4 +161,37 @@ def test_cards_provide_availability_window_and_modality():
         assert len(card["availability_window"]) >= 20
 
 
+def test_find_weekend_geolocation_origin_without_city_in_prompt():
+    """Verify that when client passes user geolocation (e.g. Melbourne), recommendations center on that origin."""
+    payload = {
+        "prompt": "Leaving Friday afternoon, 2 adults and a dog. Tent camping, under 3 hours driving.",
+        "origin_lat": -37.8136,
+        "origin_lng": 144.9631,
+        "max_drive_hours": 3.0,
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    cards = response.json()["cards"]
+    assert len(cards) >= 1
+    for card in cards:
+        assert card["state"] == "VIC"
+        assert card["driving_time_minutes"] <= 3.0 * 60 + 30
+
+
+def test_find_weekend_perth_origin_in_prompt():
+    """Verify that capital cities in prompt (like Perth, Adelaide, Melbourne) resolve origin coordinates."""
+    payload = {
+        "prompt": "Leaving Perth Friday afternoon, 2 adults. Tent camping, under 4 hours driving.",
+        "origin_lat": -33.8688, # Default Sydney passed, but prompt says Perth
+        "origin_lng": 151.2093,
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    cards = response.json()["cards"]
+    assert len(cards) >= 1
+    for card in cards:
+        assert card["state"] == "WA"
+
+
+
 

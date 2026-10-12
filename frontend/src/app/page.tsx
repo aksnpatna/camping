@@ -42,6 +42,15 @@ interface SavedTripDashboard {
   alerts?: PlanBAlertItem[];
 }
 
+export interface UserLocation {
+  longitude: number;
+  latitude: number;
+  city?: string;
+  state?: string;
+  isDetected?: boolean;
+  source?: "gps" | "ip" | "default";
+}
+
 export default function Home() {
   const [viewMode, setViewMode] = useState<"planner" | "map">("planner");
   const [campsites, setCampsites] = useState<Campsite[]>([]);
@@ -58,8 +67,15 @@ export default function Home() {
   const [requestingMagicLink, setRequestingMagicLink] = useState(false);
   const [magicLinkFeedback, setMagicLinkFeedback] = useState("");
 
-  // Routing State
-  const [startLocation, setStartLocation] = useState({ longitude: 151.2093, latitude: -33.8688 }); // Default to Sydney CBD
+  // Routing & Geolocation State
+  const [startLocation, setStartLocation] = useState<UserLocation>({
+    longitude: 151.2093,
+    latitude: -33.8688,
+    city: "Sydney",
+    state: "NSW",
+    isDetected: false,
+    source: "default"
+  });
   const [routeGeoJson, setRouteGeoJson] = useState<GeoJSON.Geometry | GeoJSON.Feature | null>(null);
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
 
@@ -105,16 +121,93 @@ export default function Home() {
   }, [router]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setStartLocation({
-          longitude: position.coords.longitude,
-          latitude: position.coords.latitude
-        });
-      }, (error) => {
-        console.warn("Geolocation denied or unavailable, defaulting to Sydney.", error);
-      });
+    if (typeof window === "undefined") return;
+
+    let isMounted = true;
+
+    const AU_CITIES = [
+      { city: "Sydney", state: "NSW", lat: -33.8688, lng: 151.2093 },
+      { city: "Melbourne", state: "VIC", lat: -37.8136, lng: 144.9631 },
+      { city: "Brisbane", state: "QLD", lat: -27.4698, lng: 153.0251 },
+      { city: "Perth", state: "WA", lat: -31.9505, lng: 115.8605 },
+      { city: "Adelaide", state: "SA", lat: -34.9285, lng: 138.6007 },
+      { city: "Hobart", state: "TAS", lat: -42.8821, lng: 147.3272 },
+      { city: "Darwin", state: "NT", lat: -12.4634, lng: 130.8456 },
+      { city: "Canberra", state: "ACT", lat: -35.2809, lng: 149.1300 },
+      { city: "Gold Coast", state: "QLD", lat: -28.0167, lng: 153.4000 },
+      { city: "Newcastle", state: "NSW", lat: -32.9283, lng: 151.7817 },
+      { city: "Wollongong", state: "NSW", lat: -34.4278, lng: 150.8931 },
+      { city: "Geelong", state: "VIC", lat: -38.1499, lng: 144.3617 },
+      { city: "Cairns", state: "QLD", lat: -16.9186, lng: 145.7781 },
+    ];
+
+    const resolveNearestCity = (lat: number, lng: number) => {
+      let nearest = AU_CITIES[0];
+      let minDist = Infinity;
+      for (const c of AU_CITIES) {
+        const d = Math.hypot(lat - c.lat, lng - c.lng);
+        if (d < minDist) {
+          minDist = d;
+          nearest = c;
+        }
+      }
+      return nearest;
+    };
+
+    // 1. IP Geolocation (Fast, non-blocking default)
+    const fetchIpLocation = async () => {
+      try {
+        const res = await fetch("https://ipwho.is/", { signal: AbortSignal.timeout(3500) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && isMounted) {
+            setStartLocation(prev => {
+              if (prev.source === "gps") return prev;
+              return {
+                latitude: Number(data.latitude),
+                longitude: Number(data.longitude),
+                city: data.city || "Sydney",
+                state: data.region_code || "NSW",
+                isDetected: true,
+                source: "ip"
+              };
+            });
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    };
+
+    fetchIpLocation();
+
+    // 2. High-accuracy Browser GPS (if permission granted by user)
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (!isMounted) return;
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const nearest = resolveNearestCity(lat, lng);
+          setStartLocation({
+            latitude: lat,
+            longitude: lng,
+            city: nearest.city,
+            state: nearest.state,
+            isDetected: true,
+            source: "gps"
+          });
+        },
+        (error) => {
+          console.warn("Geolocation permission not granted or unavailable; using IP/default.", error.message);
+        },
+        { timeout: 6000, maximumAge: 300000, enableHighAccuracy: false }
+      );
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -176,7 +269,12 @@ export default function Home() {
       <header className="w-full bg-black/60 border-b border-white/10 px-4 md:px-6 py-3.5 flex items-center justify-between z-30 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setViewMode("planner")} 
+            onClick={() => {
+              setViewMode("planner");
+              setSelectedSite(null);
+              setRouteGeoJson(null);
+              setRouteDistance(null);
+            }} 
             className="text-xl md:text-2xl font-black text-white tracking-tighter flex items-center gap-1.5 cursor-pointer text-left"
           >
             <span>CAMP SMART</span>
@@ -190,7 +288,12 @@ export default function Home() {
         {/* VIEW MODE TOGGLE */}
         <div className="bg-white/10 border border-white/15 p-1 rounded-xl flex items-center gap-1">
           <button
-            onClick={() => setViewMode("planner")}
+            onClick={() => {
+              setViewMode("planner");
+              setSelectedSite(null);
+              setRouteGeoJson(null);
+              setRouteDistance(null);
+            }}
             className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               viewMode === "planner"
                 ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow-md"
@@ -234,6 +337,7 @@ export default function Home() {
           <div className="w-full h-full overflow-y-auto">
             <FindWeekendPlanner 
               startLocation={startLocation}
+              onUpdateStartLocation={(loc) => setStartLocation(loc)}
               onSelectSiteOnMap={(campsiteId) => {
                 const s = campsites.find(c => c.id === campsiteId);
                 if (s) {
@@ -245,6 +349,7 @@ export default function Home() {
                 const s = campsites.find(c => c.id === campsiteId);
                 if (s) {
                   setSelectedSite(s);
+                  setViewMode("map");
                 }
               }}
             />
@@ -267,8 +372,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Answer-First Overlay (Active when a site is selected) */}
-        {selectedSite && (
+        {/* Answer-First Overlay (Active only when a site is selected in Map view) */}
+        {selectedSite && viewMode === "map" && (
           <TripCard 
             key={selectedSite.id}
             campsite={selectedSite} 

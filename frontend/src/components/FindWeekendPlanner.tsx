@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { 
   Sparkles, 
   Car, 
@@ -57,33 +57,65 @@ interface FindWeekendResponse {
   parsed_criteria?: Record<string, unknown>;
 }
 
+export interface StartLocation {
+  latitude: number;
+  longitude: number;
+  city?: string;
+  state?: string;
+  isDetected?: boolean;
+  source?: "gps" | "ip" | "default";
+}
+
 interface FindWeekendPlannerProps {
   onSelectSiteOnMap: (campsiteId: number) => void;
   onOpenSaveModal: (campsiteId: number, campsiteName: string) => void;
-  startLocation?: { latitude: number; longitude: number };
+  startLocation?: StartLocation;
+  onUpdateStartLocation?: (location: StartLocation) => void;
 }
 
-const PRESET_QUERIES = [
-  {
-    label: "🐶 Sydney + Dog (< 3.5 hrs)",
-    prompt: "Leaving Sydney Friday afternoon, 2 adults and a dog. Tent camping, under 3.5 hours driving."
-  },
-  {
-    label: "👨‍👩‍👧 Family Weekend (< 2 hrs)",
-    prompt: "Two adults, two kids. Leaving Sydney Saturday morning, under 2 hours driving, toilets essential."
-  },
-  {
-    label: "🚙 4WD Bush Camp Escape",
-    prompt: "Under 4 hours drive from Sydney, 4WD tracks preferred, quiet bush camping."
-  },
-  {
-    label: "🏕️ Quick Friday Overnight",
-    prompt: "Leaving Sydney Friday after work, back Saturday evening, under 90 minutes drive."
-  }
+export function getPresetQueries(city = "Sydney", state = "NSW") {
+  const isWA = state === "WA" || city.toLowerCase() === "perth";
+  return [
+    {
+      label: isWA ? `🚙 ${city} Bush Camp (< 3.5 hrs)` : `🐶 ${city} + Dog (< 3.5 hrs)`,
+      prompt: isWA
+        ? `Leaving ${city} Friday afternoon, 2 adults. Tent camping, under 3.5 hours driving.`
+        : `Leaving ${city} Friday afternoon, 2 adults and a dog. Tent camping, under 3.5 hours driving.`
+    },
+    {
+      label: `👨‍👩‍👧 Family Weekend (< 2 hrs)`,
+      prompt: `Two adults, two kids. Leaving ${city} Saturday morning, under 2 hours driving, toilets essential.`
+    },
+    {
+      label: `🚙 4WD Bush Camp Escape`,
+      prompt: `Under 4 hours drive from ${city}, 4WD tracks preferred, quiet bush camping.`
+    },
+    {
+      label: `🏕️ Quick Friday Overnight`,
+      prompt: `Leaving ${city} Friday after work, back Saturday evening, under 90 minutes drive.`
+    }
+  ];
+}
+
+const MAJOR_AU_ORIGINS = [
+  { city: "Sydney", state: "NSW", latitude: -33.8688, longitude: 151.2093 },
+  { city: "Melbourne", state: "VIC", latitude: -37.8136, longitude: 144.9631 },
+  { city: "Brisbane", state: "QLD", latitude: -27.4698, longitude: 153.0251 },
+  { city: "Perth", state: "WA", latitude: -31.9505, longitude: 115.8605 },
+  { city: "Adelaide", state: "SA", latitude: -34.9285, longitude: 138.6007 },
+  { city: "Hobart", state: "TAS", latitude: -42.8821, longitude: 147.3272 },
+  { city: "Canberra", state: "ACT", latitude: -35.2809, longitude: 149.1300 },
+  { city: "Darwin", state: "NT", latitude: -12.4634, longitude: 130.8456 }
 ];
 
-export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal, startLocation }: FindWeekendPlannerProps) {
-  const [prompt, setPrompt] = useState(PRESET_QUERIES[0].prompt);
+export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal, startLocation, onUpdateStartLocation }: FindWeekendPlannerProps) {
+  const city = startLocation?.city || "Sydney";
+  const state = startLocation?.state || "NSW";
+  const presets = useMemo(() => getPresetQueries(city, state), [city, state]);
+
+  const [userPrompt, setUserPrompt] = useState<string | null>(null);
+  const activePrompt = userPrompt ?? presets[0].prompt;
+  const [showOriginDropdown, setShowOriginDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cards, setCards] = useState<TripCardData[]>([]);
   const [limitingConstraint, setLimitingConstraint] = useState<string | null>(null);
@@ -95,23 +127,27 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
   const [whatIfInput, setWhatIfInput] = useState("");
   const [adjusting, setAdjusting] = useState(false);
   const [lastRequest, setLastRequest] = useState<Record<string, unknown>>({
-    prompt: PRESET_QUERIES[0].prompt,
+    prompt: presets[0].prompt,
     origin_lat: startLocation?.latitude ?? -33.8688,
     origin_lng: startLocation?.longitude ?? 151.2093,
     max_drive_hours: 3.5
   });
 
-  const handleSearch = async (searchPrompt?: string) => {
-    const q = searchPrompt !== undefined ? searchPrompt : prompt;
+  const handleSearch = useCallback(async (searchPrompt?: string, overrideLocation?: StartLocation) => {
+    const loc = overrideLocation || startLocation;
+    const q = searchPrompt !== undefined ? searchPrompt : (userPrompt ?? presets[0].prompt);
     setLoading(true);
     setLimitingConstraint(null);
     setSuggestedAdjustments([]);
 
+    const originLat = loc?.latitude ?? -33.8688;
+    const originLng = loc?.longitude ?? 151.2093;
+
     try {
       const payload = {
         prompt: q,
-        origin_lat: startLocation?.latitude ?? -33.8688,
-        origin_lng: startLocation?.longitude ?? 151.2093
+        origin_lat: originLat,
+        origin_lng: originLng
       };
       setLastRequest(payload);
 
@@ -132,7 +168,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
     } finally {
       setLoading(false);
     }
-  };
+  }, [startLocation, userPrompt, presets]);
 
   const handleWhatIfAdjust = async (instruction: string) => {
     if (!instruction) return;
@@ -162,34 +198,16 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
     }
   };
 
+  // Run search when location is resolved or changed
+  const prevLocKey = useRef<string>("");
   useEffect(() => {
-    let isCancelled = false;
-    const loadInitial = async () => {
-      try {
-        const res = await fetch(`${getApiUrl()}/trips/find-weekend`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: PRESET_QUERIES[0].prompt,
-            origin_lat: -33.8688,
-            origin_lng: 151.2093
-          })
-        });
-        if (res.ok && !isCancelled) {
-          const data: FindWeekendResponse = await res.json();
-          setCards(data.cards || []);
-          setLimitingConstraint(data.limiting_constraint || null);
-          setSuggestedAdjustments(data.suggested_adjustments || []);
-        }
-      } catch (e) {
-        console.error("Initial search failed:", e);
-      }
-    };
-    loadInitial();
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+    const currentLocKey = `${city}_${state}_${startLocation?.latitude?.toFixed(2)}_${startLocation?.longitude?.toFixed(2)}`;
+    if (prevLocKey.current !== currentLocKey) {
+      prevLocKey.current = currentLocKey;
+      const q = userPrompt ?? presets[0].prompt;
+      handleSearch(q, startLocation);
+    }
+  }, [city, state, startLocation, presets, userPrompt, handleSearch]);
 
   const toggleCompare = (id: number) => {
     setSelectedForCompare(prev => 
@@ -210,9 +228,60 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
           Turn your free weekend into <br className="hidden md:block"/>
           <span className="text-[var(--color-neon-green)]">the right camping trip</span>
         </h1>
-        <p className="text-gray-300 text-sm md:text-base mb-6">
+        <p className="text-gray-300 text-sm md:text-base mb-4">
           Condition-aware trip cards matched to your group, your vehicle, and your gear. No 50,000 dots to guess from.
         </p>
+
+        {/* ORIGIN LOCATION BADGE */}
+        <div className="relative mb-4 flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/50 border border-white/15 text-xs text-gray-200 backdrop-blur-md shadow-lg">
+            <MapPin size={14} className="text-[var(--color-neon-green)]" />
+            <span>Departing from <strong className="text-white">{city}, {state}</strong></span>
+            {startLocation?.isDetected && (
+              <span className="text-[10px] text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                {startLocation.source === "gps" ? "📍 GPS Location" : "🌐 IP Detected"}
+              </span>
+            )}
+            <button
+              onClick={() => setShowOriginDropdown(!showOriginDropdown)}
+              className="text-[11px] text-[var(--color-neon-green)] hover:underline ml-1 font-bold cursor-pointer"
+            >
+              {showOriginDropdown ? "Close" : "Change City"}
+            </button>
+          </div>
+
+          {/* QUICK ORIGIN SWITCHER DROPDOWN */}
+          {showOriginDropdown && (
+            <div className="absolute top-10 z-30 bg-slate-900/95 border border-white/20 rounded-xl p-2.5 shadow-2xl backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-1.5 min-w-[320px]">
+              {MAJOR_AU_ORIGINS.map(origin => (
+                <button
+                  key={origin.city}
+                  onClick={() => {
+                    setShowOriginDropdown(false);
+                    const newLoc: StartLocation = {
+                      latitude: origin.latitude,
+                      longitude: origin.longitude,
+                      city: origin.city,
+                      state: origin.state,
+                      isDetected: false,
+                      source: "default"
+                    };
+                    if (onUpdateStartLocation) {
+                      onUpdateStartLocation(newLoc);
+                    }
+                  }}
+                  className={`text-xs px-3 py-2 rounded-lg text-left font-medium transition-all cursor-pointer ${
+                    city === origin.city
+                      ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] font-black shadow"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {origin.city}, {origin.state}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* INPUT FORM */}
         <div className="w-full bg-black/40 border border-white/15 rounded-2xl p-2.5 shadow-2xl backdrop-blur-md flex flex-col md:flex-row gap-2">
@@ -220,10 +289,12 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
             <Search className="absolute left-3.5 text-gray-400" size={18} />
             <input 
               type="text"
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
+              value={activePrompt}
+              onChange={e => {
+                setUserPrompt(e.target.value);
+              }}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              placeholder="e.g. 2 adults, kids and a dog, leaving Sydney Friday, under 3 hours..."
+              placeholder={`e.g. 2 adults, kids and a dog, leaving ${city} Friday, under 3 hours...`}
               className="w-full bg-transparent pl-11 pr-4 py-3 text-sm md:text-base text-white outline-none placeholder:text-gray-500 font-medium"
             />
           </div>
@@ -243,11 +314,11 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
         {/* PRESET QUERY CHIPS */}
         <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
           <span className="text-xs text-gray-400 mr-1 font-semibold">Try:</span>
-          {PRESET_QUERIES.map((preset, idx) => (
+          {presets.map((preset, idx) => (
             <button
               key={idx}
               onClick={() => {
-                setPrompt(preset.prompt);
+                setUserPrompt(preset.prompt);
                 handleSearch(preset.prompt);
               }}
               className="text-xs bg-white/5 hover:bg-white/15 text-gray-200 border border-white/10 px-3 py-1.5 rounded-full transition-all cursor-pointer font-medium"
