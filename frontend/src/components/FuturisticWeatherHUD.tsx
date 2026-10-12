@@ -25,6 +25,14 @@ export interface WeatherHUDData {
   windSpeed: number;
   uvIndex: number;
   description: string;
+  sleepingBagRating?: string;
+  matRValue?: number;
+  dewFrostIndex?: string;
+  campfireWindRisk?: string;
+  pegStrainFactor?: string;
+  valleyInversionActive?: boolean;
+  terrainNotes?: string[];
+  forecastType?: string;
 }
 
 export interface FuturisticWeatherHUDProps {
@@ -197,22 +205,29 @@ export default function FuturisticWeatherHUD({
       case "night":
       default: {
         const nightTemp = tempMin;
-        let sleepRating = "10°C Comfort Bag";
+        let sleepRating = currentData.sleepingBagRating || "10°C Comfort Bag";
         let sleepColor = "text-emerald-300";
-        let sleepNote = "Comfortable standard sleeping bag and uninsulated mat.";
+        let sleepNote = currentData.matRValue 
+          ? `Physics-modeled requirement: R-value ≥ ${currentData.matRValue} insulated sleeping pad.`
+          : "Comfortable standard sleeping bag and uninsulated mat.";
 
-        if (nightTemp <= 4) {
-          sleepRating = "❄️ 0°C Rated Bag + R4+ Mat";
-          sleepColor = "text-cyan-300 font-bold";
-          sleepNote = "Cold air sinks in valley floor. Insulated sleeping pad is vital to block ground freeze.";
-        } else if (nightTemp <= 10) {
-          sleepRating = "🏕️ 5°C 3-Season Bag";
-          sleepColor = "text-[var(--color-neon-green)]";
-          sleepNote = "Standard thermal base layer and beanie recommended for sound sleep.";
-        } else if (nightTemp >= 18) {
-          sleepRating = "🌙 Summer Sheet / Open Quilt";
-          sleepColor = "text-amber-200";
-          sleepNote = "Warm overnight conditions; keep tent mesh vented for airflow.";
+        if (!currentData.sleepingBagRating) {
+          if (nightTemp <= 4) {
+            sleepRating = "❄️ 0°C Rated Bag + R4+ Mat";
+            sleepColor = "text-cyan-300 font-bold";
+            sleepNote = "Cold air sinks in valley floor. Insulated sleeping pad is vital to block ground freeze.";
+          } else if (nightTemp <= 10) {
+            sleepRating = "🏕️ 5°C 3-Season Bag";
+            sleepColor = "text-[var(--color-neon-green)]";
+            sleepNote = "Standard thermal base layer and beanie recommended for sound sleep.";
+          } else if (nightTemp >= 18) {
+            sleepRating = "🌙 Summer Sheet / Open Quilt";
+            sleepColor = "text-amber-200";
+            sleepNote = "Warm overnight conditions; keep tent mesh vented for airflow.";
+          }
+        } else {
+          if (nightTemp <= 4) sleepColor = "text-cyan-300 font-bold";
+          else if (nightTemp <= 10) sleepColor = "text-[var(--color-neon-green)]";
         }
 
         const stargazeClarity = precipProb <= 20 ? "95% Crystal Clear" : precipProb <= 50 ? "60% Scattered Stars" : "Overcast Horizon";
@@ -456,12 +471,21 @@ export default function FuturisticWeatherHUD({
                 </div>
 
                 <div className="text-[11px] text-gray-300 space-y-1.5">
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-[var(--color-neon-green)] shrink-0">📍</span>
-                    <span>
-                      <strong>Terrain Factor ({campsiteName || "Campground"}):</strong> {campsiteElevation ? `~${campsiteElevation}m elevation` : "Valley basin"}. Expect overnight temperature inversion where cold air settles in low-lying campsite zones.
-                    </span>
-                  </div>
+                  {currentData.terrainNotes && currentData.terrainNotes.length > 0 ? (
+                    currentData.terrainNotes.map((note, idx) => (
+                      <div key={idx} className="flex items-start gap-1.5">
+                        <span className="text-[var(--color-neon-green)] shrink-0">⚡</span>
+                        <span>{note}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-[var(--color-neon-green)] shrink-0">📍</span>
+                      <span>
+                        <strong>Terrain Factor ({campsiteName || "Campground"}):</strong> {campsiteElevation ? `~${campsiteElevation}m elevation` : "Valley basin"}. Expect overnight temperature inversion where cold air settles in low-lying campsite zones.
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-start gap-1.5">
                     <span className="text-amber-400 shrink-0">⚠️</span>
                     <span>

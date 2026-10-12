@@ -4,16 +4,9 @@ import { useState, useEffect } from "react";
 import { MapPin, X, Dog, Car, Clock, ExternalLink } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
-import FuturisticWeatherHUD from "./FuturisticWeatherHUD";
+import FuturisticWeatherHUD, { type WeatherHUDData } from "./FuturisticWeatherHUD";
 
-interface WeatherData {
-  tempMax: number;
-  tempMin: number;
-  precipProb: number;
-  windSpeed: number;
-  uvIndex: number;
-  description: string;
-}
+type WeatherData = WeatherHUDData;
 
 interface CamperObservation {
   category: string;
@@ -135,7 +128,38 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
         const today = new Date();
         const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-        // 1. Within 16-day window: Use high-res numerical weather prediction
+        // Priority 1: Backend Microclimate Predictor API (elevation downscaling & terrain physics)
+        try {
+          const microRes = await fetch(`${getApiUrl()}/weather/microclimate?campsite_id=${campsite.id}&date=${startDate}&latitude=${campsite.latitude}&longitude=${campsite.longitude}`);
+          if (microRes.ok) {
+            const data = await microRes.json();
+            if (isMounted) {
+              setFutureWeather({
+                tempMax: Math.round(data.temp_max),
+                tempMin: Math.round(data.temp_min),
+                precipProb: data.rain_probability,
+                windSpeed: Math.round(data.wind_max_kmh),
+                uvIndex: data.uv_index_max,
+                description: data.forecast_type === "numerical_ensemble" 
+                  ? `Physics Ensemble Forecast (${diffDays}d out)` 
+                  : `Microclimate Climatology Normal`,
+                sleepingBagRating: data.sleeping_bag_rating,
+                matRValue: data.recommended_mat_r_value,
+                dewFrostIndex: data.dew_frost_index,
+                campfireWindRisk: data.campfire_wind_risk,
+                pegStrainFactor: data.peg_strain_factor,
+                valleyInversionActive: data.valley_inversion_active,
+                terrainNotes: data.terrain_notes,
+                forecastType: data.forecast_type
+              });
+              return;
+            }
+          }
+        } catch {
+          // Graceful fallback to direct client numerical/archive endpoints if backend microclimate unreachable
+        }
+
+        // Priority 2: Client-side numerical weather prediction within 16-day window
         if (diffDays >= 0 && diffDays <= 15) {
           const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${campsite.latitude}&longitude=${campsite.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max&forecast_days=16&timezone=auto`);
           if (res.ok) {
