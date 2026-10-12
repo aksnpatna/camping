@@ -97,6 +97,8 @@ export function getPresetQueries(city = "Sydney", state = "NSW") {
   ];
 }
 
+export const PRESET_QUERIES = getPresetQueries("Sydney", "NSW");
+
 const MAJOR_AU_ORIGINS = [
   { city: "Sydney", state: "NSW", latitude: -33.8688, longitude: 151.2093 },
   { city: "Melbourne", state: "VIC", latitude: -37.8136, longitude: 144.9631 },
