@@ -40,13 +40,15 @@ export default function CampingMap({
   onSelectCampsite,
   routeGeoJson,
   startLocation,
-  selectedState
+  selectedState,
+  selectedCampsite
 }: { 
   campsites: Campsite[], 
   onSelectCampsite: (site: Campsite) => void,
   routeGeoJson?: GeoJSON.Geometry | GeoJSON.Feature | null,
   startLocation?: { longitude: number, latitude: number },
-  selectedState?: string | null
+  selectedState?: string | null,
+  selectedCampsite?: Campsite | null
 }) {
   const mapRef = useRef<MapRef>(null);
   const [viewState, setViewState] = useState({
@@ -77,19 +79,31 @@ export default function CampingMap({
       >
         <NavigationControl position="bottom-right" />
         
-        {campsites.map((site) => (
-          <Marker 
-            key={site.id} 
-            longitude={site.longitude} 
-            latitude={site.latitude}
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              onSelectCampsite(site);
-            }}
-          >
-            <div className="w-5 h-5 bg-green-500 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)] cursor-pointer hover:scale-125 transition-transform duration-300 border-2 border-emerald-900"></div>
-          </Marker>
-        ))}
+        {campsites.map((site) => {
+          const isSelected = selectedCampsite?.id === site.id;
+          return (
+            <Marker 
+              key={site.id} 
+              longitude={site.longitude} 
+              latitude={site.latitude}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                onSelectCampsite(site);
+              }}
+            >
+              {isSelected ? (
+                <div className="relative flex items-center justify-center cursor-pointer">
+                  <div className="absolute w-8 h-8 rounded-full bg-red-500/40 animate-ping"></div>
+                  <div className="w-6 h-6 bg-red-600 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.9)] border-2 border-white flex items-center justify-center text-[10px] text-white font-black z-10 scale-110 transition-transform">
+                    ⛺
+                  </div>
+                </div>
+              ) : (
+                <div className="w-5 h-5 bg-green-500 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)] cursor-pointer hover:scale-125 transition-transform duration-300 border-2 border-emerald-900"></div>
+              )}
+            </Marker>
+          );
+        })}
 
         {startLocation && (
           <Marker longitude={startLocation.longitude} latitude={startLocation.latitude}>
@@ -99,6 +113,21 @@ export default function CampingMap({
 
         {routeGeoJson && (
           <Source id="route" type="geojson" data={routeGeoJson}>
+            {/* Outer red casing for contrast on dark map */}
+            <Layer 
+              id="route-line-casing" 
+              type="line" 
+              layout={{
+                "line-join": "round",
+                "line-cap": "round"
+              }}
+              paint={{
+                "line-color": "#7f1d1d",
+                "line-width": 7,
+                "line-opacity": 0.6
+              }}
+            />
+            {/* Distinct Red Route Trace */}
             <Layer 
               id="route-line" 
               type="line" 
@@ -107,9 +136,9 @@ export default function CampingMap({
                 "line-cap": "round"
               }}
               paint={{
-                "line-color": "#00ff9d",
-                "line-width": 4,
-                "line-opacity": 0.8
+                "line-color": "#ef4444",
+                "line-width": 4.5,
+                "line-opacity": 0.95
               }}
             />
           </Source>

@@ -363,6 +363,7 @@ export default function Home() {
               routeGeoJson={routeGeoJson}
               startLocation={startLocation}
               selectedState={filters.state}
+              selectedCampsite={selectedSite}
             />
 
             {/* Filter Panel */}
