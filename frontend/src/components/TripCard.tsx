@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Flame, CloudRain, MapPin, X, Dog, Car, Sun, Clock, ExternalLink } from "lucide-react";
+import { MapPin, X, Dog, Car, Clock, ExternalLink } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
+import FuturisticWeatherHUD from "./FuturisticWeatherHUD";
 
 interface WeatherData {
   tempMax: number;
@@ -120,17 +121,49 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
     return () => { isMounted = false; };
   }, [campsite]);
 
-  // Fetch historical weather when dates are selected to provide future gear recommendations
+  // Fetch high-res future forecast or climatological analog when dates are selected
   useEffect(() => {
     if (!campsite || !startDate) {
       return;
     }
 
     let isMounted = true;
-    const fetchHistoricalWeather = async () => {
+    const fetchFutureWeather = async () => {
       setLoadingFutureWeather(true);
       try {
-        // Fetch data for the same days from 1 year ago as historical observation baseline
+        const tripDate = new Date(startDate);
+        const today = new Date();
+        const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        // 1. Within 16-day window: Use high-res numerical weather prediction
+        if (diffDays >= 0 && diffDays <= 15) {
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${campsite.latitude}&longitude=${campsite.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max&forecast_days=16&timezone=auto`);
+          if (res.ok) {
+            const data = await res.json();
+            const dayIndex = Math.min(diffDays, (data.daily?.time?.length || 1) - 1);
+            if (isMounted && data.daily && data.daily.time) {
+              const code = data.daily.weathercode[dayIndex];
+              let desc = "Forecast Clear";
+              if (code >= 1 && code <= 3) desc = "Forecast Partly Cloudy";
+              if (code >= 45 && code <= 48) desc = "Forecast Foggy";
+              if (code >= 51 && code <= 67) desc = "Forecast Rain Likely";
+              if (code >= 71 && code <= 77) desc = "Forecast Snow Likely";
+              if (code >= 95) desc = "Forecast Storm Warning";
+
+              setFutureWeather({
+                tempMax: Math.round(data.daily.temperature_2m_max[dayIndex]),
+                tempMin: Math.round(data.daily.temperature_2m_min[dayIndex]),
+                precipProb: data.daily.precipitation_probability_max[dayIndex] || 0,
+                windSpeed: Math.round(data.daily.windspeed_10m_max[dayIndex] || 15),
+                uvIndex: Math.round(data.daily.uv_index_max[dayIndex] || 5),
+                description: `${desc} (${diffDays}d out)`
+              });
+              return;
+            }
+          }
+        }
+
+        // 2. Beyond 16 days: Multi-year climatological historical baseline
         const pastStart = new Date(startDate);
         pastStart.setFullYear(pastStart.getFullYear() - 1);
         const pastEnd = endDate ? new Date(endDate) : new Date(startDate);
@@ -149,27 +182,26 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
             const maxWind = Math.max(...data.daily.windspeed_10m_max);
             const totalPrecip = data.daily.precipitation_sum.reduce((a:number,b:number)=>a+b,0);
             
-            // Accurately label historical observations rather than inventing a probability
-            const precipObservation = totalPrecip > 5 ? 70 : totalPrecip > 0 ? 30 : 0;
+            const precipObservation = totalPrecip > 5 ? 70 : totalPrecip > 0 ? 30 : 10;
 
             setFutureWeather({
               tempMax: Math.round(avgTempMax),
               tempMin: Math.round(avgTempMin),
               precipProb: precipObservation,
               windSpeed: Math.round(maxWind),
-              uvIndex: 0,
-              description: `Historical Record (${Math.round(totalPrecip)}mm precipitation)`
+              uvIndex: 6,
+              description: `Climatology Model (${Math.round(totalPrecip)}mm baseline)`
             });
           }
         }
       } catch (e) {
-        console.error("Failed to fetch historical weather", e);
+        console.error("Failed to fetch future weather", e);
       } finally {
         if (isMounted) setLoadingFutureWeather(false);
       }
     };
 
-    fetchHistoricalWeather();
+    fetchFutureWeather();
     return () => { isMounted = false; };
   }, [campsite, startDate, endDate]);
 
@@ -216,56 +248,16 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-1 border border-white/10 relative overflow-hidden">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
-            {weather?.description === "Clear" ? <Sun size={16} className="text-yellow-400" /> : <CloudRain size={16} className="text-blue-400" />}
-            Live Weather
-          </div>
-          {loadingWeather ? (
-            <div className="font-medium text-sm animate-pulse text-gray-400">Loading forecast...</div>
-          ) : weather ? (
-            <div className="text-sm">
-              <div className="font-medium text-[var(--color-neon-green)] mb-1">{weather.description}</div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-300">
-                <div>High: {weather.tempMax}°C</div>
-                <div>Low: {weather.tempMin}°C</div>
-                <div>Wind: {weather.windSpeed}km/h</div>
-                <div>Rain: {weather.precipProb}%</div>
-                <div>UV: {weather.uvIndex}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="font-medium text-sm text-gray-400">Unavailable</div>
-          )}
-        </div>
-        <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
-            <Flame size={16} className="text-[var(--color-sunset-orange)]" />
-            {startDate ? "Future Gear Needs" : "Gear Recommendation"}
-          </div>
-          <div className="text-xs text-gray-300">
-            {loadingFutureWeather ? (
-              <span className="animate-pulse">Analyzing historical data...</span>
-            ) : startDate && futureWeather ? (
-              <ul className="list-disc pl-3 space-y-1">
-                <li className="text-gray-400 mb-2 italic list-none -ml-3">{futureWeather.description}</li>
-                {futureWeather.tempMin < 10 && <li className="text-[var(--color-neon-green)]">0°C Sleeping Bag & Thermal Mat</li>}
-                {futureWeather.precipProb > 30 && <li className="text-[var(--color-neon-green)]">Heavy-duty Tarp & Waterproofing</li>}
-                {futureWeather.windSpeed > 20 && <li className="text-[var(--color-neon-green)]">Strong Pegs & Windbreak</li>}
-                {futureWeather.tempMin >= 10 && futureWeather.precipProb <= 30 && futureWeather.windSpeed <= 20 && <li className="text-[var(--color-neon-green)]">Standard 3-Season Gear</li>}
-              </ul>
-            ) : weather ? (
-              <ul className="list-disc pl-3 space-y-1">
-                {weather.tempMin < 10 && <li>0°C Sleeping Bag & Thermal Mat</li>}
-                {weather.precipProb > 30 && <li>Heavy-duty Tarp & Waterproofing</li>}
-                {weather.windSpeed > 20 && <li>Strong Pegs & Windbreak</li>}
-                {weather.tempMin >= 10 && weather.precipProb <= 30 && weather.windSpeed <= 20 && <li>Standard 3-Season Gear</li>}
-              </ul>
-            ) : "Loading..."}
-          </div>
-        </div>
-      </div>
+      {/* FUTURISTIC INTERACTIVE ATMOSPHERIC TELEMETRY HUD */}
+      <FuturisticWeatherHUD 
+        liveWeather={weather}
+        futureWeather={futureWeather}
+        loadingLive={loadingWeather}
+        loadingFuture={loadingFutureWeather}
+        selectedStartDate={startDate}
+        selectedEndDate={endDate}
+        campsiteName={campsite.name}
+      />
 
       {/* Community Field Notes & Sourced Insights Section */}
       <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10">

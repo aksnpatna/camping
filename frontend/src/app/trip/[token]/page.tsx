@@ -47,7 +47,7 @@ interface TripRoomData {
   preferences: Array<{ member_name: string; preference: string }>;
 }
 
-export default function TripRoomPage({ params }: { params: Promise<{ token: string }> }) {
+function TripRoomContent({ params }: { params: Promise<{ token: string }> }) {
   const resolvedParams = use(params);
   const token = resolvedParams.token;
 
@@ -624,5 +624,18 @@ export default function TripRoomPage({ params }: { params: Promise<{ token: stri
         )}
       </main>
     </div>
+  );
+}
+
+export default function TripRoomPage({ params }: { params: Promise<{ token: string }> }) {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-[var(--color-forest-900)] flex flex-col items-center justify-center text-white font-mono p-6">
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray-400 text-sm">Connecting to Trip Room telemetry...</p>
+      </div>
+    }>
+      <TripRoomContent params={params} />
+    </React.Suspense>
   );
 }

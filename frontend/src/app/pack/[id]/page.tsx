@@ -3,6 +3,8 @@ import { MapPin, AlertTriangle, ShieldCheck } from "lucide-react";
 import PrintButton from './PrintButton';
 import { getApiUrl } from '@/config';
 
+export const instant = false;
+
 interface Campsite {
   id: number;
   name: string;

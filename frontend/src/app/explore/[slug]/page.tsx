@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { AlertTriangle, Flame, ShieldAlert } from 'lucide-react';
 import { getApiUrl } from '@/config';
 
+export const instant = false;
+
 type Props = {
   params: Promise<{ slug: string }>
 }
