@@ -96,3 +96,35 @@ def test_simulate_alert_blocked_in_production(monkeypatch):
     assert "disabled in production" in res.json()["detail"].lower()
 
 
+def test_create_saved_trip_trailing_slash():
+    campsites_res = client.get("/api/v1/campsites")
+    assert campsites_res.status_code == 200
+    campsite_id = campsites_res.json()[0]["id"]
+
+    email = f"slash_{uuid.uuid4().hex[:8]}@example.com"
+    payload = {
+        "campsite_id": campsite_id,
+        "user_email": email,
+        "start_date": "2026-12-01",
+        "end_date": "2026-12-03",
+        "plan_b_alert_active": True,
+    }
+    # Should work without 307 redirect
+    res = client.post("/api/v1/saved-trips/", json=payload, follow_redirects=False)
+    assert res.status_code == 200
+    assert res.json()["user_email"] == email
+
+
+def test_create_saved_trip_campsite_not_found():
+    payload = {
+        "campsite_id": 9999999,
+        "user_email": "camper@example.com",
+        "start_date": "2026-12-01",
+        "end_date": "2026-12-03",
+        "plan_b_alert_active": True,
+    }
+    res = client.post("/api/v1/saved-trips", json=payload)
+    assert res.status_code == 404
+    assert "campsite not found" in res.json()["detail"].lower()
+
+

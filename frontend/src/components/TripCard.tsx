@@ -389,7 +389,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
                   if (!email || !startDate || !endDate) return;
                   setSaveError("");
                   try {
-                    const res = await fetch(`${getApiUrl()}/saved-trips/`, {
+                    const res = await fetch(`${getApiUrl()}/saved-trips`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
@@ -403,7 +403,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
                     if (res.ok) {
                       setSaveSuccess(true);
                     } else {
-                      const errData = await res.json();
+                      const errData = await res.json().catch(() => ({}));
                       setSaveError(errData.detail || "Failed to save trip");
                     }
                   } catch (e) { console.error(e); setSaveError("Network error"); }

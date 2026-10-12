@@ -21,12 +21,16 @@ router = APIRouter()
 
 
 @router.post("", response_model=SavedTripResponse)
+@router.post("/", response_model=SavedTripResponse, include_in_schema=False)
 def create_saved_trip(trip: SavedTripCreate, db: Session = Depends(get_db)):
     email = trip.user_email.strip().lower()
     if "@" not in email or "." not in email.split("@")[-1] or len(email) < 5:
         raise HTTPException(status_code=400, detail="Invalid email address format")
     if trip.start_date > trip.end_date:
         raise HTTPException(status_code=400, detail="Start date cannot be after end date")
+    campsite = db.query(Campsite).filter(Campsite.id == trip.campsite_id).first()
+    if not campsite:
+        raise HTTPException(status_code=404, detail="Campsite not found")
     return crud_saved_trip.create_saved_trip(db=db, trip=trip)
 
 
