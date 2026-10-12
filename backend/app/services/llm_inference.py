@@ -233,3 +233,96 @@ Output JSON only.
             updated["rig_access"] = "TENT"
 
         return updated
+
+    @classmethod
+    def synthesize_weather_condition_summary_deterministic(cls, data: Dict[str, Any]) -> str:
+        """
+        High-quality, grounded Australian camping condition synthesis fallback when LLM is offline.
+        """
+        campsite_name = data.get("campsite_name") or "campground"
+        temp_max = round(data.get("temp_max", 22.0))
+        temp_min = round(data.get("temp_min", 12.0))
+        rain_prob = int(data.get("rain_probability", 15))
+        wind_max = round(data.get("wind_max_kmh", 15.0))
+        sleeping_bag = data.get("sleeping_bag_rating") or "3-season bag"
+        inversion = bool(data.get("valley_inversion_active", False))
+        rain_mm = data.get("expected_rainfall_mm", 0.0)
+
+        # Sentence 1: Nighttime temperature & sleep/insulation factor
+        if temp_min <= 4:
+            s1 = f"Expect severe overnight cold dropping to {temp_min}°C ({'sub-zero valley inversion active' if inversion else 'alpine freeze'}); an R4+ insulated sleeping mat and {sleeping_bag} are mandatory."
+        elif temp_min <= 9:
+            s1 = f"Night temperatures plunge to {temp_min}°C with {'cold-air pooling in low ground' if inversion else 'a brisk chill'}; pack {sleeping_bag} and thermal layers."
+        elif temp_min <= 15:
+            s1 = f"Mild overnight conditions around {temp_min}°C make for comfortable sleeping with a standard {sleeping_bag}."
+        else:
+            s1 = f"Warm overnight low of {temp_min}°C allows light bedding; keep inner tent mesh vented for air movement."
+
+        # Sentence 2: Rain, wind, campfire & pegging impact
+        if rain_prob >= 50 or rain_mm >= 5.0:
+            s2 = f"With a {rain_prob}% rain risk ({rain_mm:.1f}mm expected), pitch an overhead tarp and tension guy-lines before dark."
+        elif wind_max >= 30:
+            s2 = f"Gusts reaching {wind_max} km/h make open campfires hazardous; double-peg tent corners and use a shielded camp stove."
+        elif rain_prob >= 25:
+            s2 = f"Moderate {rain_prob}% shower chance; pitch a ground footprint beneath your tent floor to block damp seep."
+        elif wind_max <= 15:
+            s2 = f"Calm breezes under {wind_max} km/h provide prime campfire conditions; check local park total fire bans prior to ignition."
+        else:
+            s2 = f"Expect pleasant daytime highs near {temp_max}°C with stable {wind_max} km/h airflow across the site."
+
+        return f"{s1} {s2}"
+
+    @classmethod
+    async def synthesize_weather_condition_summary(cls, data: Dict[str, Any]) -> str:
+        """
+        Synthesizes a 2-sentence Australian camping weather briefing from microclimate telemetry
+        using local Qwen3-9B (:8002), Ollama/Groq, or deterministic physics fallback.
+        """
+        fallback_text = cls.synthesize_weather_condition_summary_deterministic(data)
+        
+        campsite_name = data.get("campsite_name") or "Campground"
+        temp_max = data.get("temp_max", 22.0)
+        temp_min = data.get("temp_min", 12.0)
+        rain_prob = data.get("rain_probability", 15)
+        wind_max = data.get("wind_max_kmh", 15.0)
+        sleeping_bag = data.get("sleeping_bag_rating", "3-season sleeping bag")
+        inversion = data.get("valley_inversion_active", False)
+        campfire_risk = data.get("campfire_wind_risk", "Moderate")
+
+        prompt = f"""You are a seasoned Australian bush camper and remote expedition guide.
+Write a concise, practical 2-sentence camping weather briefing for {campsite_name}.
+
+Atmospheric facts:
+- Day High: {temp_max}°C, Night Low: {temp_min}°C
+- Valley Cold Inversion Active: {inversion}
+- Rain Probability: {rain_prob}%
+- Max Wind Speed: {wind_max} km/h
+- Campfire Wind Risk: {campfire_risk}
+- Recommended Sleeping Bag: {sleeping_bag}
+
+Rules:
+- Exactly 2 sentences.
+- Direct, practical bush wisdom (mention gear, sleeping bag/mat, campfire safety, condensation).
+- No greetings, no fluff.
+"""
+        try:
+            # 1. Local GPU server Qwen3-9B (:8002)
+            resp = await cls.call_local_server(prompt, timeout=2.5)
+            if not resp:
+                # 2. Ollama fallback
+                resp = await cls.call_ollama(prompt, is_json=False, timeout=2.0)
+            if not resp:
+                # 3. Groq fallback
+                resp = await cls.call_groq(prompt, is_json=False, timeout=2.5)
+
+            if resp and len(resp.strip()) >= 20:
+                cleaned = resp.strip().strip('"').strip("'")
+                # Ensure no runaway generation
+                sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', cleaned) if s.strip()]
+                if sentences:
+                    return " ".join(sentences[:2])
+        except Exception as e:
+            logger.info(f"AI weather condition synthesis LLM failed ({e}), using deterministic synthesis.")
+
+        return fallback_text
+

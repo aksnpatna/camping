@@ -112,3 +112,20 @@ def test_microclimate_api_validation_errors():
     # Missing lat/lng when campsite_id not provided
     res2 = client.get("/api/v1/weather/microclimate?date=2026-12-01")
     assert res2.status_code == 400 or res2.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_microclimate_ai_condition_synthesis():
+    target_date = (date.today() + timedelta(days=2)).isoformat()
+    response = client.get(
+        f"/api/v1/weather/microclimate?latitude=-33.72&longitude=150.28&date={target_date}"
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "ai_condition_summary" in data
+    assert data["ai_condition_summary"] is not None
+    assert len(data["ai_condition_summary"]) > 15
+    # Should contain realistic advice derived from telemetry
+    summary_lower = data["ai_condition_summary"].lower()
+    assert any(term in summary_lower for term in ["bag", "temp", "cold", "wind", "dew", "camp", "fire", "layer", "gear", "°c"])
+

@@ -32,3 +32,5 @@ class MicroclimateResponse(BaseModel):
     peg_strain_factor: str
     valley_inversion_active: bool
     terrain_notes: List[str]
+    ai_condition_summary: Optional[str] = Field(None, description="AI camping condition & gear synthesis briefing")
+

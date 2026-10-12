@@ -33,7 +33,9 @@ export interface WeatherHUDData {
   valleyInversionActive?: boolean;
   terrainNotes?: string[];
   forecastType?: string;
+  aiConditionSummary?: string;
 }
+
 
 export interface FuturisticWeatherHUDProps {
   liveWeather: WeatherHUDData | null;
@@ -283,7 +285,7 @@ export default function FuturisticWeatherHUD({
   ];
 
   return (
-    <div className="w-full bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-950/90 rounded-2xl p-3.5 border border-white/15 shadow-xl backdrop-blur-md relative overflow-hidden flex flex-col gap-3 transition-all">
+    <div className="w-full shrink-0 bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-950/90 rounded-2xl p-3.5 border border-white/15 shadow-xl backdrop-blur-md relative overflow-hidden flex flex-col gap-3 transition-all">
       {/* BACKGROUND ATMOSPHERIC RADIAL GLOW */}
       <div 
         className={`absolute -top-12 -right-12 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-20 transition-all duration-700 ${
@@ -387,6 +389,25 @@ export default function FuturisticWeatherHUD({
               <div className="text-sm font-black text-white font-mono">{phaseTelemetry.timeLabel}</div>
             </div>
           </div>
+
+          {/* PHASE 3: AI CAMPING CONDITION SYNTHESIS BRIEFING */}
+          {currentData.aiConditionSummary && (
+            <div className="bg-gradient-to-r from-purple-950/50 via-slate-900/80 to-purple-950/30 border border-purple-500/30 rounded-xl p-3 shadow-lg flex flex-col gap-1.5 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10px] font-black text-purple-300 uppercase tracking-wider">
+                  <Sparkles size={12} className="text-purple-400 animate-pulse" />
+                  <span>Camper Condition Synthesis (Qwen3 9B)</span>
+                </div>
+                <span className="text-[9px] font-mono font-bold text-purple-300/90 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30">
+                  Microclimate AI
+                </span>
+              </div>
+              <p className="text-xs text-gray-200 leading-relaxed font-medium">
+                {currentData.aiConditionSummary}
+              </p>
+            </div>
+          )}
+
 
           {/* INTERACTIVE 24-HOUR CAMPING DIURNAL SCRUBBER */}
           <div className="flex flex-col gap-1.5">

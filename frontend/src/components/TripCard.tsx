@@ -50,7 +50,37 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
     const fetchWeather = async () => {
       setLoadingWeather(true);
       try {
-        // Fetch 7-day forecast but we just show today's for the MVP hook
+        const todayStr = new Date().toISOString().split('T')[0];
+        try {
+          const microRes = await fetch(`${getApiUrl()}/weather/microclimate?campsite_id=${campsite.id}&date=${todayStr}&latitude=${campsite.latitude}&longitude=${campsite.longitude}`);
+          if (microRes.ok) {
+            const data = await microRes.json();
+            if (isMounted) {
+              setWeather({
+                tempMax: Math.round(data.temp_max),
+                tempMin: Math.round(data.temp_min),
+                precipProb: data.rain_probability,
+                windSpeed: Math.round(data.wind_max_kmh),
+                uvIndex: data.uv_index_max,
+                description: "Live Radar Sync",
+                sleepingBagRating: data.sleeping_bag_rating,
+                matRValue: data.recommended_mat_r_value,
+                dewFrostIndex: data.dew_frost_index,
+                campfireWindRisk: data.campfire_wind_risk,
+                pegStrainFactor: data.peg_strain_factor,
+                valleyInversionActive: data.valley_inversion_active,
+                terrainNotes: data.terrain_notes,
+                forecastType: data.forecast_type,
+                aiConditionSummary: data.ai_condition_summary,
+              });
+              return;
+            }
+          }
+        } catch {
+          // Graceful fallback to client Open-Meteo
+        }
+
+        // Fetch 7-day forecast but we just show today's for the fallback hook
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${campsite.latitude}&longitude=${campsite.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max&timezone=auto`);
         if (res.ok) {
           const data = await res.json();
@@ -80,6 +110,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
         if (isMounted) setLoadingWeather(false);
       }
     };
+
     
     const fetchAiSummary = async () => {
       try {
@@ -150,9 +181,11 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
                 pegStrainFactor: data.peg_strain_factor,
                 valleyInversionActive: data.valley_inversion_active,
                 terrainNotes: data.terrain_notes,
-                forecastType: data.forecast_type
+                forecastType: data.forecast_type,
+                aiConditionSummary: data.ai_condition_summary
               });
               return;
+
             }
           }
         } catch {
@@ -252,109 +285,112 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
       </div>
 
       {/* Scrollable Body */}
-      <div className="p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-4 custom-scrollbar">
+      <div className="flex-1 min-h-0 p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-4 custom-scrollbar">
+        {routeDistance !== undefined && routeDistance !== null && (
+          <div className="flex gap-4 text-xs font-medium text-[var(--color-neon-green)] bg-white/5 p-2 rounded-lg border border-white/10 shrink-0">
+            <div className="flex items-center gap-1">
+              <Car size={14} /> 
+              {Math.round(routeDistance / 1000)} km from Start
+            </div>
+            <div className="flex items-center gap-1 opacity-80">
+              ⛽ Est. Fuel: ${( (routeDistance / 1000) * 0.24 ).toFixed(2)} (4WD)
+            </div>
+          </div>
+        )}
+
+        {/* FUTURISTIC INTERACTIVE ATMOSPHERIC TELEMETRY HUD */}
+        <div className="shrink-0 w-full">
+          <FuturisticWeatherHUD 
+            liveWeather={weather}
+            futureWeather={futureWeather}
+            loadingLive={loadingWeather}
+            loadingFuture={loadingFutureWeather}
+            selectedStartDate={startDate}
+            selectedEndDate={endDate}
+            campsiteName={campsite.name}
+          />
+        </div>
+
         {aiSummary && (
-          <p className="text-sm text-gray-300 leading-relaxed border-l-2 border-white/20 pl-3">
+          <p className="text-sm text-gray-300 leading-relaxed border-l-2 border-white/20 pl-3 shrink-0">
             <span className="font-semibold text-white/50 text-xs block mb-1">AI Pitch</span>
             {aiSummary}
           </p>
         )}
 
-      {routeDistance !== undefined && routeDistance !== null && (
-        <div className="flex gap-4 text-xs font-medium text-[var(--color-neon-green)] bg-white/5 p-2 rounded-lg border border-white/10">
-          <div className="flex items-center gap-1">
-            <Car size={14} /> 
-            {Math.round(routeDistance / 1000)} km from Start
-          </div>
-          <div className="flex items-center gap-1 opacity-80">
-            ⛽ Est. Fuel: ${( (routeDistance / 1000) * 0.24 ).toFixed(2)} (4WD)
-          </div>
-        </div>
-      )}
-
-      {/* FUTURISTIC INTERACTIVE ATMOSPHERIC TELEMETRY HUD */}
-      <FuturisticWeatherHUD 
-        liveWeather={weather}
-        futureWeather={futureWeather}
-        loadingLive={loadingWeather}
-        loadingFuture={loadingFutureWeather}
-        selectedStartDate={startDate}
-        selectedEndDate={endDate}
-        campsiteName={campsite.name}
-      />
-
-      {/* Community Field Notes & Sourced Insights Section */}
-      <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10">
-        <div className="flex justify-between items-center text-sm text-gray-300">
-          <span className="font-semibold text-white flex items-center gap-1.5">
-            <span>Verified Field Notes</span>
-            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 font-mono">Sourced</span>
-          </span>
-          {insights?.retrieved_at && (
-            <span className="text-[10px] text-gray-400">
-              Checked {new Date(insights.retrieved_at).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
+        {/* Community Field Notes & Sourced Insights Section */}
+        <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10 shrink-0">
+          <div className="flex justify-between items-center text-sm text-gray-300">
+            <span className="font-semibold text-white flex items-center gap-1.5">
+              <span>Verified Field Notes</span>
+              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 font-mono">Sourced</span>
             </span>
+            {insights?.retrieved_at && (
+              <span className="text-[10px] text-gray-400">
+                Checked {new Date(insights.retrieved_at).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
+              </span>
+            )}
+          </div>
+          
+          {loadingInsights ? (
+            <div className="text-xs text-gray-400 animate-pulse py-2">Scanning verified field reports & town amenities...</div>
+          ) : insights ? (
+            <div className="space-y-2.5 text-xs text-gray-300">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-gray-400 block mb-0.5">⛽ Fuel</span>
+                  <span className="text-white font-medium">{insights.nearest_fuel}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block mb-0.5">🛒 Groceries</span>
+                  <span className="text-white font-medium">{insights.nearest_grocery}</span>
+                </div>
+              </div>
+
+              {insights.observations && insights.observations.length > 0 && (
+                <div className="border-t border-white/10 pt-2 space-y-1.5">
+                  <span className="text-gray-400 block text-[11px] font-semibold uppercase tracking-wider">Ground Truth Observations</span>
+                  {insights.observations.map((obs, i) => (
+                    <div key={i} className="bg-black/30 p-2 rounded-lg border border-white/5 space-y-0.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-emerald-300 font-bold uppercase">{obs.category}</span>
+                        <span className="text-gray-500 italic">via {obs.source_attribution}</span>
+                      </div>
+                      <div className="text-gray-200 text-xs">{obs.observation}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="border-t border-white/10 pt-2">
+                <span className="text-gray-400 block mb-1">Top Activities</span>
+                <div className="flex flex-wrap gap-1">
+                  {insights.top_activities.map((act, i) => (
+                    <span key={i} className="bg-white/10 px-2 py-0.5 rounded text-white text-[11px]">{act}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-gray-400">Field notes currently unavailable</div>
           )}
         </div>
-        
-        {loadingInsights ? (
-          <div className="text-xs text-gray-400 animate-pulse py-2">Scanning verified field reports & town amenities...</div>
-        ) : insights ? (
-          <div className="space-y-2.5 text-xs text-gray-300">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <span className="text-gray-400 block mb-0.5">⛽ Fuel</span>
-                <span className="text-white font-medium">{insights.nearest_fuel}</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block mb-0.5">🛒 Groceries</span>
-                <span className="text-white font-medium">{insights.nearest_grocery}</span>
-              </div>
+
+        <div className="flex gap-4 border-t border-white/10 pt-4 shrink-0">
+          {campsite.dog_friendly && (
+            <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full font-medium">
+              <Dog size={14} /> Pet Friendly
             </div>
-
-            {insights.observations && insights.observations.length > 0 && (
-              <div className="border-t border-white/10 pt-2 space-y-1.5">
-                <span className="text-gray-400 block text-[11px] font-semibold uppercase tracking-wider">Ground Truth Observations</span>
-                {insights.observations.map((obs, i) => (
-                  <div key={i} className="bg-black/30 p-2 rounded-lg border border-white/5 space-y-0.5">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-emerald-300 font-bold uppercase">{obs.category}</span>
-                      <span className="text-gray-500 italic">via {obs.source_attribution}</span>
-                    </div>
-                    <div className="text-gray-200 text-xs">{obs.observation}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="border-t border-white/10 pt-2">
-              <span className="text-gray-400 block mb-1">Top Activities</span>
-              <div className="flex flex-wrap gap-1">
-                {insights.top_activities.map((act, i) => (
-                  <span key={i} className="bg-white/10 px-2 py-0.5 rounded text-white text-[11px]">{act}</span>
-                ))}
-              </div>
+          )}
+          {campsite.rig_access && campsite.rig_access.length > 0 && (
+            <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full font-medium">
+              <Car size={14} /> {campsite.rig_access.join(', ')}
             </div>
-          </div>
-        ) : (
-          <div className="text-xs text-gray-400">Field notes currently unavailable</div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div className="flex gap-4 border-t border-white/10 pt-4">
-        {campsite.dog_friendly && (
-          <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full font-medium">
-            <Dog size={14} /> Pet Friendly
-          </div>
-        )}
-        {campsite.rig_access && campsite.rig_access.length > 0 && (
-          <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full font-medium">
-            <Car size={14} /> {campsite.rig_access.join(', ')}
-          </div>
-        )}
-      </div>
+        <div className="mt-2 border-t border-white/10 pt-4 shrink-0">
 
-      <div className="mt-2 border-t border-white/10 pt-4">
         {saveSuccess ? (
           <div className="p-4 bg-neon-green/10 border border-neon-green/30 rounded-xl text-center flex flex-col gap-3">
             <div>

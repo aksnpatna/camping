@@ -219,6 +219,20 @@ class MicroclimateEngine:
         else:
             peg_strain_factor = "Low Strain — Standard tent pegs sufficient"
 
+        from app.services.llm_inference import LLMInferenceService
+        telemetry_summary_dict = {
+            "campsite_name": campsite_name,
+            "temp_max": adjusted_temp_max,
+            "temp_min": adjusted_temp_min,
+            "rain_probability": rain_prob_base,
+            "expected_rainfall_mm": expected_rain_base,
+            "wind_max_kmh": wind_speed_base,
+            "sleeping_bag_rating": sleeping_bag_rating,
+            "valley_inversion_active": bool(inversion_drop > 0),
+            "campfire_wind_risk": campfire_wind_risk,
+        }
+        deterministic_ai_summary = LLMInferenceService.synthesize_weather_condition_summary_deterministic(telemetry_summary_dict)
+
         return MicroclimateResponse(
             latitude=latitude,
             longitude=longitude,
@@ -242,7 +256,9 @@ class MicroclimateEngine:
             peg_strain_factor=peg_strain_factor,
             valley_inversion_active=bool(inversion_drop > 0),
             terrain_notes=terrain_notes,
+            ai_condition_summary=deterministic_ai_summary,
         )
+
 
     @classmethod
     def get_climatological_baseline(cls, latitude: float, longitude: float, target_date: date) -> Dict[str, float]:
@@ -366,3 +382,46 @@ class MicroclimateEngine:
             uv_index_base=int(baseline["uv_index"]),
             forecast_type="climatological_physics",
         )
+
+    @classmethod
+    async def get_forecast_async(
+        cls,
+        latitude: float,
+        longitude: float,
+        target_date: date,
+        elevation_m: Optional[float] = None,
+        campsite_name: Optional[str] = None,
+        campsite_id: Optional[int] = None,
+        timeout: float = 3.5,
+    ) -> MicroclimateResponse:
+        """
+        Asynchronously fetches microclimate forecast and enhances with Qwen3-9B AI camping synthesis.
+        """
+        forecast = cls.get_forecast(
+            latitude=latitude,
+            longitude=longitude,
+            target_date=target_date,
+            elevation_m=elevation_m,
+            campsite_name=campsite_name,
+            campsite_id=campsite_id,
+            timeout=timeout,
+        )
+
+        from app.services.llm_inference import LLMInferenceService
+        telemetry = {
+            "campsite_name": forecast.campsite_name,
+            "temp_max": forecast.temp_max,
+            "temp_min": forecast.temp_min,
+            "rain_probability": forecast.rain_probability,
+            "expected_rainfall_mm": forecast.expected_rainfall_mm,
+            "wind_max_kmh": forecast.wind_max_kmh,
+            "sleeping_bag_rating": forecast.sleeping_bag_rating,
+            "valley_inversion_active": forecast.valley_inversion_active,
+            "campfire_wind_risk": forecast.campfire_wind_risk,
+        }
+        ai_briefing = await LLMInferenceService.synthesize_weather_condition_summary(telemetry)
+        if ai_briefing:
+            forecast.ai_condition_summary = ai_briefing
+
+        return forecast
+

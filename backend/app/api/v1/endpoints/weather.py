@@ -22,7 +22,7 @@ router = APIRouter()
     4. Computes 4 diurnal camping phases (Dawn, Midday, Dusk, Night) with equipment & fire safety advice.
     """
 )
-def get_campsite_microclimate(
+async def get_campsite_microclimate(
     date_str: str = Query(..., alias="date", description="Target trip date (YYYY-MM-DD)"),
     latitude: Optional[float] = Query(None, description="Campsite latitude"),
     longitude: Optional[float] = Query(None, description="Campsite longitude"),
@@ -61,7 +61,7 @@ def get_campsite_microclimate(
             detail="Either campsite_id with existing coordinates or (latitude, longitude) must be provided."
         )
 
-    return MicroclimateEngine.get_forecast(
+    return await MicroclimateEngine.get_forecast_async(
         latitude=lat,
         longitude=lng,
         target_date=target_date,
@@ -69,3 +69,4 @@ def get_campsite_microclimate(
         campsite_name=campsite_name,
         campsite_id=campsite_id,
     )
+
