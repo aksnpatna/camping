@@ -46,6 +46,7 @@ export interface FuturisticWeatherHUDProps {
   selectedEndDate?: string;
   campsiteElevation?: number;
   campsiteName?: string;
+  onDateChange?: (date: string) => void;
 }
 
 type DayPhase = "dawn" | "midday" | "dusk" | "night";
@@ -56,14 +57,38 @@ export default function FuturisticWeatherHUD({
   loadingLive,
   loadingFuture,
   selectedStartDate,
-  selectedEndDate,
   campsiteElevation,
-  campsiteName
+  campsiteName,
+  onDateChange
 }: FuturisticWeatherHUDProps) {
   // Mode: "live" or "predictive"
   const [mode, setMode] = useState<"live" | "predictive">(selectedStartDate ? "predictive" : "live");
+  const [prevSelectedDate, setPrevSelectedDate] = useState<string | undefined>(selectedStartDate);
+  const [targetDate, setTargetDate] = useState<string>(selectedStartDate || "");
   const [activePhase, setActivePhase] = useState<DayPhase>("night");
   const [expandedDetails, setExpandedDetails] = useState(false);
+
+  // Sync targetDate when selectedStartDate prop changes during render
+  if (selectedStartDate !== prevSelectedDate) {
+    setPrevSelectedDate(selectedStartDate);
+    setTargetDate(selectedStartDate || "");
+  }
+
+  const handlePredictiveMode = () => {
+    setMode("predictive");
+    let chosenDate = targetDate;
+    if (!chosenDate) {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = (6 - day + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff);
+      chosenDate = d.toISOString().split("T")[0];
+      setTargetDate(chosenDate);
+    }
+    if (onDateChange) {
+      onDateChange(chosenDate);
+    }
+  };
 
   // Active dataset depending on mode
   const currentData = mode === "predictive" && futureWeather ? futureWeather : liveWeather;
@@ -327,7 +352,7 @@ export default function FuturisticWeatherHUD({
             ⚡ Live
           </button>
           <button
-            onClick={() => setMode("predictive")}
+            onClick={handlePredictiveMode}
             className={`px-2 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
               mode === "predictive"
                 ? "bg-purple-500 text-white font-black shadow"
@@ -342,18 +367,32 @@ export default function FuturisticWeatherHUD({
 
       {/* CLIMATOLOGY ALERT BANNER IF IN PREDICTIVE MODE */}
       {mode === "predictive" && (
-        <div className="bg-purple-950/40 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-200 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="bg-purple-950/50 border border-purple-500/40 rounded-xl p-2.5 text-xs text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <Calendar size={14} className="text-purple-400 shrink-0" />
-            <span>
-              {selectedStartDate 
-                ? `Climatological envelope for ${selectedStartDate} ${selectedEndDate ? `to ${selectedEndDate}` : ""}`
-                : "Future trip dates mode: 10-year climatological analog baseline"}
+            <span className="font-bold text-white text-xs">Trip Date:</span>
+            <input 
+              type="date"
+              value={targetDate}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTargetDate(val);
+                if (onDateChange) onDateChange(val);
+              }}
+              className="bg-black/60 border border-purple-500/50 text-white text-xs font-semibold rounded-lg px-2.5 py-1 outline-none focus:border-[var(--color-neon-green)] cursor-pointer"
+            />
+            {targetDate && (
+              <span className="text-[11px] text-purple-300 font-medium">
+                ({new Date(targetDate + "T12:00:00").toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })})
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full font-mono font-bold border border-purple-500/30">
+              P10-P90 Climatology Analog
             </span>
           </div>
-          <span className="text-[10px] text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded font-mono font-bold">
-            P10-P90 Model
-          </span>
         </div>
       )}
 

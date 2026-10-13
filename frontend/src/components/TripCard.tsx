@@ -24,7 +24,17 @@ interface InsightsData {
   retrieved_at?: string;
 }
 
-export default function TripCard({ campsite, onClose, routeDistance }: { campsite: Campsite | null, onClose: () => void, routeDistance?: number | null }) {
+export default function TripCard({ 
+  campsite, 
+  onClose, 
+  routeDistance,
+  startLocation 
+}: { 
+  campsite: Campsite | null; 
+  onClose: () => void; 
+  routeDistance?: number | null;
+  startLocation?: { latitude?: number; longitude?: number; city?: string; state?: string } | null;
+}) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   
@@ -302,24 +312,38 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
 
         {/* ONE-TAP DIRECT GPS NAVIGATION & QUICK GROUND REPORT */}
         <div className="flex flex-col gap-2 shrink-0">
-          <div className="grid grid-cols-2 gap-2">
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${campsite.latitude},${campsite.longitude}`}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
-            >
-              <Navigation size={13} className="text-cyan-400" /> Google Maps
-            </a>
-            <a
-              href={`https://maps.apple.com/?daddr=${campsite.latitude},${campsite.longitude}`}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
-            >
-              <Compass size={13} className="text-emerald-300" /> Apple Maps
-            </a>
-          </div>
+          {(() => {
+            const originParam = startLocation?.latitude && startLocation?.longitude 
+              ? `&origin=${startLocation.latitude},${startLocation.longitude}` 
+              : "";
+            const googleMapsUrl = originParam 
+              ? `https://www.google.com/maps/dir/?api=1${originParam}&destination=${campsite.latitude},${campsite.longitude}&travelmode=driving`
+              : `https://www.google.com/maps/search/?api=1&query=${campsite.latitude},${campsite.longitude}`;
+            const appleMapsUrl = startLocation?.latitude && startLocation?.longitude 
+              ? `https://maps.apple.com/?saddr=${startLocation.latitude},${startLocation.longitude}&daddr=${campsite.latitude},${campsite.longitude}&dirflg=d`
+              : `https://maps.apple.com/?daddr=${campsite.latitude},${campsite.longitude}`;
+
+            return (
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={googleMapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                >
+                  <Navigation size={13} className="text-cyan-400" /> Google Maps
+                </a>
+                <a
+                  href={appleMapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                >
+                  <Compass size={13} className="text-emerald-300" /> Apple Maps
+                </a>
+              </div>
+            );
+          })()}
           <button
             onClick={() => setShowCheckInModal(true)}
             className="w-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[var(--color-neon-green)] py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
@@ -338,6 +362,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
             selectedStartDate={startDate}
             selectedEndDate={endDate}
             campsiteName={campsite.name}
+            onDateChange={(date) => setStartDate(date)}
           />
         </div>
 

@@ -593,24 +593,38 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                     </div>
 
                     {/* ONE-TAP DIRECT GPS NAVIGATION BUTTONS */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${card.latitude},${card.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
-                      >
-                        <Navigation size={12} className="text-cyan-400" /> Google Maps
-                      </a>
-                      <a
-                        href={`https://maps.apple.com/?daddr=${card.latitude},${card.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
-                      >
-                        <Compass size={12} className="text-emerald-300" /> Apple Maps
-                      </a>
-                    </div>
+                    {(() => {
+                      const originParam = startLocation?.latitude && startLocation?.longitude 
+                        ? `&origin=${startLocation.latitude},${startLocation.longitude}` 
+                        : "";
+                      const googleMapsUrl = originParam
+                        ? `https://www.google.com/maps/dir/?api=1${originParam}&destination=${card.latitude},${card.longitude}&travelmode=driving`
+                        : `https://www.google.com/maps/search/?api=1&query=${card.latitude},${card.longitude}`;
+                      const appleMapsUrl = startLocation?.latitude && startLocation?.longitude
+                        ? `https://maps.apple.com/?saddr=${startLocation.latitude},${startLocation.longitude}&daddr=${card.latitude},${card.longitude}&dirflg=d`
+                        : `https://maps.apple.com/?daddr=${card.latitude},${card.longitude}`;
+
+                      return (
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+                          <a
+                            href={googleMapsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                          >
+                            <Navigation size={12} className="text-cyan-400" /> Google Maps
+                          </a>
+                          <a
+                            href={appleMapsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                          >
+                            <Compass size={12} className="text-emerald-300" /> Apple Maps
+                          </a>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* BOTTOM ACTION BUTTONS */}

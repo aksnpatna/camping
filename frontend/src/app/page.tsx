@@ -384,6 +384,7 @@ export default function Home() {
               setRouteDistance(null);
             }}
             routeDistance={routeDistance}
+            startLocation={startLocation}
           />
         )}
       </div>
