@@ -1,6 +1,8 @@
 import React from 'react';
 import { MapPin, AlertTriangle, ShieldCheck } from "lucide-react";
 import PrintButton from './PrintButton';
+import OfflinePackFallback from './OfflinePackFallback';
+import OfflinePackCacher from './OfflinePackCacher';
 import { getApiUrl } from '@/config';
 
 export const instant = false;
@@ -33,10 +35,13 @@ export default async function OfflinePackPage({ params }: { params: Promise<{ id
     console.error(e);
   }
 
-  if (!campsite) return <div className="p-10 text-white bg-black h-screen">Campsite not found.</div>;
+  if (!campsite) {
+    return <OfflinePackFallback id={id} />;
+  }
 
   return (
     <div className="min-h-screen bg-white text-black p-8 max-w-3xl mx-auto font-sans print:p-0 print:m-0">
+      <OfflinePackCacher campsite={campsite} id={id} />
       <div className="flex justify-between items-center mb-8 print:hidden border-b pb-4">
         <h1 className="text-xl font-bold text-gray-800">Your Offline Trip Pack</h1>
         <PrintButton />

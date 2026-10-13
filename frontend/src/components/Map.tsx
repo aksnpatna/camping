@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { setWorkerUrl } from 'maplibre-gl';
-import Map, { NavigationControl, Marker, Source, Layer, MapRef } from 'react-map-gl/maplibre';
+import Map, { NavigationControl, Marker, Popup, Source, Layer, MapRef } from 'react-map-gl/maplibre';
+import type { MapLayerMouseEvent } from 'react-map-gl/maplibre';
 
 if (typeof window !== 'undefined') {
   setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
@@ -57,6 +58,16 @@ export default function CampingMap({
     zoom: 4
   });
 
+  const [cursor, setCursor] = useState<string>('auto');
+  const [hoveredSite, setHoveredSite] = useState<{
+    name: string;
+    state: string;
+    longitude: number;
+    latitude: number;
+  } | null>(null);
+
+  const hasSelectedSite = !!selectedCampsite;
+
   useEffect(() => {
     if (selectedState && STATE_CENTERS[selectedState] && mapRef.current) {
       const center = STATE_CENTERS[selectedState];
@@ -68,42 +79,162 @@ export default function CampingMap({
     }
   }, [selectedState]);
 
+  // Convert campsites array to WebGL-accelerated GeoJSON FeatureCollection
+  const campsitesGeoJson = useMemo<GeoJSON.FeatureCollection>(() => {
+    return {
+      type: "FeatureCollection",
+      features: campsites.map((site) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [site.longitude, site.latitude]
+        },
+        properties: {
+          id: site.id,
+          name: site.name,
+          state: site.state,
+          management_type: site.management_type || "",
+          dog_friendly: site.dog_friendly ?? null
+        }
+      }))
+    };
+  }, [campsites]);
+
+  // Interactive click handler for WebGL layer
+  const handleMapClick = useCallback((e: MapLayerMouseEvent) => {
+    const feature = e.features && e.features[0];
+    if (feature && feature.properties) {
+      const siteId = Number(feature.properties.id);
+      const site = campsites.find(c => c.id === siteId);
+      if (site) {
+        onSelectCampsite(site);
+      }
+    }
+  }, [campsites, onSelectCampsite]);
+
+  // Hover detection for interactive tooltip
+  const handleMouseMove = useCallback((e: MapLayerMouseEvent) => {
+    const feature = e.features && e.features[0];
+    if (feature && feature.properties) {
+      setCursor('pointer');
+      setHoveredSite({
+        name: String(feature.properties.name),
+        state: String(feature.properties.state),
+        longitude: e.lngLat.lng,
+        latitude: e.lngLat.lat
+      });
+    } else {
+      setCursor('auto');
+      setHoveredSite(null);
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setCursor('auto');
+    setHoveredSite(null);
+  }, []);
+
   return (
     <div className="absolute inset-0 w-full h-full z-0">
       <Map
         ref={mapRef}
         {...viewState}
+        cursor={cursor}
+        interactiveLayerIds={['campsites-circles']}
+        onClick={handleMapClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         style={{ width: "100%", height: "100%" }}
         onMove={evt => setViewState(evt.viewState)}
         mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
       >
         <NavigationControl position="bottom-right" />
-        
-        {campsites.map((site) => {
-          const isSelected = selectedCampsite?.id === site.id;
-          return (
-            <Marker 
-              key={site.id} 
-              longitude={site.longitude} 
-              latitude={site.latitude}
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                onSelectCampsite(site);
-              }}
+
+        {/* High-Performance WebGL GeoJSON Layer for all ~3000 Campsites */}
+        <Source id="campsites-source" type="geojson" data={campsitesGeoJson}>
+          {/* Subtle Halo / Glow Layer */}
+          <Layer
+            id="campsites-glow"
+            type="circle"
+            paint={{
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                3, hasSelectedSite ? 2.5 : 5,
+                8, hasSelectedSite ? 4 : 8,
+                14, hasSelectedSite ? 6 : 12
+              ],
+              "circle-color": hasSelectedSite ? "rgba(16, 185, 129, 0.08)" : "rgba(34, 197, 94, 0.28)",
+              "circle-blur": 0.75,
+              "circle-opacity": hasSelectedSite ? 0.3 : 0.85
+            }}
+          />
+
+          {/* Primary Crisp Campsite Circle Layer */}
+          <Layer
+            id="campsites-circles"
+            type="circle"
+            paint={{
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                3, hasSelectedSite ? 2 : 3.8,
+                8, hasSelectedSite ? 3 : 5.5,
+                14, hasSelectedSite ? 5 : 8.5
+              ],
+              // Dimmed to muted translucent emerald when another campsite is selected
+              "circle-color": hasSelectedSite ? "rgba(16, 185, 129, 0.38)" : "#22c55e",
+              "circle-stroke-color": hasSelectedSite ? "rgba(52, 211, 153, 0.25)" : "#022c22",
+              "circle-stroke-width": hasSelectedSite ? 0.75 : 1.5,
+              "circle-opacity": hasSelectedSite ? 0.35 : 0.95
+            }}
+          />
+        </Source>
+
+        {/* Selected Campsite: Prominent Animated 3D Pin */}
+        {selectedCampsite && (
+          <Marker 
+            longitude={selectedCampsite.longitude} 
+            latitude={selectedCampsite.latitude}
+            style={{ zIndex: 40 }}
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              onSelectCampsite(selectedCampsite);
+            }}
+          >
+            <div 
+              className="relative flex items-center justify-center cursor-pointer scale-110"
+              title={`${selectedCampsite.name} (Selected)`}
+              aria-label={`${selectedCampsite.name} (Selected)`}
             >
-              {isSelected ? (
-                <div className="relative flex items-center justify-center cursor-pointer">
-                  <div className="absolute w-8 h-8 rounded-full bg-red-500/40 animate-ping"></div>
-                  <div className="w-6 h-6 bg-red-600 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.9)] border-2 border-white flex items-center justify-center text-[10px] text-white font-black z-10 scale-110 transition-transform">
-                    ⛺
-                  </div>
-                </div>
-              ) : (
-                <div className="w-5 h-5 bg-green-500 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)] cursor-pointer hover:scale-125 transition-transform duration-300 border-2 border-emerald-900"></div>
-              )}
-            </Marker>
-          );
-        })}
+              <div className="absolute w-9 h-9 rounded-full bg-red-500/40 animate-ping"></div>
+              <div className="w-7 h-7 bg-red-600 rounded-full shadow-[0_0_22px_rgba(239,68,68,0.95)] border-2 border-white flex items-center justify-center text-xs text-white font-black z-10 transition-transform">
+                ⛺
+              </div>
+            </div>
+          </Marker>
+        )}
+
+        {/* Lightweight Hover Tooltip for Quick Campsite Discovery */}
+        {hoveredSite && !selectedCampsite && (
+          <Popup
+            longitude={hoveredSite.longitude}
+            latitude={hoveredSite.latitude}
+            closeButton={false}
+            closeOnClick={false}
+            offset={14}
+            className="z-30 pointer-events-none"
+          >
+            <div className="bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg border border-emerald-500/40 backdrop-blur-md shadow-2xl flex items-center gap-1.5 font-medium">
+              <span>{hoveredSite.name}</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 py-0.2 rounded border border-emerald-500/30 uppercase font-mono">
+                {hoveredSite.state}
+              </span>
+            </div>
+          </Popup>
+        )}
 
         {startLocation && (
           <Marker longitude={startLocation.longitude} latitude={startLocation.latitude}>
