@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
+import { Suspense } from "react";
 import OfflineManager from "@/components/OfflineManager";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 
 const outfit = Outfit({ 
   subsets: ["latin"],
@@ -37,6 +39,9 @@ export default function RootLayout({
       <body className={`${outfit.variable} font-sans antialiased`}>
         {children}
         <OfflineManager />
+        <Suspense fallback={null}>
+          <AnalyticsTracker />
+        </Suspense>
       </body>
     </html>
   );

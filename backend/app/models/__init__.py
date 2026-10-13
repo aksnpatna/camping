@@ -8,3 +8,4 @@ from app.models.harvest_cache import HarvestCache
 from app.models.fact_evidence import FactEvidence
 from app.models.locality import AustralianLocality
 from app.models.check_in import CampsiteCheckIn
+from app.models.analytics import AnalyticsEvent, EmailLead

@@ -1,8 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.crud import analytics as crud_analytics
 from app.schemas.auth import MagicLinkRequest, MagicLinkResponse
 from app.services.email_service import email_service
 from app.services.magic_link import build_magic_link, issue_magic_token
@@ -20,8 +21,25 @@ DISPATCH_MESSAGE = (
 
 
 @router.post("/request-magic-link", response_model=MagicLinkResponse)
-def request_magic_link(req: MagicLinkRequest, db: Session = Depends(get_db)):
+def request_magic_link(req: MagicLinkRequest, request: Request, db: Session = Depends(get_db)):
     email = req.email.strip().lower()
+
+    # Capture lead for future communications
+    client_ip = request.headers.get("x-forwarded-for")
+    if client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+    else:
+        client_ip = None
+
+    crud_analytics.record_or_update_lead(
+        db=db,
+        email=email,
+        source="magic_link",
+        ip_address=client_ip,
+        metadata={"action": "requested_dashboard_access"}
+    )
 
     token = issue_magic_token(db, email)
     magic_link = build_magic_link(email, token)
