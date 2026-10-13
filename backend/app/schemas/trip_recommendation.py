@@ -41,6 +41,9 @@ class TripRecommendationCard(BaseModel):
     data_status: Optional[str] = None
     source_url: Optional[str] = None
     evidence_url: Optional[str] = None
+    visual_badges: Optional[Dict[str, str]] = None
+    community_signals: Optional[Dict[str, Any]] = None
+    photo_url: Optional[str] = None
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]

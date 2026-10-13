@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MapPin, X, Dog, Car, Clock, ExternalLink } from "lucide-react";
+import { MapPin, X, Dog, Car, Clock, ExternalLink, Navigation, Compass } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
 import FuturisticWeatherHUD, { type WeatherHUDData } from "./FuturisticWeatherHUD";
+import GroundCheckInModal from "./GroundCheckInModal";
 
 type WeatherData = WeatherHUDData;
 
@@ -42,6 +43,7 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
   
   const [insights, setInsights] = useState<InsightsData | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
 
   useEffect(() => {
     if (!campsite) return;
@@ -298,6 +300,34 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
           </div>
         )}
 
+        {/* ONE-TAP DIRECT GPS NAVIGATION & QUICK GROUND REPORT */}
+        <div className="flex flex-col gap-2 shrink-0">
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${campsite.latitude},${campsite.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+            >
+              <Navigation size={13} className="text-cyan-400" /> Google Maps
+            </a>
+            <a
+              href={`https://maps.apple.com/?daddr=${campsite.latitude},${campsite.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+            >
+              <Compass size={13} className="text-emerald-300" /> Apple Maps
+            </a>
+          </div>
+          <button
+            onClick={() => setShowCheckInModal(true)}
+            className="w-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[var(--color-neon-green)] py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            📡 Report Ground Conditions (10s Check-in)
+          </button>
+        </div>
+
         {/* FUTURISTIC INTERACTIVE ATMOSPHERIC TELEMETRY HUD */}
         <div className="shrink-0 w-full">
           <FuturisticWeatherHUD 
@@ -534,6 +564,17 @@ export default function TripCard({ campsite, onClose, routeDistance }: { campsit
         </a>
       </div>
       </div>
+
+      {showCheckInModal && (
+        <GroundCheckInModal
+          campsiteId={campsite.id}
+          campsiteName={campsite.name}
+          onClose={() => setShowCheckInModal(false)}
+          onCheckInSuccess={() => {
+            setShowCheckInModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

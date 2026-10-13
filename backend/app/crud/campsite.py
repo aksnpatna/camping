@@ -53,3 +53,30 @@ def get_campsites(
         
     return query.offset(skip).all()
 
+from app.models.check_in import CampsiteCheckIn
+from app.schemas.check_in import CheckInCreate
+
+def create_check_in(db: Session, campsite_id: int, check_in_in: CheckInCreate) -> CampsiteCheckIn:
+    db_check_in = CampsiteCheckIn(
+        campsite_id=campsite_id,
+        water_status=check_in_in.water_status,
+        toilets_status=check_in_in.toilets_status,
+        road_status=check_in_in.road_status,
+        vibe_status=check_in_in.vibe_status,
+        telco_status=check_in_in.telco_status,
+        notes=check_in_in.notes
+    )
+    db.add(db_check_in)
+    db.commit()
+    db.refresh(db_check_in)
+    return db_check_in
+
+def get_check_ins_for_campsite(db: Session, campsite_id: int, limit: int = 20):
+    return (
+        db.query(CampsiteCheckIn)
+        .filter(CampsiteCheckIn.campsite_id == campsite_id)
+        .order_by(CampsiteCheckIn.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+

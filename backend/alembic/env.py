@@ -21,6 +21,7 @@ from app.models.magic_token import MagicToken  # noqa: F401
 from app.models.policy_rule import PolicyRule  # noqa: F401
 from app.models.harvest_cache import HarvestCache  # noqa: F401
 from app.models.fact_evidence import FactEvidence  # noqa: F401
+from app.models.check_in import CampsiteCheckIn  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

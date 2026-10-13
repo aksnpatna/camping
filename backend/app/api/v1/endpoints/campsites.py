@@ -63,6 +63,46 @@ def read_campsites(
         rig_access=rig_access
     )
 
+from app.schemas.check_in import CheckInCreate, CheckInResponse, CheckInSummary, CampsiteCheckInsListResponse
+
+@router.post("/{campsite_id}/check-ins", response_model=CheckInResponse, status_code=201)
+def submit_check_in(campsite_id: int, check_in: CheckInCreate, db: Session = Depends(get_db)):
+    campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
+    if not campsite:
+        raise HTTPException(status_code=404, detail="Campsite not found")
+    return crud_campsite.create_check_in(db=db, campsite_id=campsite_id, check_in_in=check_in)
+
+@router.get("/{campsite_id}/check-ins", response_model=CampsiteCheckInsListResponse)
+def get_check_ins(campsite_id: int, limit: int = 20, db: Session = Depends(get_db)):
+    campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
+    if not campsite:
+        raise HTTPException(status_code=404, detail="Campsite not found")
+    check_ins = crud_campsite.get_check_ins_for_campsite(db=db, campsite_id=campsite_id, limit=limit)
+    
+    summary = CheckInSummary()
+    if check_ins:
+        latest = check_ins[0]
+        water = next((c.water_status for c in check_ins if c.water_status), None)
+        toilets = next((c.toilets_status for c in check_ins if c.toilets_status), None)
+        road = next((c.road_status for c in check_ins if c.road_status), None)
+        vibe = next((c.vibe_status for c in check_ins if c.vibe_status), None)
+        telco = next((c.telco_status for c in check_ins if c.telco_status), None)
+        
+        summary = CheckInSummary(
+            water=water,
+            toilets=toilets,
+            road=road,
+            vibe=vibe,
+            telco=telco,
+            last_updated=latest.created_at.isoformat() if latest.created_at else None
+        )
+        
+    return CampsiteCheckInsListResponse(
+        total_count=len(check_ins),
+        summary=summary,
+        recent_check_ins=check_ins
+    )
+
 import os
 
 async def call_groq_fallback(prompt: str, is_json: bool = False):

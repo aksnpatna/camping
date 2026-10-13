@@ -3,24 +3,24 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { 
   Sparkles, 
-  Car, 
-  Dog, 
   MapPin, 
   Calendar, 
   AlertCircle, 
   ExternalLink, 
   SlidersHorizontal, 
-  Check, 
-  ShieldCheck,
-  Search,
-  ArrowRight,
-  Users,
-  ClipboardList,
-  Clock
+  Search, 
+  ArrowRight, 
+  Users, 
+  ClipboardList, 
+  WifiOff, 
+  Navigation, 
+  Compass 
 } from "lucide-react";
 import { getApiUrl } from "@/config";
 import PreparationBoard from "./PreparationBoard";
 import TripRoomModal from "./TripRoomModal";
+import GroundCheckInModal from "./GroundCheckInModal";
+import OfflineBushVaultModal, { saveTripOffline, getOfflineTrips } from "./OfflineBushVaultModal";
 
 export interface TripCardData {
   id: number;
@@ -48,6 +48,9 @@ export interface TripCardData {
   data_status?: string | null;
   source_url?: string | null;
   evidence_url?: string | null;
+  visual_badges?: Record<string, string> | null;
+  community_signals?: Record<string, unknown> | null;
+  photo_url?: string | null;
 }
 
 interface FindWeekendResponse {
@@ -128,6 +131,23 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
   const [showTripRoom, setShowTripRoom] = useState(false);
   const [whatIfInput, setWhatIfInput] = useState("");
   const [adjusting, setAdjusting] = useState(false);
+  const [checkInSite, setCheckInSite] = useState<{ id: number; name: string } | null>(null);
+  const [showOfflineVault, setShowOfflineVault] = useState(false);
+  const [offlineCount, setOfflineCount] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    return getOfflineTrips().length;
+  });
+  const [savedOfflineIds, setSavedOfflineIds] = useState<number[]>(() => {
+    if (typeof window === "undefined") return [];
+    return getOfflineTrips().map(t => t.id);
+  });
+
+  const handleSaveOffline = (card: TripCardData) => {
+    saveTripOffline(card);
+    setSavedOfflineIds(prev => [...new Set([...prev, card.id])]);
+    setOfflineCount(getOfflineTrips().length);
+  };
+
   const [lastRequest, setLastRequest] = useState<Record<string, unknown>>({
     prompt: presets[0].prompt,
     origin_lat: startLocation?.latitude ?? -33.8688,
@@ -367,6 +387,13 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
             </h2>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowOfflineVault(true)}
+                className="bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-200 text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                title="View cached offline trip cards for zero-reception bush areas"
+              >
+                <WifiOff size={14} className="text-amber-400" /> Bush Vault ({offlineCount})
+              </button>
+              <button
                 onClick={() => setShowTripRoom(true)}
                 className="bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                 title="Coordinate with your group in a shared room"
@@ -387,155 +414,226 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cards.map((card, index) => {
               const isCompared = selectedForCompare.includes(card.id);
+              const isSavedOffline = savedOfflineIds.includes(card.id);
               const driveHours = Math.floor(card.driving_time_minutes / 60);
               const driveMins = card.driving_time_minutes % 60;
+              const photoUrl = card.photo_url || "https://images.unsplash.com/photo-1537905569824-f89f14cceb68?auto=format&fit=crop&w=800&q=80";
 
               return (
                 <div 
                   key={card.id}
-                  className="bg-[#0f2c22]/90 border border-emerald-500/20 rounded-2xl p-5 flex flex-col justify-between shadow-2xl hover:border-emerald-500/40 transition-all backdrop-blur-md relative overflow-hidden group"
+                  className="bg-[#0b2019]/95 border border-emerald-500/25 rounded-2xl flex flex-col justify-between shadow-2xl hover:border-emerald-500/50 transition-all backdrop-blur-md relative overflow-hidden group"
                 >
-                  {/* TOP BADGES */}
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="bg-emerald-500/20 text-[var(--color-neon-green)] border border-emerald-500/40 text-xs px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
-                      {card.highlight_badge || `#${index + 1} Pick`}
-                    </span>
-                    <button
-                      onClick={() => toggleCompare(card.id)}
-                      className={`text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border transition-all cursor-pointer ${
-                        isCompared 
-                          ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] border-[var(--color-neon-green)]" 
-                          : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
-                      }`}
-                    >
-                      {isCompared && <Check size={12} />}
-                      {isCompared ? "Comparing" : "+ Compare"}
-                    </button>
+                  {/* HERO VISUAL COVER PHOTO BANNER */}
+                  <div className="relative h-44 w-full overflow-hidden shrink-0">
+                    <img 
+                      src={photoUrl} 
+                      alt={card.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b2019] via-[#0b2019]/50 to-black/40" />
+
+                    {/* TOP FLOATING CONTROLS */}
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                      <span className="bg-black/70 backdrop-blur-md text-[var(--color-neon-green)] border border-emerald-500/40 text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow">
+                        {card.highlight_badge || `#${index + 1} Pick`}
+                      </span>
+                      <span className="bg-black/70 backdrop-blur-md text-gray-200 border border-white/10 text-[10px] px-2.5 py-1 rounded-full font-bold shadow">
+                        ⏱️ {driveHours > 0 ? `${driveHours}h ` : ""}{driveMins}m
+                      </span>
+                    </div>
+
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleSaveOffline(card)}
+                        className={`text-[10px] px-2 py-1 rounded-lg font-black backdrop-blur-md border transition-all cursor-pointer shadow ${
+                          isSavedOffline
+                            ? "bg-amber-400 text-black border-amber-300"
+                            : "bg-black/60 hover:bg-black/80 text-white border-white/20"
+                        }`}
+                        title={isSavedOffline ? "Saved in Offline Bush Vault" : "Save for offline bush mode"}
+                      >
+                        {isSavedOffline ? "💾 Cached" : "📥 Offline"}
+                      </button>
+
+                      <button
+                        onClick={() => toggleCompare(card.id)}
+                        className={`text-[10px] px-2 py-1 rounded-lg font-black backdrop-blur-md border transition-all cursor-pointer shadow ${
+                          isCompared 
+                            ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] border-[var(--color-neon-green)]" 
+                            : "bg-black/60 hover:bg-black/80 text-white border-white/20"
+                        }`}
+                      >
+                        {isCompared ? "✓ Compared" : "+ Compare"}
+                      </button>
+                    </div>
+
+                    {/* TITLE & LOCATION OVERLAY */}
+                    <div className="absolute bottom-2 left-3 right-3">
+                      <h3 className="text-xl font-black text-white leading-tight drop-shadow-md group-hover:text-[var(--color-neon-green)] transition-colors">
+                        {card.name}
+                      </h3>
+                      <p className="text-[11px] text-emerald-300/90 flex items-center gap-1 mt-0.5 font-medium">
+                        <MapPin size={11} className="text-emerald-400" />
+                        {card.state} • {card.management_type || "Public Reserve"} • {card.driving_distance_km}km
+                      </p>
+                    </div>
                   </div>
 
-                  {/* TITLE & LOCATION */}
-                  <div>
-                    <h3 className="text-2xl font-black text-white group-hover:text-[var(--color-neon-green)] transition-colors">
-                      {card.name}
-                    </h3>
-                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1 font-medium">
-                      <MapPin size={13} className="text-emerald-400" />
-                      {card.state} • {card.management_type || "Public Reserve"}
-                    </p>
-
-                    {/* STATS CHIPS */}
-                    <div className="grid grid-cols-2 gap-2 my-4">
-                      <div className="bg-black/30 border border-white/5 rounded-xl p-2.5">
-                        <div className="text-[10px] text-gray-400 uppercase font-semibold flex items-center gap-1">
-                          <Car size={12} /> Drive Time
+                  {/* BODY CONTENT */}
+                  <div className="p-4 flex flex-col gap-3">
+                    {/* 6-PILL VISUAL ATTRIBUTE HUD */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
+                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
+                          🚗 Access
                         </div>
-                        <div className="text-sm font-black text-white mt-0.5">
-                          {driveHours > 0 ? `${driveHours}h ` : ""}{driveMins}m
-                          <span className="text-[11px] text-gray-400 font-normal ml-1">({card.driving_distance_km}km)</span>
+                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
+                          {card.visual_badges?.clearance || (card.vehicle_clearance === "4WD_ONLY" ? "4WD Only" : "2WD Easy")}
                         </div>
                       </div>
 
-                      <div className="bg-black/30 border border-white/5 rounded-xl p-2.5">
-                        <div className="text-[10px] text-gray-400 uppercase font-semibold flex items-center gap-1">
-                          <Dog size={12} /> Pet Policy
+                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
+                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
+                          📶 Telco
                         </div>
-                        <div className="text-sm font-black mt-0.5">
-                          {card.dog_friendly === true ? (
-                            <span className="text-green-400">Dogs Allowed</span>
-                          ) : card.dog_friendly === false ? (
-                            <span className="text-gray-400">No Pets</span>
-                          ) : (
-                            <span className="text-yellow-400">Unverified</span>
-                          )}
+                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
+                          {card.visual_badges?.telco || "Telstra 4G"}
+                        </div>
+                      </div>
+
+                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
+                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
+                          🔥 Fire
+                        </div>
+                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
+                          {card.visual_badges?.campfire || "Fire Pits"}
+                        </div>
+                      </div>
+
+                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
+                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
+                          💧 Water
+                        </div>
+                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
+                          {card.visual_badges?.water || "Drinking Water"}
+                        </div>
+                      </div>
+
+                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
+                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
+                          🧻 Toilets
+                        </div>
+                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
+                          {card.visual_badges?.toilets || "Drop Toilets"}
+                        </div>
+                      </div>
+
+                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
+                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
+                          🐶 Pets
+                        </div>
+                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
+                          {card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Unknown"}
                         </div>
                       </div>
                     </div>
 
-                    {/* WHY IT FITS */}
-                    <div className="mb-4">
-                      <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <ShieldCheck size={14} /> Why It Fits Your Weekend
+                    {/* LIVE COMMUNITY GROUND REPORT & 10S CHECK-IN */}
+                    <div className="bg-black/40 border border-emerald-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 overflow-hidden text-gray-300">
+                        <span className="text-[var(--color-neon-green)] font-black text-[10px] uppercase shrink-0">📡 Ground:</span>
+                        <span className="text-[11px] text-gray-300 truncate">
+                          {card.community_signals?.water === "dry" ? "❌ Creek Dry" : "💧 Creek Flowing"} • {" "}
+                          {card.community_signals?.toilets === "clean" ? "✨ Clean" : "⚠️ Bring TP"} • {" "}
+                          {card.community_signals?.vibe === "full" ? "🔴 Full" : "🟢 Space"}
+                        </span>
                       </div>
-                      <ul className="space-y-1.5 text-xs text-gray-200">
-                        {card.why_it_fits.map((reason, rIdx) => (
-                          <li key={rIdx} className="flex items-start gap-1.5">
-                            <span className="text-[var(--color-neon-green)] font-bold shrink-0">✓</span>
-                            <span>{reason}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        onClick={() => setCheckInSite({ id: card.id, name: card.name })}
+                        className="shrink-0 bg-white/10 hover:bg-white/20 text-[var(--color-neon-green)] border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer"
+                        title="Report real conditions at this campsite in 10 seconds"
+                      >
+                        ⚡ 10s Check-in
+                      </button>
                     </div>
 
                     {/* THE MAIN COMPROMISE */}
-                    <div className="bg-amber-950/40 border border-amber-500/30 p-3 rounded-xl mb-4 text-xs text-amber-200/90">
-                      <div className="font-bold text-amber-300 uppercase tracking-wider text-[10px] mb-0.5 flex items-center gap-1">
-                        <AlertCircle size={12} /> The Main Compromise
-                      </div>
-                      <p>{card.main_compromise}</p>
-                    </div>
-
-                    {/* AVAILABILITY STRATEGY & BOOKING WINDOW */}
-                    <div className="bg-black/40 border border-emerald-500/20 p-3 rounded-xl mb-4 text-xs">
-                      <div className="flex items-center justify-between mb-1.5 gap-2">
-                        <span className="font-bold text-[10px] uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                          <Clock size={12} /> Availability Strategy
-                        </span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
-                          card.booking_type === "FIRST_COME_FIRST_SERVED"
-                            ? "bg-emerald-500/20 text-[var(--color-neon-green)] border border-emerald-500/30"
-                            : card.booking_type === "ONLINE_BOOKING_REQUIRED"
-                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                            : card.booking_type === "FREE_REGISTRATION_REQUIRED"
-                            ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
-                            : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                        }`}>
-                          {card.booking_type === "FIRST_COME_FIRST_SERVED"
-                            ? "No Booking Required"
-                            : card.booking_type === "ONLINE_BOOKING_REQUIRED"
-                            ? "Online Booking Req"
-                            : card.booking_type === "FREE_REGISTRATION_REQUIRED"
-                            ? "Free Permit ($0)"
-                            : "Operator Portal"}
-                        </span>
-                      </div>
-                      <p className="text-gray-300 text-[11px] leading-relaxed">
-                        {card.availability_window || card.booking_status}
-                      </p>
-                    </div>
-
-                    {/* COST */}
-                    <div className="flex items-center justify-between text-xs text-gray-300 py-1.5 border-t border-white/10 mb-4">
+                    <div className="bg-amber-950/40 border border-amber-500/30 px-3 py-2 rounded-xl text-xs text-amber-200/90 flex items-start gap-1.5">
+                      <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-gray-400">Estimated Cost: </span>
-                        <span className="font-bold text-white">{card.estimated_cost}</span>
+                        <span className="font-black text-amber-300 uppercase text-[10px] mr-1">The Catch:</span>
+                        <span className="text-[11px] leading-tight">{card.main_compromise}</span>
                       </div>
-                      <div className="font-medium text-[11px] text-gray-400">
-                        {card.management_type || "Verified Reserve"}
+                    </div>
+
+                    {/* COST & BOOKING WINDOW */}
+                    <div className="flex items-center justify-between text-xs py-1 px-1 border-t border-white/5">
+                      <div>
+                        <span className="text-gray-400 text-[11px]">Fee: </span>
+                        <span className="font-bold text-white text-xs">{card.estimated_cost}</span>
                       </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                        card.booking_type === "FIRST_COME_FIRST_SERVED"
+                          ? "bg-emerald-500/20 text-[var(--color-neon-green)] border border-emerald-500/30"
+                          : card.booking_type === "ONLINE_BOOKING_REQUIRED"
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : card.booking_type === "FREE_REGISTRATION_REQUIRED"
+                          ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                          : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                      }`}>
+                        {card.booking_type === "FIRST_COME_FIRST_SERVED"
+                          ? "No Booking Req"
+                          : card.booking_type === "ONLINE_BOOKING_REQUIRED"
+                          ? "Booking Req"
+                          : card.booking_type === "FREE_REGISTRATION_REQUIRED"
+                          ? "Free Permit ($0)"
+                          : "Operator Portal"}
+                      </span>
+                    </div>
+
+                    {/* ONE-TAP DIRECT GPS NAVIGATION BUTTONS */}
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${card.latitude},${card.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                      >
+                        <Navigation size={12} className="text-cyan-400" /> Google Maps
+                      </a>
+                      <a
+                        href={`https://maps.apple.com/?daddr=${card.latitude},${card.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                      >
+                        <Compass size={12} className="text-emerald-300" /> Apple Maps
+                      </a>
                     </div>
                   </div>
 
-                  {/* ACTIONS */}
-                  <div className="flex gap-2 pt-2 border-t border-white/10">
+                  {/* BOTTOM ACTION BUTTONS */}
+                  <div className="p-3 pt-0 flex gap-2">
                     <button
                       onClick={() => onOpenSaveModal(card.id, card.name)}
                       className="flex-1 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                     >
-                      <Calendar size={14} /> Save & Monitor
+                      <Calendar size={13} /> Save & Monitor
                     </button>
                     <button
                       onClick={() => setPrepCampsite({ id: card.id, name: card.name })}
                       className="bg-white/10 hover:bg-white/20 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                       title="Open Condition-Aware Preparation Board"
                     >
-                      <ClipboardList size={14} /> Prep
+                      <ClipboardList size={13} /> Prep
                     </button>
                     <button
                       onClick={() => onSelectSiteOnMap(card.id)}
                       className="bg-white/10 hover:bg-white/20 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                       title="View on Map"
                     >
-                      <MapPin size={14} /> Map
+                      <MapPin size={13} /> Map
                     </button>
                     {card.booking_url && (
                       <a
@@ -545,7 +643,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                         className="bg-white/5 hover:bg-white/15 text-gray-300 px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center cursor-pointer"
                         title="Official Booking Information"
                       >
-                        <ExternalLink size={14} />
+                        <ExternalLink size={13} />
                       </a>
                     )}
                   </div>
@@ -696,6 +794,32 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
         <TripRoomModal
           initialCards={cards}
           onClose={() => setShowTripRoom(false)}
+        />
+      )}
+
+      {/* 10-SECOND GROUND CHECK-IN MODAL */}
+      {checkInSite && (
+        <GroundCheckInModal
+          campsiteId={checkInSite.id}
+          campsiteName={checkInSite.name}
+          onClose={() => setCheckInSite(null)}
+          onCheckInSuccess={() => {
+            handleSearch();
+          }}
+        />
+      )}
+
+      {/* BUSH MODE OFFLINE VAULT MODAL */}
+      {showOfflineVault && (
+        <OfflineBushVaultModal
+          onClose={() => {
+            setShowOfflineVault(false);
+            setOfflineCount(getOfflineTrips().length);
+          }}
+          onSelectSite={(id) => {
+            setShowOfflineVault(false);
+            onSelectSiteOnMap(id);
+          }}
         />
       )}
     </div>

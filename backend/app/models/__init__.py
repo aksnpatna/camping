@@ -7,3 +7,4 @@ from app.models.policy_rule import PolicyRule
 from app.models.harvest_cache import HarvestCache
 from app.models.fact_evidence import FactEvidence
 from app.models.locality import AustralianLocality
+from app.models.check_in import CampsiteCheckIn

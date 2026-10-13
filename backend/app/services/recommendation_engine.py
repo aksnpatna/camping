@@ -202,6 +202,52 @@ class RecommendationEngine:
             else:
                 badge = "Scenic Escape"
 
+            # Visual photo selection based on landscape/environment
+            name_lower = site.name.lower()
+            if any(term in name_lower for term in ["beach", "bay", "cove", "ocean", "island", "inlet"]):
+                photo = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80"
+            elif any(term in name_lower for term in ["mountain", "range", "ridge", "peak", "pass", "gap"]):
+                photo = "https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&w=800&q=80"
+            elif any(term in name_lower for term in ["forest", "pines", "valley", "creek", "river", "glen"]):
+                photo = "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?auto=format&fit=crop&w=800&q=80"
+            else:
+                photo = "https://images.unsplash.com/photo-1537905569824-f89f14cceb68?auto=format&fit=crop&w=800&q=80"
+
+            # Visual graphical badges
+            is_4wd = site.rig_access and "4WD_ONLY" in site.rig_access
+            visual_badges = {
+                "clearance": "4WD High Clearance" if is_4wd else "2WD Friendly",
+                "telco": "Off-Grid (Zero Service)" if "forest" in (site.name + (site.management_type or "")).lower() else "Telstra 4G (1-2 bars)",
+                "campfire": "Gas Cooker Only" if fac.get("campfires") is False else "Fire Pits (BYO Wood)",
+                "toilets": "Flush Amenities" if fac.get("toilets") == "flush" else ("Drop Toilet" if fac.get("toilets") in ["pit", "drop", "composting"] else "No Toilets"),
+                "water": "Drinking Water" if fac.get("drinking_water") is True else "Carry All Water",
+                "shade": "Shaded Forest" if "forest" in name_lower or "pines" in name_lower else "Bushland Clearing"
+            }
+
+            # Community ground check-in signals
+            from app.models.check_in import CampsiteCheckIn
+            check_ins = db.query(CampsiteCheckIn).filter(CampsiteCheckIn.campsite_id == site.id).order_by(CampsiteCheckIn.created_at.desc()).limit(5).all()
+            if check_ins:
+                comm_signals = {
+                    "total_checkins": len(check_ins),
+                    "water": next((c.water_status for c in check_ins if c.water_status), None),
+                    "toilets": next((c.toilets_status for c in check_ins if c.toilets_status), None),
+                    "road": next((c.road_status for c in check_ins if c.road_status), None),
+                    "telco": next((c.telco_status for c in check_ins if c.telco_status), None),
+                    "vibe": next((c.vibe_status for c in check_ins if c.vibe_status), None),
+                    "last_reported": check_ins[0].created_at.strftime("%b %d") if check_ins[0].created_at else "Recently"
+                }
+            else:
+                comm_signals = {
+                    "total_checkins": 0,
+                    "water": "flowing" if fac.get("drinking_water") else "carry_water",
+                    "toilets": "clean" if fac.get("toilets") == "flush" else ("bring_tp" if fac.get("toilets") in ["pit", "drop", "composting"] else "no_toilets"),
+                    "road": "4wd_only" if is_4wd else "2wd_clear",
+                    "telco": "no_service" if "forest" in (site.name + (site.management_type or "")).lower() else "telstra_4g",
+                    "vibe": "plenty_space",
+                    "last_reported": "Verified Source"
+                }
+
             cards.append(TripRecommendationCard(
                 id=site.id,
                 name=site.name,
@@ -210,7 +256,7 @@ class RecommendationEngine:
                 longitude=site.longitude,
                 dog_friendly=site.dog_friendly,
                 rig_access=site.rig_access,
-                vehicle_clearance="4WD_ONLY" if site.rig_access and "4WD_ONLY" in site.rig_access else "2WD",
+                vehicle_clearance="4WD_ONLY" if is_4wd else "2WD",
                 driving_distance_km=dist_km,
                 driving_time_minutes=drive_mins,
                 highlight_badge=badge,
@@ -227,7 +273,10 @@ class RecommendationEngine:
                 fire_district=site.fire_district,
                 data_status=site.data_status,
                 source_url=site.source_url,
-                evidence_url=site.evidence_url
+                evidence_url=site.evidence_url,
+                visual_badges=visual_badges,
+                community_signals=comm_signals,
+                photo_url=photo
             ))
 
         return FindWeekendResponse(cards=cards)
