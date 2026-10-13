@@ -6,11 +6,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Campsite } from '@/components/Map';
 const CampingMap = dynamic(() => import('@/components/Map'), { ssr: false });
-import { Activity } from 'lucide-react';
 import TripCard from '@/components/TripCard';
 import SearchFilter, { FilterParams } from '@/components/SearchFilter';
 import FindWeekendPlanner from '@/components/FindWeekendPlanner';
-import AnalyticsDashboardModal from '@/components/AnalyticsDashboardModal';
 import { getApiUrl } from '@/config';
 
 interface PlanBAlertAlternative {
@@ -59,9 +57,8 @@ export default function Home() {
   const [selectedSite, setSelectedSite] = useState<Campsite | null>(null);
   const [filters, setFilters] = useState<FilterParams>({ dog_friendly: null, rig_access: null });
 
-  // Dashboard & Analytics State
+  // Dashboard State
   const [showDashboard, setShowDashboard] = useState(false);
-  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [dashEmail, setDashEmail] = useState("");
   const [dashToken, setDashToken] = useState("");
   const [myTrips, setMyTrips] = useState<SavedTripDashboard[] | null>(null);
@@ -319,15 +316,6 @@ export default function Home() {
 
         {/* HEADER ACTIONS */}
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowAnalyticsModal(true)}
-            className="bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-3 py-1.5 rounded-xl font-bold text-[var(--color-neon-green)] text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-            title="Audience Telemetry & Captured Leads"
-          >
-            <Activity size={14} className="animate-pulse" />
-            <span className="hidden sm:inline">Analytics &amp; Leads</span>
-            <span className="sm:hidden">Stats</span>
-          </button>
           <button 
             onClick={() => setShowDashboard(true)}
             className="bg-white/10 hover:bg-white/20 border border-white/10 px-3.5 py-1.5 rounded-xl font-bold text-white text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer"
@@ -695,12 +683,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* Analytics & Leads Modal */}
-      <AnalyticsDashboardModal 
-        isOpen={showAnalyticsModal}
-        onClose={() => setShowAnalyticsModal(false)}
-      />
     </main>
   );
 }
