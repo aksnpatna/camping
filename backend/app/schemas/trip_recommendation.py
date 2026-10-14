@@ -44,12 +44,14 @@ class TripRecommendationCard(BaseModel):
     visual_badges: Optional[Dict[str, str]] = None
     community_signals: Optional[Dict[str, Any]] = None
     photo_url: Optional[str] = None
+    is_illustrative_photo: bool = False
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]
     limiting_constraint: Optional[str] = None
     suggested_adjustments: List[str] = []
     parsed_criteria: Optional[Dict[str, Any]] = None
+    assumed_origin: Optional[str] = None
 
 class AdjustTripRequest(BaseModel):
     current_request: FindWeekendRequest
@@ -60,3 +62,4 @@ class AdjustTripResponse(BaseModel):
     cards: List[TripRecommendationCard]
     limiting_constraint: Optional[str] = None
     suggested_adjustments: List[str] = []
+    assumed_origin: Optional[str] = None

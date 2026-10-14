@@ -51,6 +51,7 @@ export interface TripCardData {
   visual_badges?: Record<string, string> | null;
   community_signals?: Record<string, unknown> | null;
   photo_url?: string | null;
+  is_illustrative_photo?: boolean;
 }
 
 interface FindWeekendResponse {
@@ -58,6 +59,7 @@ interface FindWeekendResponse {
   limiting_constraint: string | null;
   suggested_adjustments: string[];
   parsed_criteria?: Record<string, unknown>;
+  assumed_origin?: string | null;
 }
 
 export interface StartLocation {
@@ -123,6 +125,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
   const [showOriginDropdown, setShowOriginDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cards, setCards] = useState<TripCardData[]>([]);
+  const [assumedOrigin, setAssumedOrigin] = useState<string | null>(null);
   const [limitingConstraint, setLimitingConstraint] = useState<string | null>(null);
   const [suggestedAdjustments, setSuggestedAdjustments] = useState<string[]>([]);
   const [selectedForCompare, setSelectedForCompare] = useState<number[]>([]);
@@ -184,6 +187,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
         setCards(data.cards || []);
         setLimitingConstraint(data.limiting_constraint || null);
         setSuggestedAdjustments(data.suggested_adjustments || []);
+        setAssumedOrigin(data.assumed_origin || null);
       }
     } catch (err) {
       console.error("Failed to find weekend trips:", err);
@@ -211,6 +215,9 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
         setLimitingConstraint(data.limiting_constraint || null);
         setSuggestedAdjustments(data.suggested_adjustments || []);
         setLastRequest(data.updated_request || lastRequest);
+        if (data.assumed_origin !== undefined) {
+          setAssumedOrigin(data.assumed_origin || null);
+        }
         setWhatIfInput("");
       }
     } catch (err) {
@@ -377,6 +384,21 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
         </div>
       )}
 
+      {/* ASSUMED ORIGIN TRANSPARENCY BANNER */}
+      {assumedOrigin && cards.length > 0 && (
+        <div className="bg-sky-950/40 border border-sky-500/30 px-4 py-2.5 rounded-xl text-xs text-sky-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-md backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <Compass size={15} className="text-sky-400 shrink-0" />
+            <span>
+              Search routed from assumed origin: <strong className="text-white">{assumedOrigin}</strong>. Drive times & distances are estimates from here.
+            </span>
+          </div>
+          <span className="text-[11px] text-sky-300/70 shrink-0">
+            Set your departure town or enable GPS for exact drive times
+          </span>
+        </div>
+      )}
+
       {/* THREE TRIP CARDS GRID */}
       {cards.length > 0 && (
         <div>
@@ -432,6 +454,12 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0b2019] via-[#0b2019]/50 to-black/40" />
+
+                    {card.is_illustrative_photo && (
+                      <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-[9px] text-gray-300/80 px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-wider">
+                        Illustrative Photo
+                      </div>
+                    )}
 
                     {/* TOP FLOATING CONTROLS */}
                     <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
@@ -498,7 +526,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                           📶 Telco
                         </div>
                         <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.telco || "Telstra 4G"}
+                          {card.visual_badges?.telco || "Coverage Unspecified"}
                         </div>
                       </div>
 
@@ -507,7 +535,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                           🔥 Fire
                         </div>
                         <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.campfire || "Fire Pits"}
+                          {card.visual_badges?.campfire || "Check Fire Rules"}
                         </div>
                       </div>
 
@@ -516,7 +544,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                           💧 Water
                         </div>
                         <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.water || "Drinking Water"}
+                          {card.visual_badges?.water || "Water Unverified"}
                         </div>
                       </div>
 
@@ -525,7 +553,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                           🧻 Toilets
                         </div>
                         <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.toilets || "Drop Toilets"}
+                          {card.visual_badges?.toilets || "Toilets Unverified"}
                         </div>
                       </div>
 
@@ -534,7 +562,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                           🐶 Pets
                         </div>
                         <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Unknown"}
+                          {card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Check Regulations"}
                         </div>
                       </div>
                     </div>
@@ -543,11 +571,17 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                     <div className="bg-black/40 border border-emerald-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-1.5 overflow-hidden text-gray-300">
                         <span className="text-[var(--color-neon-green)] font-black text-[10px] uppercase shrink-0">📡 Ground:</span>
-                        <span className="text-[11px] text-gray-300 truncate">
-                          {card.community_signals?.water === "dry" ? "❌ Creek Dry" : "💧 Creek Flowing"} • {" "}
-                          {card.community_signals?.toilets === "clean" ? "✨ Clean" : "⚠️ Bring TP"} • {" "}
-                          {card.community_signals?.vibe === "full" ? "🔴 Full" : "🟢 Space"}
-                        </span>
+                        {card.community_signals && Object.keys(card.community_signals).length > 0 ? (
+                          <span className="text-[11px] text-gray-300 truncate">
+                            {card.community_signals.water === "dry" ? "❌ Creek Dry" : card.community_signals.water === "flowing" ? "💧 Creek Flowing" : "💧 Water Unreported"} • {" "}
+                            {card.community_signals.toilets === "clean" ? "✨ Clean" : card.community_signals.toilets === "dirty" ? "⚠️ Needs Attention" : "🧻 Toilets Unreported"} • {" "}
+                            {card.community_signals.vibe === "full" ? "🔴 Full" : card.community_signals.vibe === "quiet" ? "🟢 Quiet" : "🟢 Space"}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 italic truncate">
+                            No recent field reports — be the first to check in
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => setCheckInSite({ id: card.id, name: card.name })}

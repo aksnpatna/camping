@@ -347,6 +347,12 @@ class MicroclimateEngine:
                         uv = data.get("uv_index_max", [])[diff_days] or 6
 
                         if t_max is not None and t_min is not None:
+                            baseline = cls.get_climatological_baseline(latitude, longitude, target_date)
+                            r_prob = data.get("precipitation_probability_max", [])[diff_days]
+                            r_sum = data.get("precipitation_sum", [])[diff_days]
+                            w_speed = data.get("windspeed_10m_max", [])[diff_days]
+                            uv = data.get("uv_index_max", [])[diff_days]
+
                             return cls.compute_microclimate(
                                 latitude=latitude,
                                 longitude=longitude,
@@ -356,10 +362,10 @@ class MicroclimateEngine:
                                 campsite_id=campsite_id,
                                 temp_max_base=float(t_max),
                                 temp_min_base=float(t_min),
-                                rain_prob_base=int(r_prob),
-                                expected_rain_base=float(r_sum),
-                                wind_speed_base=float(w_speed),
-                                uv_index_base=int(uv),
+                                rain_prob_base=int(r_prob if r_prob is not None else baseline["rain_prob"]),
+                                expected_rain_base=float(r_sum if r_sum is not None else baseline["expected_rain"]),
+                                wind_speed_base=float(w_speed if w_speed is not None else baseline["wind_speed"]),
+                                uv_index_base=int(uv if uv is not None else baseline["uv_index"]),
                                 forecast_type="numerical_ensemble",
                             )
             except Exception as e:

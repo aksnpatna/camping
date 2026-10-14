@@ -283,7 +283,7 @@ export default function TripCard({
         <div className="pr-4">
           <div className="flex items-center gap-2 text-[var(--color-neon-green)] text-xs font-semibold mb-0.5 uppercase tracking-wider">
             <MapPin size={13} />
-            {campsite.state} • {campsite.management_type || "Verified"}
+            {campsite.state} • {campsite.management_type || "Public Reserve"}
           </div>
           <h2 className="text-xl md:text-2xl font-bold leading-tight">{campsite.name}</h2>
         </div>
@@ -377,8 +377,8 @@ export default function TripCard({
         <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10 shrink-0">
           <div className="flex justify-between items-center text-sm text-gray-300">
             <span className="font-semibold text-white flex items-center gap-1.5">
-              <span>Verified Field Notes</span>
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 font-mono">Sourced</span>
+              <span>Town & Field Notes</span>
+              <span className="text-[10px] text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-mono">AI Web Synthesis</span>
             </span>
             {insights?.retrieved_at && (
               <span className="text-[10px] text-gray-400">
@@ -388,7 +388,7 @@ export default function TripCard({
           </div>
           
           {loadingInsights ? (
-            <div className="text-xs text-gray-400 animate-pulse py-2">Scanning verified field reports & town amenities...</div>
+            <div className="text-xs text-gray-400 animate-pulse py-2">Scanning nearby town amenities & field reports...</div>
           ) : insights ? (
             <div className="space-y-2.5 text-xs text-gray-300">
               <div className="grid grid-cols-2 gap-2">

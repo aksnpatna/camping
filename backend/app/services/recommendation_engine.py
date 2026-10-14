@@ -29,7 +29,7 @@ class RecommendationEngine:
         return max(road_km, 10), max(minutes, 15)
 
     @classmethod
-    def find_weekend(cls, db: Session, request: FindWeekendRequest) -> FindWeekendResponse:
+    def find_weekend(cls, db: Session, request: FindWeekendRequest, assumed_origin: Optional[str] = None) -> FindWeekendResponse:
         origin_lat = request.origin_lat or -33.8688
         origin_lng = request.origin_lng or 151.2093
         max_hours = float(request.max_drive_hours or 4.0)
@@ -40,7 +40,8 @@ class RecommendationEngine:
             return FindWeekendResponse(
                 cards=[],
                 limiting_constraint="No campsite records found in database.",
-                suggested_adjustments=["Ensure database is seeded with canonical campsites."]
+                suggested_adjustments=["Ensure database is seeded with canonical campsites."],
+                assumed_origin=assumed_origin
             )
 
         # 2. Compute distances and evaluate eligibility
@@ -113,7 +114,8 @@ class RecommendationEngine:
             return FindWeekendResponse(
                 cards=[],
                 limiting_constraint=limiting,
-                suggested_adjustments=suggestions
+                suggested_adjustments=suggestions,
+                assumed_origin=assumed_origin
             )
 
         # 5. Build top 3 distinct trip cards
@@ -213,14 +215,44 @@ class RecommendationEngine:
             else:
                 photo = "https://images.unsplash.com/photo-1537905569824-f89f14cceb68?auto=format&fit=crop&w=800&q=80"
 
-            # Visual graphical badges
+            # Visual graphical badges based on verified facts only
             is_4wd = site.rig_access and "4WD_ONLY" in site.rig_access
+            has_2wd = site.rig_access and any(r in site.rig_access for r in ["CAR", "2WD", "TENT", "CAMPER_TRAILER", "CARAVAN"]) and not is_4wd
+            clearance_badge = "4WD High Clearance" if is_4wd else ("2WD Accessible" if has_2wd else "Clearance Unverified")
+
+            # Campfire: truthful tri-state
+            if fac.get("campfires") is True:
+                fire_badge = "Fire Pits Allowed"
+            elif fac.get("campfires") is False:
+                fire_badge = "Gas Cooker Only"
+            else:
+                fire_badge = "Check Fire Rules"
+
+            # Toilets: truthful tri-state
+            toilet_val = fac.get("toilets")
+            if toilet_val == "flush":
+                toilet_badge = "Flush Amenities"
+            elif toilet_val in ["pit", "drop", "composting"]:
+                toilet_badge = "Drop / Pit Toilets"
+            elif toilet_val == "none":
+                toilet_badge = "No Toilets"
+            else:
+                toilet_badge = "Toilets Unverified"
+
+            # Water: truthful tri-state
+            water_val = fac.get("drinking_water")
+            if water_val is True:
+                water_badge = "Drinking Water"
+            elif water_val is False:
+                water_badge = "Carry All Water"
+            else:
+                water_badge = "Water Unverified"
+
             visual_badges = {
-                "clearance": "4WD High Clearance" if is_4wd else "2WD Friendly",
-                "telco": "Off-Grid (Zero Service)" if "forest" in (site.name + (site.management_type or "")).lower() else "Telstra 4G (1-2 bars)",
-                "campfire": "Gas Cooker Only" if fac.get("campfires") is False else "Fire Pits (BYO Wood)",
-                "toilets": "Flush Amenities" if fac.get("toilets") == "flush" else ("Drop Toilet" if fac.get("toilets") in ["pit", "drop", "composting"] else "No Toilets"),
-                "water": "Drinking Water" if fac.get("drinking_water") is True else "Carry All Water",
+                "clearance": clearance_badge,
+                "campfire": fire_badge,
+                "toilets": toilet_badge,
+                "water": water_badge,
                 "shade": "Shaded Forest" if "forest" in name_lower or "pines" in name_lower else "Bushland Clearing"
             }
 
@@ -237,16 +269,10 @@ class RecommendationEngine:
                     "vibe": next((c.vibe_status for c in check_ins if c.vibe_status), None),
                     "last_reported": check_ins[0].created_at.strftime("%b %d") if check_ins[0].created_at else "Recently"
                 }
+                if comm_signals.get("telco"):
+                    visual_badges["telco"] = comm_signals["telco"].replace("_", " ").title()
             else:
-                comm_signals = {
-                    "total_checkins": 0,
-                    "water": "flowing" if fac.get("drinking_water") else "carry_water",
-                    "toilets": "clean" if fac.get("toilets") == "flush" else ("bring_tp" if fac.get("toilets") in ["pit", "drop", "composting"] else "no_toilets"),
-                    "road": "4wd_only" if is_4wd else "2wd_clear",
-                    "telco": "no_service" if "forest" in (site.name + (site.management_type or "")).lower() else "telstra_4g",
-                    "vibe": "plenty_space",
-                    "last_reported": "Verified Source"
-                }
+                comm_signals = None
 
             cards.append(TripRecommendationCard(
                 id=site.id,
@@ -276,7 +302,8 @@ class RecommendationEngine:
                 evidence_url=site.evidence_url,
                 visual_badges=visual_badges,
                 community_signals=comm_signals,
-                photo_url=photo
+                photo_url=photo,
+                is_illustrative_photo=True
             ))
 
-        return FindWeekendResponse(cards=cards)
+        return FindWeekendResponse(cards=cards, assumed_origin=assumed_origin)

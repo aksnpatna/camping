@@ -19,6 +19,11 @@ async def find_weekend_trips(request: FindWeekendRequest, db: Session = Depends(
     Extracts constraints from natural language prompts, applies strict criteria,
     and returns 3 ranked condition-aware trip cards with calculated reasons and compromises.
     """
+    explicit_origin = (
+        request.origin_lat is not None and 
+        (abs(request.origin_lat - (-33.8688)) > 0.001 or abs(request.origin_lng - 151.2093) > 0.001)
+    )
+
     if request.prompt:
         extracted = await LLMInferenceService.parse_trip_prompt(request.prompt)
         # Apply extracted attributes if not explicitly passed
@@ -31,8 +36,10 @@ async def find_weekend_trips(request: FindWeekendRequest, db: Session = Depends(
         if extracted.get("origin_lat") and extracted.get("origin_lng"):
             request.origin_lat = extracted["origin_lat"]
             request.origin_lng = extracted["origin_lng"]
+            explicit_origin = True
 
-    response = RecommendationEngine.find_weekend(db=db, request=request)
+    assumed_origin = None if explicit_origin else "Sydney CBD (NSW)"
+    response = RecommendationEngine.find_weekend(db=db, request=request, assumed_origin=assumed_origin)
     if request.prompt:
         response.parsed_criteria = {
             "dog_friendly": request.dog_friendly,
@@ -52,13 +59,19 @@ async def adjust_trip_parameters(request: AdjustTripRequest, db: Session = Depen
     updated_dict = LLMInferenceService.adjust_constraints_deterministic(current_dict, request.instruction)
     
     updated_req = FindWeekendRequest(**updated_dict)
-    response = RecommendationEngine.find_weekend(db=db, request=updated_req)
+    explicit_origin = (
+        updated_req.origin_lat is not None and 
+        (abs(updated_req.origin_lat - (-33.8688)) > 0.001 or abs(updated_req.origin_lng - 151.2093) > 0.001)
+    )
+    assumed_origin = None if explicit_origin else "Sydney CBD (NSW)"
+    response = RecommendationEngine.find_weekend(db=db, request=updated_req, assumed_origin=assumed_origin)
 
     return AdjustTripResponse(
         updated_request=updated_req,
         cards=response.cards,
         limiting_constraint=response.limiting_constraint,
-        suggested_adjustments=response.suggested_adjustments
+        suggested_adjustments=response.suggested_adjustments,
+        assumed_origin=assumed_origin
     )
 
 # --- Phase 2: Prepare Together Journey Endpoints ---

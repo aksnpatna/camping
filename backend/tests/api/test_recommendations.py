@@ -193,5 +193,40 @@ def test_find_weekend_perth_origin_in_prompt():
         assert card["state"] == "WA"
 
 
+def test_recommendation_cards_no_fabricated_signals():
+    """Phase 0: Sites without check-ins must have community_signals=None and no fake Telstra 4G."""
+    payload = {
+        "prompt": "Tent camping under 2 hours",
+        "origin_lat": -33.8688,
+        "origin_lng": 151.2093,
+        "max_drive_hours": 2.0
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    cards = response.json()["cards"]
+    assert len(cards) >= 1
+    for card in cards:
+        # If community_signals exists, it must have real check-ins > 0
+        if card.get("community_signals"):
+            assert card["community_signals"].get("total_checkins", 0) > 0
+            assert card["community_signals"].get("last_reported") != "Verified Source"
+        
+        # visual_badges must never claim Telstra 4G without telco data
+        badges = card.get("visual_badges") or {}
+        assert badges.get("telco") != "Telstra 4G (1-2 bars)"
+
+
+def test_find_weekend_reports_assumed_origin():
+    """Phase 0: When no explicit location or prompt city is given, API explicitly indicates assumed origin."""
+    payload = {
+        "prompt": "Nice spot by a creek under 3 hours drive"
+    }
+    response = client.post("/api/v1/trips/find-weekend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "assumed_origin" in data
+    assert data["assumed_origin"] is not None
+
+
 
 

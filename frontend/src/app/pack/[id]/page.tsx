@@ -51,7 +51,7 @@ export default async function OfflinePackPage({ params }: { params: Promise<{ id
         <div className="text-center border-b-2 border-black pb-6 mb-6">
           <h1 className="text-5xl font-black uppercase tracking-tight mb-2">{campsite.name}</h1>
           <div className="flex items-center justify-center gap-2 text-xl font-medium text-gray-700">
-            <MapPin size={24} /> {campsite.state} • {campsite.management_type || "Verified"}
+            <MapPin size={24} /> {campsite.state} • {campsite.management_type || "Public Campground"}
           </div>
         </div>
 
