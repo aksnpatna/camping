@@ -12,6 +12,7 @@ from app.ingest.harvest import (
     fetch_page_cached,
     harvest_campsite_record,
     run_harvest_batch,
+    resolve_npws_candidate_urls,
     PARSER_VERSION,
 )
 
@@ -163,3 +164,9 @@ def test_run_harvest_batch():
         db.query(HarvestCache).filter(HarvestCache.url == test_url).delete()
         db.delete(site)
         db.commit()
+
+
+def test_resolve_npws_candidate_urls():
+    candidates = resolve_npws_candidate_urls("Horse Swamp campground")
+    assert "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/horse-swamp-campground" in candidates
+    assert "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/horse-swamp" in candidates

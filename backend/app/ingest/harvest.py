@@ -213,6 +213,25 @@ def extract_fees_from_html(html: str) -> Optional[str]:
     return None
 
 
+def resolve_npws_candidate_urls(name: str) -> list:
+    """Generate candidate official NPWS campground URLs from a campsite name."""
+    clean = re.sub(r"(?i)\s+(campground|camping area|bush camping|camp|picnic area).*", "", name)
+    clean = re.sub(r"[^a-zA-Z0-9\s-]", "", clean).strip().lower()
+    slug = re.sub(r"[\s_]+", "-", clean)
+
+    candidates = []
+    if slug:
+        candidates.append(f"https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/{slug}-campground")
+        candidates.append(f"https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/{slug}")
+
+    slug_full = re.sub(r"[^a-zA-Z0-9\s-]", "", name).strip().lower()
+    slug_full = re.sub(r"[\s_]+", "-", slug_full)
+    if slug_full and slug_full not in [slug, f"{slug}-campground"]:
+        candidates.append(f"https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/{slug_full}")
+
+    return candidates
+
+
 def harvest_campsite_record(db: Session, campsite: Campsite, proxy_url: Optional[str] = None) -> bool:
     """
     Harvests fact evidence for a given campsite using its booking_url or source_url.
@@ -222,9 +241,30 @@ def harvest_campsite_record(db: Session, campsite: Campsite, proxy_url: Optional
     if not url or "http" not in url:
         return False
 
-    html, status, _ = fetch_page_cached(db, url, proxy_url=proxy_url)
+    GENERIC_NPWS_HUB = "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds"
+    urls_to_try = [url]
+    if campsite.state == "NSW" and (url == GENERIC_NPWS_HUB or url.rstrip("/") == GENERIC_NPWS_HUB):
+        candidates = resolve_npws_candidate_urls(campsite.name)
+        urls_to_try = candidates + [url]
+
+    html = None
+    status = 0
+    resolved_url = None
+    for target_url in urls_to_try:
+        if target_url == GENERIC_NPWS_HUB or target_url.rstrip("/") == GENERIC_NPWS_HUB:
+            continue
+        h, s, _ = fetch_page_cached(db, target_url, proxy_url=proxy_url)
+        if h and s == 200 and len(h) > 50:
+            html = h
+            status = s
+            resolved_url = target_url
+            break
+
     if not html or status != 200:
         return False
+
+    url = resolved_url or url
+    campsite.booking_url = url
 
     facilities = extract_amenities_from_html(html)
     fees = extract_fees_from_html(html)
@@ -276,6 +316,7 @@ def run_harvest_batch(
     delay: float = 0.5,
     proxy_url: Optional[str] = None,
     campsite_ids: Optional[list] = None,
+    after_id: Optional[int] = None,
 ) -> Dict[str, int]:
     """
     Harvests a batch of unverified campsites politely with Smartproxy routing.
@@ -288,6 +329,10 @@ def run_harvest_batch(
         query = query.filter(Campsite.state == state.upper())
     if campsite_ids:
         query = query.filter(Campsite.id.in_(campsite_ids))
+    if after_id is not None:
+        query = query.filter(Campsite.id > after_id)
+
+    query = query.order_by(Campsite.id.asc())
 
     campsites = query.limit(limit).all()
     stats = {"attempted": 0, "successful": 0, "failed": 0}
@@ -317,13 +362,14 @@ def main():
     parser.add_argument("--limit", type=int, default=20, help="Max records to harvest")
     parser.add_argument("--state", type=str, default=None, help="Filter by state (e.g. NSW)")
     parser.add_argument("--delay", type=float, default=0.5, help="Polite delay between requests (seconds)")
+    parser.add_argument("--after-id", type=int, default=None, help="Only harvest campsites with ID > after_id")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
-    logger.info("Starting harvest batch (limit=%s, state=%s, delay=%ss)", args.limit, args.state, args.delay)
+    logger.info("Starting harvest batch (limit=%s, state=%s, delay=%ss, after_id=%s)", args.limit, args.state, args.delay, args.after_id)
 
     with SessionLocal() as db:
-        stats = run_harvest_batch(db, limit=args.limit, state=args.state, delay=args.delay)
+        stats = run_harvest_batch(db, limit=args.limit, state=args.state, delay=args.delay, after_id=args.after_id)
         print("Harvest batch completed:", stats)
 
 
