@@ -20,7 +20,8 @@ import {
   Flame,
   Droplets,
   Layers,
-  Dog
+  Dog,
+  Shuffle
 } from "lucide-react";
 import { getApiUrl } from "@/config";
 import PreparationBoard from "./PreparationBoard";
@@ -31,6 +32,10 @@ import FactChip from "./trust/FactChip";
 import ConfidenceMeter from "./trust/ConfidenceMeter";
 import SourceSheet from "./trust/SourceSheet";
 import FireStrip from "./trust/FireStrip";
+import WhyItFitsRadar from "./graphics/WhyItFitsRadar";
+import WeekendWeatherRibbon from "./graphics/WeekendWeatherRibbon";
+import CompareTrayModal from "./graphics/CompareTrayModal";
+import PlanBModal, { PlanBAlternative } from "./trust/PlanBModal";
 import { CampsiteFacts, Fact } from "@/types/facts";
 
 export interface TripCardData {
@@ -157,6 +162,31 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
     if (typeof window === "undefined") return [];
     return getOfflineTrips().map(t => t.id);
   });
+  const [planBCampsite, setPlanBCampsite] = useState<TripCardData | null>(null);
+  const [cardViewMode, setCardViewMode] = useState<Record<number, "glance" | "radar" | "weather">>({});
+
+  const handleSwapWithPlanB = (alt: PlanBAlternative) => {
+    if (!planBCampsite) return;
+    setCards(prev => prev.map(c => {
+      if (c.id === planBCampsite.id) {
+        return {
+          ...c,
+          id: alt.id,
+          name: alt.name,
+          state: alt.state,
+          latitude: alt.latitude ?? c.latitude,
+          longitude: alt.longitude ?? c.longitude,
+          dog_friendly: alt.dog_friendly,
+          management_type: alt.management_type,
+          driving_time_minutes: alt.driving_time_minutes ?? c.driving_time_minutes,
+          highlight_badge: "Plan B Swap",
+          why_it_fits: [alt.reason],
+          facts: alt.facts || c.facts,
+        };
+      }
+      return c;
+    }));
+  };
 
   const handleSaveOffline = (card: TripCardData) => {
     saveTripOffline(card);
@@ -523,129 +553,184 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                   {/* BODY CONTENT */}
                   <div className="p-4 flex flex-col gap-3">
-                    {/* SITE CONFIDENCE METER */}
-                    <ConfidenceMeter 
-                      knownCount={card.facts?.known_facts_count ?? (card.facilities ? 6 : 4)}
-                      totalCount={card.facts?.total_facts_count ?? 9}
-                      officialCount={card.facts?.official_or_verified_count ?? (card.data_status === "verified" ? 4 : 2)}
-                    />
-
-                    {/* 6-PILL VISUAL ATTRIBUTE HUD WITH TRUST LENS */}
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <FactChip
-                        label="Access"
-                        icon={<Car size={11} className="text-gray-300" />}
-                        displayValue={card.visual_badges?.clearance || (card.vehicle_clearance === "4WD_ONLY" ? "4WD Only" : "2WD Easy")}
-                        fact={card.facts?.vehicle_access}
-                        onInspect={() => {
-                          const fact: Fact = card.facts?.vehicle_access || {
-                            value: card.vehicle_clearance,
-                            basis: "official",
-                            confidence: 2,
-                            source: card.source_url || "Park Dataset",
-                            note: card.vehicle_clearance === "4WD_ONLY" ? "High clearance 4WD required" : "Accessible by standard 2WD vehicles"
-                          };
-                          setInspectFact({ fact, label: "Vehicle Access", campsiteName: card.name });
-                        }}
-                      />
-
-                      <FactChip
-                        label="Telco"
-                        icon={<Wifi size={11} className="text-gray-300" />}
-                        displayValue={card.visual_badges?.telco || "Coverage Unspecified"}
-                        fact={card.facts?.telco}
-                        onInspect={() => {
-                          const fact: Fact = card.facts?.telco || {
-                            value: card.visual_badges?.telco || null,
-                            basis: card.visual_badges?.telco ? "community" : "unknown",
-                            confidence: card.visual_badges?.telco ? 2 : 0,
-                            source: card.visual_badges?.telco ? "Recent Camper Check-in" : undefined,
-                            note: card.visual_badges?.telco ? `Carrier coverage: ${card.visual_badges.telco}` : "Mobile signal unverified — download offline maps before travel"
-                          };
-                          setInspectFact({ fact, label: "Mobile Reception", campsiteName: card.name });
-                        }}
-                      />
-
-                      <FactChip
-                        label="Campfire"
-                        icon={<Flame size={11} className="text-gray-300" />}
-                        displayValue={card.visual_badges?.campfire || "Check Fire Rules"}
-                        fact={card.facts?.campfires}
-                        onInspect={() => {
-                          const fact: Fact = card.facts?.campfires || {
-                            value: card.visual_badges?.campfire === "Fire Pits Allowed",
-                            basis: card.facilities?.campfires !== undefined ? "official" : "unknown",
-                            confidence: card.facilities?.campfires !== undefined ? 2 : 0,
-                            source: card.source_url || "Park facilities dataset",
-                            note: card.visual_badges?.campfire || "Campfire regulations unverified — verify current fire danger ratings and park signs"
-                          };
-                          setInspectFact({ fact, label: "Campfires", campsiteName: card.name });
-                        }}
-                      />
-
-                      <FactChip
-                        label="Water"
-                        icon={<Droplets size={11} className="text-gray-300" />}
-                        displayValue={card.visual_badges?.water || "Water Unverified"}
-                        fact={card.facts?.water}
-                        onInspect={() => {
-                          const fact: Fact = card.facts?.water || {
-                            value: card.visual_badges?.water || null,
-                            basis: card.facilities?.drinking_water !== undefined ? "official" : "unknown",
-                            confidence: card.facilities?.drinking_water !== undefined ? 2 : 0,
-                            source: card.source_url || "Park facilities dataset",
-                            note: card.visual_badges?.water || "Water availability unverified — carry all drinking water"
-                          };
-                          setInspectFact({ fact, label: "Water", campsiteName: card.name });
-                        }}
-                      />
-
-                      <FactChip
-                        label="Toilets"
-                        icon={<Layers size={11} className="text-gray-300" />}
-                        displayValue={card.visual_badges?.toilets || "Toilets Unverified"}
-                        fact={card.facts?.toilets}
-                        onInspect={() => {
-                          const fact: Fact = card.facts?.toilets || {
-                            value: card.visual_badges?.toilets || null,
-                            basis: card.facilities?.toilets ? "official" : "unknown",
-                            confidence: card.facilities?.toilets ? 2 : 0,
-                            source: card.source_url || "Park facilities dataset",
-                            note: card.visual_badges?.toilets || "Toilet facilities unverified — carry necessary hygiene supplies"
-                          };
-                          setInspectFact({ fact, label: "Toilets", campsiteName: card.name });
-                        }}
-                      />
-
-                      <FactChip
-                        label="Pets"
-                        icon={<Dog size={11} className="text-gray-300" />}
-                        displayValue={card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Check Regulations"}
-                        fact={card.facts?.dog_friendly}
-                        onInspect={() => {
-                          const fact: Fact = card.facts?.dog_friendly || {
-                            value: card.dog_friendly,
-                            basis: card.dog_friendly === false && card.state === "NSW" && (card.management_type?.includes("National Park") || card.management_type?.includes("NPWS")) ? "rule" : (card.dog_friendly !== null ? "official" : "unknown"),
-                            confidence: card.dog_friendly !== null ? 3 : 0,
-                            source: card.source_url || "National Parks policy",
-                            note: card.dog_friendly === true ? "Dogs allowed on leash" : card.dog_friendly === false ? "Dogs strictly prohibited under state conservation rules" : "Pet policy unconfirmed — check with local ranger"
-                          };
-                          setInspectFact({ fact, label: "Pet Policy", campsiteName: card.name });
-                        }}
-                      />
+                    {/* PERSPECTIVE SELECTOR (Glance / 5-Axis Radar / Weather Ribbon) */}
+                    <div className="flex items-center justify-between bg-black/50 p-1 rounded-xl border border-white/10 text-[11px]">
+                      <button
+                        onClick={() => setCardViewMode(prev => ({ ...prev, [card.id]: "glance" }))}
+                        className={`flex-1 py-1 px-2 rounded-lg font-bold transition-all cursor-pointer text-center ${
+                          (cardViewMode[card.id] || "glance") === "glance"
+                            ? "bg-white/20 text-white shadow"
+                            : "text-gray-400 hover:text-gray-200"
+                        }`}
+                      >
+                        Glance
+                      </button>
+                      <button
+                        onClick={() => setCardViewMode(prev => ({ ...prev, [card.id]: "radar" }))}
+                        className={`flex-1 py-1 px-2 rounded-lg font-bold transition-all cursor-pointer text-center ${
+                          cardViewMode[card.id] === "radar"
+                            ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
+                            : "text-gray-400 hover:text-gray-200"
+                        }`}
+                      >
+                        5-Axis Radar
+                      </button>
+                      <button
+                        onClick={() => setCardViewMode(prev => ({ ...prev, [card.id]: "weather" }))}
+                        className={`flex-1 py-1 px-2 rounded-lg font-bold transition-all cursor-pointer text-center ${
+                          cardViewMode[card.id] === "weather"
+                            ? "bg-sky-500 text-black shadow"
+                            : "text-gray-400 hover:text-gray-200"
+                        }`}
+                      >
+                        Weather Ribbon
+                      </button>
                     </div>
 
-                    {/* LIVE FIRE AGENCY & DISTRICT STRIP */}
-                    <FireStrip 
-                      fireDistrict={card.fire_district} 
-                      fireFact={card.facts?.fire_status} 
-                      state={card.state} 
-                    />
+                    {/* PERSPECTIVE VIEWS */}
+                    {cardViewMode[card.id] === "radar" ? (
+                      <div className="py-1">
+                        <WhyItFitsRadar card={card} size={190} />
+                      </div>
+                    ) : cardViewMode[card.id] === "weather" ? (
+                      <div className="py-1">
+                        <WeekendWeatherRibbon campsiteName={card.name} isForecastWindow={true} />
+                      </div>
+                    ) : (
+                      <>
+                        {/* SITE CONFIDENCE METER */}
+                        <ConfidenceMeter 
+                          knownCount={card.facts?.known_facts_count ?? (card.facilities ? 6 : 4)}
+                          totalCount={card.facts?.total_facts_count ?? 9}
+                          officialCount={card.facts?.official_or_verified_count ?? (card.data_status === "verified" ? 4 : 2)}
+                        />
+
+                        {/* 6-PILL VISUAL ATTRIBUTE HUD WITH TRUST LENS */}
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <FactChip
+                            label="Access"
+                            icon={<Car size={11} className="text-gray-300" />}
+                            displayValue={card.visual_badges?.clearance || (card.vehicle_clearance === "4WD_ONLY" ? "4WD Only" : "2WD Easy")}
+                            fact={card.facts?.vehicle_access}
+                            onInspect={() => {
+                              const fact: Fact = card.facts?.vehicle_access || {
+                                value: card.vehicle_clearance,
+                                basis: "official",
+                                confidence: 2,
+                                source: card.source_url || "Park Dataset",
+                                note: card.vehicle_clearance === "4WD_ONLY" ? "High clearance 4WD required" : "Accessible by standard 2WD vehicles"
+                              };
+                              setInspectFact({ fact, label: "Vehicle Access", campsiteName: card.name });
+                            }}
+                          />
+
+                          <FactChip
+                            label="Telco"
+                            icon={<Wifi size={11} className="text-gray-300" />}
+                            displayValue={card.visual_badges?.telco || "Coverage Unspecified"}
+                            fact={card.facts?.telco}
+                            onInspect={() => {
+                              const fact: Fact = card.facts?.telco || {
+                                value: card.visual_badges?.telco || null,
+                                basis: card.visual_badges?.telco ? "community" : "unknown",
+                                confidence: card.visual_badges?.telco ? 2 : 0,
+                                source: card.visual_badges?.telco ? "Recent Camper Check-in" : undefined,
+                                note: card.visual_badges?.telco ? `Carrier coverage: ${card.visual_badges.telco}` : "Mobile signal unverified — download offline maps before travel"
+                              };
+                              setInspectFact({ fact, label: "Mobile Reception", campsiteName: card.name });
+                            }}
+                          />
+
+                          <FactChip
+                            label="Campfire"
+                            icon={<Flame size={11} className="text-gray-300" />}
+                            displayValue={card.visual_badges?.campfire || "Check Fire Rules"}
+                            fact={card.facts?.campfires}
+                            onInspect={() => {
+                              const fact: Fact = card.facts?.campfires || {
+                                value: card.visual_badges?.campfire === "Fire Pits Allowed",
+                                basis: card.facilities?.campfires !== undefined ? "official" : "unknown",
+                                confidence: card.facilities?.campfires !== undefined ? 2 : 0,
+                                source: card.source_url || "Park facilities dataset",
+                                note: card.visual_badges?.campfire || "Campfire regulations unverified — verify current fire danger ratings and park signs"
+                              };
+                              setInspectFact({ fact, label: "Campfires", campsiteName: card.name });
+                            }}
+                          />
+
+                          <FactChip
+                            label="Water"
+                            icon={<Droplets size={11} className="text-gray-300" />}
+                            displayValue={card.visual_badges?.water || "Water Unverified"}
+                            fact={card.facts?.water}
+                            onInspect={() => {
+                              const fact: Fact = card.facts?.water || {
+                                value: card.visual_badges?.water || null,
+                                basis: card.facilities?.drinking_water !== undefined ? "official" : "unknown",
+                                confidence: card.facilities?.drinking_water !== undefined ? 2 : 0,
+                                source: card.source_url || "Park facilities dataset",
+                                note: card.visual_badges?.water || "Water availability unverified — carry all drinking water"
+                              };
+                              setInspectFact({ fact, label: "Water", campsiteName: card.name });
+                            }}
+                          />
+
+                          <FactChip
+                            label="Toilets"
+                            icon={<Layers size={11} className="text-gray-300" />}
+                            displayValue={card.visual_badges?.toilets || "Toilets Unverified"}
+                            fact={card.facts?.toilets}
+                            onInspect={() => {
+                              const fact: Fact = card.facts?.toilets || {
+                                value: card.visual_badges?.toilets || null,
+                                basis: card.facilities?.toilets ? "official" : "unknown",
+                                confidence: card.facilities?.toilets ? 2 : 0,
+                                source: card.source_url || "Park facilities dataset",
+                                note: card.visual_badges?.toilets || "Toilet facilities unverified — carry necessary hygiene supplies"
+                              };
+                              setInspectFact({ fact, label: "Toilets", campsiteName: card.name });
+                            }}
+                          />
+
+                          <FactChip
+                            label="Pets"
+                            icon={<Dog size={11} className="text-gray-300" />}
+                            displayValue={card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Check Regulations"}
+                            fact={card.facts?.dog_friendly}
+                            onInspect={() => {
+                              const fact: Fact = card.facts?.dog_friendly || {
+                                value: card.dog_friendly,
+                                basis: card.dog_friendly === false && card.state === "NSW" && (card.management_type?.includes("National Park") || card.management_type?.includes("NPWS")) ? "rule" : (card.dog_friendly !== null ? "official" : "unknown"),
+                                confidence: card.dog_friendly !== null ? 3 : 0,
+                                source: card.source_url || "National Parks policy",
+                                note: card.dog_friendly === true ? "Dogs allowed on leash" : card.dog_friendly === false ? "Dogs strictly prohibited under state conservation rules" : "Pet policy unconfirmed — check with local ranger"
+                              };
+                              setInspectFact({ fact, label: "Pet Policy", campsiteName: card.name });
+                            }}
+                          />
+                        </div>
+
+                        {/* LIVE FIRE AGENCY & DISTRICT STRIP */}
+                        <FireStrip 
+                          fireDistrict={card.fire_district} 
+                          fireFact={card.facts?.fire_status} 
+                          state={card.state} 
+                        />
+                      </>
+                    )}
+
+                    {/* GEAR-FIT BADGE (D9) */}
+                    <div className="bg-emerald-950/40 border border-emerald-500/25 px-3 py-1.5 rounded-xl text-xs flex items-center justify-between text-emerald-200">
+                      <span className="font-semibold text-[11px] flex items-center gap-1.5">
+                        🎒 <strong className="text-white">Gear Fit:</strong> 15°C Summer Quilt / Light Bag ✔
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-bold">Overnight ~14°C</span>
+                    </div>
 
                     {/* LIVE COMMUNITY GROUND REPORT & 10S CHECK-IN */}
                     <div className="bg-black/40 border border-emerald-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-1.5 overflow-hidden text-gray-300">
-                        <span className="text-[var(--color-neon-green)] font-black text-[10px] uppercase shrink-0">📡 Ground:</span>
+                        <span className="text-[var(--color-neon-green)] font-black text-[10px] uppercase shrink-0">📡 Ground (14d decay):</span>
                         {card.community_signals && Object.keys(card.community_signals).length > 0 ? (
                           <span className="text-[11px] text-gray-300 truncate">
                             {card.community_signals.water === "dry" ? "❌ Creek Dry" : card.community_signals.water === "flowing" ? "💧 Creek Flowing" : "💧 Water Unreported"} • {" "}
@@ -745,6 +830,13 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                       <Calendar size={13} /> Save & Monitor
                     </button>
                     <button
+                      onClick={() => setPlanBCampsite(card)}
+                      className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2.5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      title="Inspect condition-aware Plan B alternatives"
+                    >
+                      <Shuffle size={13} className="text-amber-400" /> Plan B
+                    </button>
+                    <button
                       onClick={() => setPrepCampsite({ id: card.id, name: card.name })}
                       className="bg-white/10 hover:bg-white/20 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                       title="Open Condition-Aware Preparation Board"
@@ -828,76 +920,55 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
       {/* SIDE-BY-SIDE COMPARE MODAL */}
       {showCompareModal && comparedCards.length > 0 && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0d261e] border border-white/20 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 text-white shadow-2xl">
-            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-              <div>
-                <h3 className="text-2xl font-black text-white">Compare Campsites</h3>
-                <p className="text-xs text-gray-400">Evaluate tradeoffs across drive time, facilities, and compromises</p>
-              </div>
-              <button 
-                onClick={() => setShowCompareModal(false)}
-                className="text-gray-400 hover:text-white p-2 text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
+        <CompareTrayModal
+          cards={comparedCards}
+          onClose={() => setShowCompareModal(false)}
+          onSelectSite={(id) => {
+            setShowCompareModal(false);
+            onSelectSiteOnMap(id);
+          }}
+          onOpenSaveModal={(id, name) => {
+            setShowCompareModal(false);
+            onOpenSaveModal(id, name);
+          }}
+        />
+      )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {comparedCards.map(c => (
-                <div key={c.id} className="bg-black/40 border border-white/10 rounded-xl p-4 flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-lg font-black text-[var(--color-neon-green)] mb-1">{c.name}</h4>
-                    <p className="text-xs text-gray-400 mb-4">{c.state} • {c.management_type || "Public"}</p>
+      {/* PLAN B ALTERNATIVES MODAL */}
+      {planBCampsite && (
+        <PlanBModal
+          originalCampsite={planBCampsite}
+          originLat={startLocation?.latitude}
+          originLng={startLocation?.longitude}
+          onClose={() => setPlanBCampsite(null)}
+          onSwapWithAlternative={(alt) => {
+            handleSwapWithPlanB(alt);
+            setPlanBCampsite(null);
+          }}
+          onSaveAlternative={(id, name) => {
+            onOpenSaveModal(id, name);
+          }}
+        />
+      )}
 
-                    <div className="space-y-3 text-xs">
-                      <div>
-                        <span className="text-gray-400 block font-semibold">Drive Time:</span>
-                        <span className="text-white font-bold">{Math.floor(c.driving_time_minutes / 60)}h {c.driving_time_minutes % 60}m ({c.driving_distance_km}km)</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 block font-semibold">Pet Policy:</span>
-                        <span className="text-white font-bold">{c.dog_friendly ? "🐶 Dogs Allowed" : "🚫 No Pets"}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 block font-semibold">Vehicle Access:</span>
-                        <span className="text-white font-bold">{c.vehicle_clearance}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 block font-semibold">Estimated Cost:</span>
-                        <span className="text-white font-bold">{c.estimated_cost}</span>
-                      </div>
-                      <div>
-                        <span className="text-amber-400 block font-semibold">Main Compromise:</span>
-                        <span className="text-amber-200/90 text-[11px]">{c.main_compromise}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-white/10 flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowCompareModal(false);
-                        onOpenSaveModal(c.id, c.name);
-                      }}
-                      className="flex-1 bg-[var(--color-neon-green)] text-[var(--color-forest-900)] py-2 rounded-lg font-black text-xs hover:bg-[#00e67a]"
-                    >
-                      Choose This
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowCompareModal(false);
-                        onSelectSiteOnMap(c.id);
-                      }}
-                      className="bg-white/10 text-white px-3 py-2 rounded-lg font-bold text-xs hover:bg-white/20"
-                    >
-                      Map
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* FLOATING COMPARE TRAY BAR */}
+      {selectedForCompare.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-black/90 border border-emerald-500/40 rounded-full px-5 py-2.5 shadow-2xl backdrop-blur-md flex items-center gap-4 text-xs">
+          <span className="text-white font-bold flex items-center gap-1.5">
+            ⚖️ <span>{selectedForCompare.length} campsite{selectedForCompare.length > 1 ? "s" : ""} selected</span>
+          </span>
+          <button
+            onClick={() => setShowCompareModal(true)}
+            className="bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] px-3.5 py-1.5 rounded-full font-black text-xs transition-all cursor-pointer shadow-md"
+          >
+            Compare Side-by-Side
+          </button>
+          <button
+            onClick={() => setSelectedForCompare([])}
+            className="text-gray-400 hover:text-white text-xs font-semibold cursor-pointer"
+          >
+            Clear
+          </button>
         </div>
       )}
 

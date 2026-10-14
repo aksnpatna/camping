@@ -36,3 +36,25 @@ class CampsiteResponse(CampsiteBase):
     facts: Optional[CampsiteFacts] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class CampsitePlanBAlternative(BaseModel):
+    id: int
+    name: str
+    state: str
+    management_type: Optional[str] = None
+    dog_friendly: Optional[bool] = None
+    driving_time_minutes: Optional[int] = None
+    conditions_verified: bool = False
+    reason: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    facts: Optional[CampsiteFacts] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CampsitePlanBResponse(BaseModel):
+    original_campsite_id: int
+    alternatives: List[CampsitePlanBAlternative]
+

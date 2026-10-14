@@ -5,7 +5,12 @@ import httpx
 import logging
 
 from app.core.database import get_db
-from app.schemas.campsite import CampsiteCreate, CampsiteResponse
+from app.schemas.campsite import (
+    CampsiteCreate,
+    CampsiteResponse,
+    CampsitePlanBResponse,
+    CampsitePlanBAlternative,
+)
 from app.models.campsite import Campsite
 from app.crud import campsite as crud_campsite
 from pydantic import BaseModel
@@ -134,6 +139,98 @@ def get_campsite(campsite_id: int, db: Session = Depends(get_db)):
     resp = CampsiteResponse.model_validate(campsite)
     resp.facts = FactBuilder.build_campsite_facts(campsite, check_ins=check_ins)
     return resp
+
+
+@router.get("/{campsite_id}/plan-b", response_model=CampsitePlanBResponse)
+def get_campsite_plan_b(
+    campsite_id: int,
+    limit: int = Query(2, ge=1, le=10),
+    has_dog: Optional[bool] = Query(None),
+    rig_access: Optional[str] = Query(None),
+    origin_lat: Optional[float] = Query(None),
+    origin_lng: Optional[float] = Query(None),
+    max_drive_hours: Optional[float] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
+    if not campsite:
+        raise HTTPException(status_code=404, detail="Campsite not found")
+
+    from datetime import date, timedelta
+    from app.models.saved_trip import SavedTrip
+    from app.worker.plan_b import find_plan_b_alternatives
+    from app.services.facts import FactBuilder
+    from app.models.check_in import CampsiteCheckIn
+
+    # Default to next weekend if unprovided
+    d_start = date.today() + timedelta(days=3)
+    d_end = d_start + timedelta(days=2)
+    if start_date:
+        try:
+            d_start = date.fromisoformat(start_date)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            d_end = date.fromisoformat(end_date)
+        except ValueError:
+            pass
+
+    mock_trip = SavedTrip(
+        campsite_id=campsite.id,
+        user_email="plan-b-check@campsmart.au",
+        start_date=d_start,
+        end_date=d_end,
+        has_dog=has_dog,
+        rig_access=rig_access,
+        origin_lat=origin_lat,
+        origin_lng=origin_lng,
+        max_drive_hours=max_drive_hours,
+    )
+
+    alts_raw = find_plan_b_alternatives(db, mock_trip, campsite, limit=limit)
+
+    results = []
+    for alt in alts_raw:
+        alt_site = db.query(Campsite).filter(Campsite.id == alt["id"]).first()
+        facts_obj = None
+        lat = None
+        lng = None
+        if alt_site:
+            lat = alt_site.latitude
+            lng = alt_site.longitude
+            check_ins = (
+                db.query(CampsiteCheckIn)
+                .filter(CampsiteCheckIn.campsite_id == alt_site.id)
+                .order_by(CampsiteCheckIn.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            facts_obj = FactBuilder.build_campsite_facts(alt_site, check_ins=check_ins)
+
+        results.append(
+            CampsitePlanBAlternative(
+                id=alt["id"],
+                name=alt["name"],
+                state=alt["state"],
+                management_type=alt.get("management_type"),
+                dog_friendly=alt.get("dog_friendly"),
+                driving_time_minutes=alt.get("driving_time_minutes"),
+                conditions_verified=alt.get("conditions_verified", False),
+                reason=alt.get("reason", ""),
+                latitude=lat,
+                longitude=lng,
+                facts=facts_obj,
+            )
+        )
+
+    return CampsitePlanBResponse(
+        original_campsite_id=campsite.id,
+        alternatives=results,
+    )
+
 
 AI_SUMMARY_CACHE = {}
 AI_SUMMARY_CACHE_TTL = 86400  # 24 hours cache
