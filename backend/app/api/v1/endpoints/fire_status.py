@@ -34,9 +34,9 @@ STATE_EMERGENCY_AGENCIES: Dict[str, Dict[str, Any]] = {
     "VIC": {
         "agency": "Country Fire Authority (CFA) & VicEmergency",
         "url": "https://www.cfa.vic.gov.au/warnings-restrictions/total-fire-bans-fire-danger-ratings",
-        "feed_type": "none",
+        "feed_type": "vic_json",
         "default_district": "Central",
-        "source_label": "Country Fire Authority (CFA) & VicEmergency",
+        "source_label": "Country Fire Authority (CFA) & VicEmergency (emergency.vic.gov.au)",
     },
     "QLD": {
         "agency": "Queensland Fire Department (QFD)",
@@ -76,9 +76,95 @@ STATE_EMERGENCY_AGENCIES: Dict[str, Dict[str, Any]] = {
 }
 
 
+def fetch_live_vic_status(agency: Dict[str, Any], target_search: str, state_key: str) -> Dict[str, Any]:
+    """
+    Fetches live fire danger rating and total fire ban from VicEmergency (EMV / CFA) GeoJSON feed.
+    """
+    with httpx.Client(timeout=4.0) as client:
+        resp = client.get("https://emergency.vic.gov.au/public/osom-geojson.json")
+        if resp.status_code != 200:
+            raise Exception(f"VicEmergency feed returned HTTP {resp.status_code}")
+
+        data = resp.json()
+        conditions = data.get("properties", {}).get("conditions", {})
+        fdr_map = conditions.get("fdr", {})
+        tfb_map = conditions.get("tfb", {})
+
+        wanted = (target_search or "").strip().lower()
+        matched_dist = None
+
+        for d_name in fdr_map.keys():
+            if wanted and d_name.strip().lower() == wanted:
+                matched_dist = d_name
+                break
+
+        if matched_dist is None and wanted:
+            for d_name in fdr_map.keys():
+                if wanted in d_name.strip().lower():
+                    matched_dist = d_name
+                    break
+
+        if matched_dist is None:
+            return {
+                "state": state_key,
+                "status": "unavailable",
+                "message": (
+                    f"District '{target_search}' was not found in the live "
+                    f"{agency['agency']} feed. Check the official source before travelling."
+                ),
+                "rating": None,
+                "total_fire_ban": None,
+                "district": target_search,
+                "source": agency["source_label"],
+                "official_url": agency["url"],
+                "action_required": f"Check official {agency['agency']} warnings before travelling",
+            }
+
+        raw_fdr = (fdr_map.get(matched_dist) or "").strip().upper()
+        raw_tfb = (tfb_map.get(matched_dist) or "").strip().upper()
+
+        if raw_fdr == "MODERATE":
+            rating = "Moderate"
+        elif raw_fdr == "HIGH":
+            rating = "High"
+        elif raw_fdr == "EXTREME":
+            rating = "Extreme"
+        elif raw_fdr == "CATASTROPHIC":
+            rating = "Catastrophic"
+        else:
+            rating = "No Rating"
+
+        if raw_tfb.startswith("YES"):
+            total_fire_ban = True
+        elif raw_tfb.startswith("NO"):
+            total_fire_ban = False
+        else:
+            total_fire_ban = None
+
+        if total_fire_ban:
+            action_required = "Enforce total fire ban — no wood, gas only if permitted"
+        elif rating == "No Rating":
+            action_required = (
+                f"Rating unavailable for this district — check official "
+                f"{agency['agency']} source before travelling"
+            )
+        else:
+            action_required = "Monitor conditions"
+
+        return {
+            "state": state_key,
+            "district": matched_dist,
+            "rating": rating,
+            "total_fire_ban": total_fire_ban,
+            "status": "live",
+            "source": agency["source_label"],
+            "action_required": action_required,
+        }
+
+
 def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) -> Dict[str, Any]:
     """
-    Fetches live fire danger rating from official state fire feeds (e.g. NSW RFS).
+    Fetches live fire danger rating from official state fire feeds (e.g. NSW RFS, VicEmergency).
     MANDATORY Safety Rule: Do NOT cache and present stale fire rules.
     If the feed is down, raise exception to trigger the Degradation Rule.
     For states where automated feeds are pending rollout, honestly return status 'unavailable'
@@ -99,7 +185,17 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
             "action_required": "Check official local emergency service before travelling"
         }
 
-    # For jurisdictions without a live automated XML feed parser, degrade honestly
+    target_search = district or agency.get("default_district", "Greater Sydney Region")
+
+    # Route Victoria requests to VicEmergency GeoJSON feed
+    if agency.get("feed_type") == "vic_json":
+        try:
+            return fetch_live_vic_status(agency, target_search, state_key)
+        except Exception as e:
+            logger.warning(f"Live VicEmergency feed fetch failed for {state_key}: {e}")
+            raise e
+
+    # For jurisdictions without a live automated feed parser, degrade honestly
     if agency.get("feed_type") != "rfs_xml":
         return {
             "state": state_key,
@@ -117,7 +213,6 @@ def fetch_live_rfs_status(state: str = "NSW", district: Optional[str] = None) ->
         }
 
     # Attempt fetch from official NSW RFS FDR XML feed (covers NSW, ACT, and JBT/Shoalhaven)
-    target_search = district or agency.get("default_district", "Greater Sydney Region")
     try:
         with httpx.Client(timeout=4.0) as client:
             resp = client.get("https://www.rfs.nsw.gov.au/feeds/fdrToban.xml")

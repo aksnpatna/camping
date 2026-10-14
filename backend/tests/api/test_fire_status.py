@@ -46,15 +46,15 @@ def test_fire_status_degradation_handling(monkeypatch):
     assert "unavailable" in response.json()["detail"].lower()
 
 
-def test_fire_status_non_nsw_honest_degradation():
-    response = client.get("/api/v1/fire-status?state=VIC")
-    # Non-NSW must NEVER return a synthesized Moderate/live rating!
+def test_fire_status_non_automated_honest_degradation():
+    response = client.get("/api/v1/fire-status?state=QLD")
+    # Non-automated jurisdictions must NEVER return a synthesized Moderate/live rating!
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "unavailable"
     assert data.get("rating") is None
     assert data.get("total_fire_ban") is None
-    assert "pilot catchment" in data.get("message", "").lower() or "check" in data.get("message", "").lower()
+    assert "check" in data.get("message", "").lower()
 
 
 def test_fire_status_nsw_district_parsing():
@@ -273,4 +273,70 @@ def test_matched_district_still_returns_live():
     assert data["status"] == "live"
     assert data["district"] == "Far North Coast"
     assert data["total_fire_ban"] is False
+ 
+ 
+def test_fire_status_vic_live_parsing():
+    """VIC districts are parsed live from official VicEmergency GeoJSON feed."""
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    mock_vic_json = {
+        "properties": {
+            "conditions": {
+                "fdr": {
+                    "Central": "MODERATE",
+                    "South West": "HIGH",
+                    "Mallee": "NO FORECAST",
+                },
+                "tfb": {
+                    "Central": "NO - RESTRICTIONS MAY APPLY",
+                    "South West": "YES",
+                    "Mallee": "NO - RESTRICTIONS MAY APPLY",
+                }
+            }
+        }
+    }
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = mock_vic_json
+
+    with patch("httpx.Client.get", return_value=mock_resp):
+        data = fetch_live_rfs_status(state="VIC", district="Central")
+
+    assert data["state"] == "VIC"
+    assert data["district"] == "Central"
+    assert data["status"] == "live"
+    assert data["rating"] == "Moderate"
+    assert data["total_fire_ban"] is False
+    assert "VicEmergency" in data["source"] or "EMV" in data["source"]
+
+    with patch("httpx.Client.get", return_value=mock_resp):
+        data_sw = fetch_live_rfs_status(state="VIC", district="South West")
+
+    assert data_sw["rating"] == "High"
+    assert data_sw["total_fire_ban"] is True
+    assert "total fire ban" in data_sw["action_required"].lower()
+
+
+def test_fire_status_vic_unmatched_district_degrades():
+    from app.api.v1.endpoints.fire_status import fetch_live_rfs_status
+
+    mock_vic_json = {
+        "properties": {
+            "conditions": {
+                "fdr": {"Central": "MODERATE"},
+                "tfb": {"Central": "NO"}
+            }
+        }
+    }
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = mock_vic_json
+
+    with patch("httpx.Client.get", return_value=mock_resp):
+        data = fetch_live_rfs_status(state="VIC", district="Atlantis")
+
+    assert data["status"] == "unavailable"
+    assert data["rating"] is None
+    assert data["total_fire_ban"] is None
 

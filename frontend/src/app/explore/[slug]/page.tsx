@@ -90,15 +90,32 @@ export default async function ExplorePage(props: Props) {
         
         {!fireStatus || fireStatus.status !== 'live' ? (
           // DEGRADATION RULE: Prominent "status unavailable" banner if feed is down
-          <div className="bg-red-900/50 border border-red-500 p-6 rounded-2xl flex items-start gap-4 shadow-lg">
-            <AlertTriangle className="text-red-500 w-8 h-8 shrink-0" />
-            <div>
-              <h3 className="text-xl font-bold text-red-500 mb-2">FIRE STATUS UNAVAILABLE</h3>
-              <p className="text-gray-300">
-                {fireStatus?.message ||
-                  'The official state fire emergency feed is currently unreachable. For your safety, do not light any campfires until you can independently verify local conditions with the state fire authority or local park office.'}
-              </p>
+          <div className="bg-red-950/60 border border-red-500/80 p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-xl backdrop-blur-sm">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="text-red-400 w-8 h-8 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-xl font-bold text-red-400 mb-1">FIRE STATUS UNAVAILABLE</h3>
+                <p className="text-gray-300 text-sm leading-relaxed max-w-2xl">
+                  {fireStatus?.message ||
+                    'The official state fire emergency feed is currently unreachable. For your safety, do not light any campfires until you can independently verify local conditions with the state fire authority or local park office.'}
+                </p>
+                {fireStatus?.source && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Authoritative Jurisdiction: <span className="text-gray-200 font-semibold">{fireStatus.source}</span>
+                  </p>
+                )}
+              </div>
             </div>
+            {fireStatus?.official_url && (
+              <a
+                href={fireStatus.official_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 px-5 py-2.5 bg-red-600/80 hover:bg-red-500 text-white text-sm font-bold rounded-xl border border-red-400/40 transition-colors shadow-md flex items-center gap-2 self-start md:self-auto"
+              >
+                Open Official Warnings &rarr;
+              </a>
+            )}
           </div>
         ) : (
           <div className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
