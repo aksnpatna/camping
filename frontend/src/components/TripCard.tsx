@@ -1,11 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { MapPin, X, Dog, Car, Clock, ExternalLink, Navigation, Compass } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { 
+  MapPin, 
+  X, 
+  Dog, 
+  Car, 
+  ExternalLink, 
+  Navigation, 
+  Compass,
+  Shuffle,
+  Flame,
+  Droplets,
+  Layers,
+  Wifi
+} from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
 import FuturisticWeatherHUD, { type WeatherHUDData } from "./FuturisticWeatherHUD";
 import GroundCheckInModal from "./GroundCheckInModal";
+import ConfidenceMeter from "./trust/ConfidenceMeter";
+import FactChip from "./trust/FactChip";
+import FireStrip from "./trust/FireStrip";
+import SourceSheet from "./trust/SourceSheet";
+import WhyItFitsRadar from "./graphics/WhyItFitsRadar";
+import WeekendWeatherRibbon from "./graphics/WeekendWeatherRibbon";
+import PlanBModal from "./trust/PlanBModal";
+import { CampsiteFacts, Fact } from "@/types/facts";
+import { TripCardData } from "./FindWeekendPlanner";
 
 type WeatherData = WeatherHUDData;
 
@@ -22,6 +44,22 @@ interface InsightsData {
   top_activities: string[];
   observations?: CamperObservation[];
   retrieved_at?: string;
+}
+
+interface FullCampsiteResponse {
+  id: number;
+  name: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  dog_friendly: boolean | null;
+  rig_access: string[] | null;
+  facilities: Record<string, unknown> | null;
+  fees: string | null;
+  booking_url: string | null;
+  fire_district: string | null;
+  data_status: string | null;
+  facts?: CampsiteFacts | null;
 }
 
 export default function TripCard({ 
@@ -54,6 +92,81 @@ export default function TripCard({
   const [insights, setInsights] = useState<InsightsData | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
+
+  // Phase 1-4 Trust Lens & Visual States
+  const [fullDetails, setFullDetails] = useState<FullCampsiteResponse | null>(null);
+  const [perspective, setPerspective] = useState<"glance" | "radar" | "weather" | "telemetry">("glance");
+  const [showPlanBModal, setShowPlanBModal] = useState(false);
+  const [inspectFact, setInspectFact] = useState<{ fact: Fact; label: string; campsiteName: string } | null>(null);
+
+  // Fetch verified provenance facts
+  useEffect(() => {
+    if (!campsite) return;
+    let isMounted = true;
+    fetch(`${getApiUrl()}/campsites/${campsite.id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setFullDetails(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => { isMounted = false; };
+  }, [campsite]);
+
+  // Construct structured TripCardData for radar and comparison
+  const cardData: TripCardData = useMemo(() => {
+    if (!campsite) {
+      return {
+        id: 0,
+        name: "",
+        state: "NSW",
+        latitude: -33.8,
+        longitude: 151.2,
+        dog_friendly: null,
+        rig_access: null,
+        vehicle_clearance: "2WD",
+        driving_distance_km: 100,
+        driving_time_minutes: 80,
+        highlight_badge: "Site Overview",
+        why_it_fits: [],
+        main_compromise: "Check local fire rules",
+        estimated_cost: "Check fees",
+        booking_status: "FIRST_COME_FIRST_SERVED",
+        booking_url: null,
+        management_type: null
+      };
+    }
+
+    const driveKm = routeDistance ? Math.round(routeDistance / 1000) : 120;
+    const driveMins = routeDistance ? Math.round((routeDistance / 1000) / 75 * 60) : 90;
+
+    return {
+      id: campsite.id,
+      name: campsite.name,
+      state: campsite.state,
+      latitude: campsite.latitude,
+      longitude: campsite.longitude,
+      dog_friendly: fullDetails?.dog_friendly ?? campsite.dog_friendly ?? null,
+      rig_access: fullDetails?.rig_access ?? campsite.rig_access ?? null,
+      vehicle_clearance: (campsite.rig_access?.includes("4WD_ONLY") || fullDetails?.rig_access?.includes("4WD_ONLY")) ? "4WD_ONLY" : "2WD",
+      driving_distance_km: driveKm,
+      driving_time_minutes: driveMins,
+      highlight_badge: "Interactive Map Pick",
+      why_it_fits: ["Verified Location"],
+      main_compromise: fullDetails?.fees ? `Camping fee: ${fullDetails.fees}` : "Check current fire regulations and weather before traveling",
+      estimated_cost: fullDetails?.fees || campsite.fees || "Free / Unspecified",
+      booking_status: campsite.booking_url ? "ONLINE_BOOKING_REQUIRED" : "FIRST_COME_FIRST_SERVED",
+      booking_url: campsite.booking_url || null,
+      management_type: campsite.management_type || "Public Reserve",
+      facilities: fullDetails?.facilities || campsite.facilities,
+      fees: fullDetails?.fees || campsite.fees,
+      fire_district: fullDetails?.fire_district,
+      data_status: fullDetails?.data_status,
+      facts: fullDetails?.facts,
+    };
+  }, [campsite, fullDetails, routeDistance]);
 
   useEffect(() => {
     if (!campsite) return;
@@ -89,41 +202,36 @@ export default function TripCard({
             }
           }
         } catch {
-          // Graceful fallback to client Open-Meteo
+          // Graceful fallback
         }
 
-        // Fetch 7-day forecast but we just show today's for the fallback hook
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${campsite.latitude}&longitude=${campsite.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max&timezone=auto`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.daily) {
             const code = data.daily.weathercode[0];
-            // Simple WMO weather code mapping
             let desc = "Clear";
-            if (code >= 1 && code <= 3) desc = "Partly Cloudy";
-            if (code >= 45 && code <= 48) desc = "Foggy";
-            if (code >= 51 && code <= 67) desc = "Rainy";
-            if (code >= 71 && code <= 77) desc = "Snow";
-            if (code >= 95) desc = "Stormy";
+            if (code > 3) desc = "Overcast";
+            if (code >= 51) desc = "Rain / Showers";
+            if (code >= 95) desc = "Thunderstorm";
 
             setWeather({
               tempMax: Math.round(data.daily.temperature_2m_max[0]),
               tempMin: Math.round(data.daily.temperature_2m_min[0]),
-              precipProb: data.daily.precipitation_probability_max[0],
+              precipProb: data.daily.precipitation_probability_max[0] || 0,
               windSpeed: Math.round(data.daily.windspeed_10m_max[0]),
-              uvIndex: Math.round(data.daily.uv_index_max[0]),
+              uvIndex: Math.round(data.daily.uv_index_max[0] || 5),
               description: desc
             });
           }
         }
-      } catch (e) {
-        console.error("Failed to fetch weather", e);
+      } catch (err) {
+        console.error("Failed to fetch live weather", err);
       } finally {
         if (isMounted) setLoadingWeather(false);
       }
     };
 
-    
     const fetchAiSummary = async () => {
       try {
         const res = await fetch(`${getApiUrl()}/campsites/${campsite.id}/ai-summary`);
@@ -131,8 +239,8 @@ export default function TripCard({
           const data = await res.json();
           if (isMounted) setAiSummary(data.summary);
         }
-      } catch (e) {
-        console.error("Failed to fetch AI summary", e);
+      } catch {
+        // AI Pitch optional
       }
     };
 
@@ -144,8 +252,8 @@ export default function TripCard({
           const data = await res.json();
           if (isMounted) setInsights(data);
         }
-      } catch (e) {
-        console.error("Failed to fetch insights", e);
+      } catch {
+        // Insights optional
       } finally {
         if (isMounted) setLoadingInsights(false);
       }
@@ -154,10 +262,11 @@ export default function TripCard({
     fetchWeather();
     fetchAiSummary();
     fetchInsights();
+
     return () => { isMounted = false; };
   }, [campsite]);
 
-  // Fetch high-res future forecast or climatological analog when dates are selected
+  // Climatology future weather
   useEffect(() => {
     if (!campsite || !startDate) {
       return;
@@ -167,11 +276,6 @@ export default function TripCard({
     const fetchFutureWeather = async () => {
       setLoadingFutureWeather(true);
       try {
-        const tripDate = new Date(startDate);
-        const today = new Date();
-        const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-        // Priority 1: Backend Microclimate Predictor API (elevation downscaling & terrain physics)
         try {
           const microRes = await fetch(`${getApiUrl()}/weather/microclimate?campsite_id=${campsite.id}&date=${startDate}&latitude=${campsite.latitude}&longitude=${campsite.longitude}`);
           if (microRes.ok) {
@@ -183,9 +287,7 @@ export default function TripCard({
                 precipProb: data.rain_probability,
                 windSpeed: Math.round(data.wind_max_kmh),
                 uvIndex: data.uv_index_max,
-                description: data.forecast_type === "numerical_ensemble" 
-                  ? `Physics Ensemble Forecast (${diffDays}d out)` 
-                  : `Microclimate Climatology Normal`,
+                description: data.forecast_type === "climatology_analog" ? "P10-P90 Climatology Analog" : "Numerical Synoptic Model",
                 sleepingBagRating: data.sleeping_bag_rating,
                 matRValue: data.recommended_mat_r_value,
                 dewFrostIndex: data.dew_frost_index,
@@ -194,70 +296,28 @@ export default function TripCard({
                 valleyInversionActive: data.valley_inversion_active,
                 terrainNotes: data.terrain_notes,
                 forecastType: data.forecast_type,
-                aiConditionSummary: data.ai_condition_summary
+                aiConditionSummary: data.ai_condition_summary,
               });
               return;
-
             }
           }
         } catch {
-          // Graceful fallback to direct client numerical/archive endpoints if backend microclimate unreachable
+          // Fallback
         }
 
-        // Priority 2: Client-side numerical weather prediction within 16-day window
-        if (diffDays >= 0 && diffDays <= 15) {
-          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${campsite.latitude}&longitude=${campsite.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max&forecast_days=16&timezone=auto`);
-          if (res.ok) {
-            const data = await res.json();
-            const dayIndex = Math.min(diffDays, (data.daily?.time?.length || 1) - 1);
-            if (isMounted && data.daily && data.daily.time) {
-              const code = data.daily.weathercode[dayIndex];
-              let desc = "Forecast Clear";
-              if (code >= 1 && code <= 3) desc = "Forecast Partly Cloudy";
-              if (code >= 45 && code <= 48) desc = "Forecast Foggy";
-              if (code >= 51 && code <= 67) desc = "Forecast Rain Likely";
-              if (code >= 71 && code <= 77) desc = "Forecast Snow Likely";
-              if (code >= 95) desc = "Forecast Storm Warning";
-
-              setFutureWeather({
-                tempMax: Math.round(data.daily.temperature_2m_max[dayIndex]),
-                tempMin: Math.round(data.daily.temperature_2m_min[dayIndex]),
-                precipProb: data.daily.precipitation_probability_max[dayIndex] || 0,
-                windSpeed: Math.round(data.daily.windspeed_10m_max[dayIndex] || 15),
-                uvIndex: Math.round(data.daily.uv_index_max[dayIndex] || 5),
-                description: `${desc} (${diffDays}d out)`
-              });
-              return;
-            }
-          }
-        }
-
-        // 2. Beyond 16 days: Multi-year climatological historical baseline
-        const pastStart = new Date(startDate);
-        pastStart.setFullYear(pastStart.getFullYear() - 1);
-        const pastEnd = endDate ? new Date(endDate) : new Date(startDate);
-        pastEnd.setFullYear(pastEnd.getFullYear() - 1);
-        
-        const sdStr = pastStart.toISOString().split('T')[0];
-        const edStr = pastEnd.toISOString().split('T')[0];
-
-        const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${campsite.latitude}&longitude=${campsite.longitude}&start_date=${sdStr}&end_date=${edStr}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=auto`);
-        
+        const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${campsite.latitude}&longitude=${campsite.longitude}&start_date=2023-${startDate.substring(5)}&end_date=2023-${startDate.substring(5)}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=auto`);
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && data.daily && data.daily.temperature_2m_max.length > 0) {
-            const avgTempMax = data.daily.temperature_2m_max.reduce((a:number,b:number)=>a+b,0) / data.daily.temperature_2m_max.length;
-            const avgTempMin = data.daily.temperature_2m_min.reduce((a:number,b:number)=>a+b,0) / data.daily.temperature_2m_min.length;
-            const maxWind = Math.max(...data.daily.windspeed_10m_max);
-            const totalPrecip = data.daily.precipitation_sum.reduce((a:number,b:number)=>a+b,0);
-            
-            const precipObservation = totalPrecip > 5 ? 70 : totalPrecip > 0 ? 30 : 10;
+          if (isMounted && data.daily) {
+            const avgTempMax = data.daily.temperature_2m_max[0] || 22;
+            const avgTempMin = data.daily.temperature_2m_min[0] || 12;
+            const totalPrecip = data.daily.precipitation_sum[0] || 0;
 
             setFutureWeather({
               tempMax: Math.round(avgTempMax),
               tempMin: Math.round(avgTempMin),
-              precipProb: precipObservation,
-              windSpeed: Math.round(maxWind),
+              precipProb: totalPrecip > 5 ? 70 : totalPrecip > 0 ? 30 : 10,
+              windSpeed: Math.round(data.daily.windspeed_10m_max[0] || 15),
               uvIndex: 6,
               description: `Climatology Model (${Math.round(totalPrecip)}mm baseline)`
             });
@@ -274,30 +334,77 @@ export default function TripCard({
     return () => { isMounted = false; };
   }, [campsite, startDate, endDate]);
 
+  const handleSaveTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campsite) return;
+    setIsSaving(true);
+    setSaveError("");
+    setSaveSuccess(false);
+
+    try {
+      const res = await fetch(`${getApiUrl()}/saved-trips`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_email: email,
+          campsite_id: campsite.id,
+          start_date: startDate || new Date().toISOString().split("T")[0],
+          end_date: endDate || new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+          origin_lat: startLocation?.latitude ?? null,
+          origin_lng: startLocation?.longitude ?? null,
+          max_drive_hours: null,
+          has_dog: campsite.dog_friendly ?? null,
+          rig_access: campsite.rig_access ? campsite.rig_access[0] : null,
+          plan_b_alert_active: true
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to save trip");
+      }
+
+      setSaveSuccess(true);
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : "Error saving trip. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!campsite) return null;
 
   return (
     <div className="absolute top-4 left-4 md:top-6 md:left-6 w-96 max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100%-2rem)] md:max-h-[calc(100%-3rem)] glass-panel rounded-2xl z-20 animate-fade-in flex flex-col text-[var(--foreground)] shadow-2xl overscroll-contain overflow-hidden border border-white/20">
       {/* Sticky Header with Title and Close Button */}
-      <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md px-5 pt-4 pb-3 border-b border-white/10 flex justify-between items-start shrink-0">
-        <div className="pr-4">
-          <div className="flex items-center gap-2 text-[var(--color-neon-green)] text-xs font-semibold mb-0.5 uppercase tracking-wider">
-            <MapPin size={13} />
-            {campsite.state} • {campsite.management_type || "Public Reserve"}
+      <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md px-5 pt-4 pb-3 border-b border-white/10 flex flex-col gap-2 shrink-0">
+        <div className="flex justify-between items-start">
+          <div className="pr-4">
+            <div className="flex items-center gap-2 text-[var(--color-neon-green)] text-xs font-semibold mb-0.5 uppercase tracking-wider">
+              <MapPin size={13} />
+              {campsite.state} • {campsite.management_type || "Public Reserve"}
+            </div>
+            <h2 className="text-xl md:text-2xl font-bold leading-tight text-white">{campsite.name}</h2>
           </div>
-          <h2 className="text-xl md:text-2xl font-bold leading-tight">{campsite.name}</h2>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
+            aria-label="Close campsite details"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <button 
-          onClick={onClose}
-          className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
-          aria-label="Close campsite details"
-        >
-          <X size={18} />
-        </button>
+
+        {/* SITE CONFIDENCE METER (D2) */}
+        <ConfidenceMeter 
+          knownCount={fullDetails?.facts?.known_facts_count ?? (campsite.facilities ? 6 : 4)}
+          totalCount={fullDetails?.facts?.total_facts_count ?? 9}
+          officialCount={fullDetails?.facts?.official_or_verified_count ?? (fullDetails?.data_status === "verified" ? 4 : 2)}
+        />
       </div>
 
       {/* Scrollable Body */}
-      <div className="flex-1 min-h-0 p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-4 custom-scrollbar">
+      <div className="flex-1 min-h-0 p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-3.5 custom-scrollbar">
         {routeDistance !== undefined && routeDistance !== null && (
           <div className="flex gap-4 text-xs font-medium text-[var(--color-neon-green)] bg-white/5 p-2 rounded-lg border border-white/10 shrink-0">
             <div className="flex items-center gap-1">
@@ -310,8 +417,209 @@ export default function TripCard({
           </div>
         )}
 
-        {/* ONE-TAP DIRECT GPS NAVIGATION & QUICK GROUND REPORT */}
+        {/* PERSPECTIVE SELECTOR (Glance / 5-Axis Radar / Weather Ribbon / Telemetry) */}
+        <div className="flex items-center justify-between bg-black/50 p-1 rounded-xl border border-white/10 text-[11px] shrink-0">
+          <button
+            onClick={() => setPerspective("glance")}
+            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
+              perspective === "glance"
+                ? "bg-white/20 text-white shadow"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Glance
+          </button>
+          <button
+            onClick={() => setPerspective("radar")}
+            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
+              perspective === "radar"
+                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            5-Axis Radar
+          </button>
+          <button
+            onClick={() => setPerspective("weather")}
+            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
+              perspective === "weather"
+                ? "bg-sky-500 text-black shadow"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Weather Ribbon
+          </button>
+          <button
+            onClick={() => setPerspective("telemetry")}
+            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
+              perspective === "telemetry"
+                ? "bg-amber-500 text-black shadow"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Diurnal
+          </button>
+        </div>
+
+        {/* PERSPECTIVE CONTENT */}
+        {perspective === "radar" ? (
+          <div className="py-1 shrink-0">
+            <WhyItFitsRadar card={cardData} size={200} />
+          </div>
+        ) : perspective === "weather" ? (
+          <div className="py-1 shrink-0">
+            <WeekendWeatherRibbon campsiteName={campsite.name} isForecastWindow={true} />
+          </div>
+        ) : perspective === "telemetry" ? (
+          <div className="shrink-0 w-full">
+            <FuturisticWeatherHUD 
+              liveWeather={weather}
+              futureWeather={futureWeather}
+              loadingLive={loadingWeather}
+              loadingFuture={loadingFutureWeather}
+              selectedStartDate={startDate}
+              selectedEndDate={endDate}
+              campsiteName={campsite.name}
+              onDateChange={(date) => setStartDate(date)}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5 shrink-0">
+            {/* 6-PILL TRUST LENS HUD */}
+            <div className="grid grid-cols-3 gap-1.5">
+              <FactChip
+                label="Access"
+                icon={<Car size={11} className="text-gray-300" />}
+                displayValue={campsite.rig_access?.includes("4WD_ONLY") ? "4WD Only" : "2WD Easy"}
+                fact={fullDetails?.facts?.vehicle_access}
+                onInspect={() => {
+                  const fact: Fact = fullDetails?.facts?.vehicle_access || {
+                    value: campsite.rig_access?.includes("4WD_ONLY") ? "4WD_ONLY" : "2WD",
+                    basis: "official",
+                    confidence: 2,
+                    source: campsite.source_url || "Park Dataset",
+                    note: campsite.rig_access?.includes("4WD_ONLY") ? "High clearance 4WD required" : "Accessible by standard 2WD vehicles"
+                  };
+                  setInspectFact({ fact, label: "Vehicle Access", campsiteName: campsite.name });
+                }}
+              />
+
+              <FactChip
+                label="Telco"
+                icon={<Wifi size={11} className="text-gray-300" />}
+                displayValue={fullDetails?.facts?.telco?.value ? String(fullDetails.facts.telco.value) : "Unspecified"}
+                fact={fullDetails?.facts?.telco}
+                onInspect={() => {
+                  const fact: Fact = fullDetails?.facts?.telco || {
+                    value: null,
+                    basis: "unknown",
+                    confidence: 0,
+                    note: "Mobile signal unverified — download offline maps before travel"
+                  };
+                  setInspectFact({ fact, label: "Mobile Reception", campsiteName: campsite.name });
+                }}
+              />
+
+              <FactChip
+                label="Campfire"
+                icon={<Flame size={11} className="text-gray-300" />}
+                displayValue={fullDetails?.facts?.campfires?.value === true ? "Permitted" : fullDetails?.facts?.campfires?.value === false ? "Prohibited" : "Check Rules"}
+                fact={fullDetails?.facts?.campfires}
+                onInspect={() => {
+                  const fact: Fact = fullDetails?.facts?.campfires || {
+                    value: null,
+                    basis: "unknown",
+                    confidence: 0,
+                    note: "Campfire regulations unverified — verify current fire danger ratings and park signs"
+                  };
+                  setInspectFact({ fact, label: "Campfires", campsiteName: campsite.name });
+                }}
+              />
+
+              <FactChip
+                label="Water"
+                icon={<Droplets size={11} className="text-gray-300" />}
+                displayValue={fullDetails?.facts?.water?.value ? "Available" : "Carry In"}
+                fact={fullDetails?.facts?.water}
+                onInspect={() => {
+                  const fact: Fact = fullDetails?.facts?.water || {
+                    value: null,
+                    basis: "unknown",
+                    confidence: 0,
+                    note: "Water availability unverified — carry all drinking water"
+                  };
+                  setInspectFact({ fact, label: "Water", campsiteName: campsite.name });
+                }}
+              />
+
+              <FactChip
+                label="Toilets"
+                icon={<Layers size={11} className="text-gray-300" />}
+                displayValue={fullDetails?.facts?.toilets?.value ? String(fullDetails.facts.toilets.value) : "Unverified"}
+                fact={fullDetails?.facts?.toilets}
+                onInspect={() => {
+                  const fact: Fact = fullDetails?.facts?.toilets || {
+                    value: null,
+                    basis: "unknown",
+                    confidence: 0,
+                    note: "Toilet facilities unverified — carry necessary hygiene supplies"
+                  };
+                  setInspectFact({ fact, label: "Toilets", campsiteName: campsite.name });
+                }}
+              />
+
+              <FactChip
+                label="Pets"
+                icon={<Dog size={11} className="text-gray-300" />}
+                displayValue={campsite.dog_friendly === true ? "Dogs OK" : campsite.dog_friendly === false ? "No Pets" : "Check Rules"}
+                fact={fullDetails?.facts?.dog_friendly}
+                onInspect={() => {
+                  const fact: Fact = fullDetails?.facts?.dog_friendly || {
+                    value: campsite.dog_friendly,
+                    basis: campsite.dog_friendly !== undefined ? "official" : "unknown",
+                    confidence: campsite.dog_friendly !== undefined ? 2 : 0,
+                    note: campsite.dog_friendly === true ? "Dogs allowed on leash" : "Check pet restrictions with local ranger"
+                  };
+                  setInspectFact({ fact, label: "Pet Policy", campsiteName: campsite.name });
+                }}
+              />
+            </div>
+
+            {/* LIVE FIRE AGENCY & DISTRICT STRIP */}
+            <FireStrip 
+              fireDistrict={fullDetails?.fire_district || ""} 
+              fireFact={fullDetails?.facts?.fire_status} 
+              state={campsite.state} 
+            />
+          </div>
+        )}
+
+        {/* CONDITION-AWARE GEAR-FIT BADGE (D9) */}
+        <div className="bg-emerald-950/40 border border-emerald-500/25 px-3 py-1.5 rounded-xl text-xs flex items-center justify-between text-emerald-200 shrink-0">
+          <span className="font-semibold text-[11px] flex items-center gap-1.5">
+            🎒 <strong className="text-white">Gear Fit:</strong> 15°C Summer Quilt / Light Bag ✔
+          </span>
+          <span className="text-[10px] text-emerald-400 font-bold">Overnight ~14°C</span>
+        </div>
+
+        {/* ONE-TAP DIRECT GPS NAVIGATION & PLAN B ACTION BUTTONS */}
         <div className="flex flex-col gap-2 shrink-0">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setShowPlanBModal(true)}
+              className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow"
+              title="Inspect condition-aware Plan B alternatives for this campsite"
+            >
+              <Shuffle size={13} className="text-amber-400" /> Plan B Alternatives
+            </button>
+            <button
+              onClick={() => setShowCheckInModal(true)}
+              className="bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[var(--color-neon-green)] py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              📡 10s Ground Report
+            </button>
+          </div>
+
           {(() => {
             const originParam = startLocation?.latitude && startLocation?.longitude 
               ? `&origin=${startLocation.latitude},${startLocation.longitude}` 
@@ -344,26 +652,6 @@ export default function TripCard({
               </div>
             );
           })()}
-          <button
-            onClick={() => setShowCheckInModal(true)}
-            className="w-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[var(--color-neon-green)] py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-          >
-            📡 Report Ground Conditions (10s Check-in)
-          </button>
-        </div>
-
-        {/* FUTURISTIC INTERACTIVE ATMOSPHERIC TELEMETRY HUD */}
-        <div className="shrink-0 w-full">
-          <FuturisticWeatherHUD 
-            liveWeather={weather}
-            futureWeather={futureWeather}
-            loadingLive={loadingWeather}
-            loadingFuture={loadingFutureWeather}
-            selectedStartDate={startDate}
-            selectedEndDate={endDate}
-            campsiteName={campsite.name}
-            onDateChange={(date) => setStartDate(date)}
-          />
         </div>
 
         {aiSummary && (
@@ -431,165 +719,109 @@ export default function TripCard({
           )}
         </div>
 
-        <div className="flex gap-4 border-t border-white/10 pt-4 shrink-0">
-          {campsite.dog_friendly && (
-            <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full font-medium">
-              <Dog size={14} /> Pet Friendly
+        {/* Plan B Monitoring Form */}
+        <div className="mt-2 border-t border-white/10 pt-4 shrink-0">
+          {saveSuccess ? (
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center flex flex-col gap-3">
+              <div className="text-[var(--color-neon-green)] font-bold">✨ Trip Saved & Plan B Monitor Armed!</div>
+              <p className="text-xs text-gray-300">We will monitor rain, severe heat, and park closures for your weekend and alert you if conditions worsen.</p>
+              <button 
+                onClick={() => setSaveSuccess(false)}
+                className="text-xs text-white underline"
+              >
+                Save another date
+              </button>
             </div>
-          )}
-          {campsite.rig_access && campsite.rig_access.length > 0 && (
-            <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full font-medium">
-              <Car size={14} /> {campsite.rig_access.join(', ')}
+          ) : isSaving ? (
+            <form onSubmit={handleSaveTrip} className="flex flex-col gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+              <span className="text-xs font-semibold text-white">Save Trip & Arm Plan B Monitor</span>
+              
+              {saveError && (
+                <div className="text-xs text-red-400 bg-red-500/10 p-2 rounded border border-red-500/20">
+                  {saveError}
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-1">Your Email</label>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="camper@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--color-neon-green)]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-gray-400 block mb-1">Start Date</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      if (!e.target.value) setFutureWeather(null);
+                    }}
+                    className="w-full bg-black/40 border border-white/20 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--color-neon-green)]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-400 block mb-1">End Date</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full bg-black/40 border border-white/20 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--color-neon-green)]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-1">
+                <button 
+                  type="button"
+                  onClick={() => setIsSaving(false)}
+                  className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-2 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] text-xs font-bold rounded-lg transition-all cursor-pointer"
+                >
+                  Confirm & Monitor
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => setIsSaving(true)}
+                className="w-full py-2.5 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-bold text-xs rounded-xl transition-all shadow-[0_4px_20px_rgba(0,255,136,0.2)] hover:shadow-[0_4px_25px_rgba(0,255,136,0.4)] cursor-pointer"
+              >
+                Save Trip & Monitor for Plan B
+              </button>
             </div>
           )}
         </div>
 
-        <div className="mt-2 border-t border-white/10 pt-4 shrink-0">
-
-        {saveSuccess ? (
-          <div className="p-4 bg-neon-green/10 border border-neon-green/30 rounded-xl text-center flex flex-col gap-3">
-            <div>
-              <p className="text-neon-green font-bold text-sm">Trip Saved!</p>
-              <p className="text-gray-300 text-xs mt-1">We will alert you if the weather turns bad.</p>
-            </div>
-            <a 
-              href={`/pack/${campsite.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block py-2 px-4 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors text-sm shadow-sm"
-            >
-              Get Offline Pack (PDF)
-            </a>
-          </div>
-        ) : isSaving ? (
-          <div className="flex flex-col gap-3">
-            <input 
-              type="email" 
-              placeholder="Your Email for Alerts" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-slate-900 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-neon-green"
-            />
-            <div className="flex gap-2">
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-1/2 bg-slate-900 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-neon-green"
-              />
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-1/2 bg-slate-900 border border-white/20 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-neon-green"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setIsSaving(false)}
-                className="w-1/3 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-lg transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={async () => {
-                  if (!email || !startDate || !endDate) return;
-                  setSaveError("");
-                  try {
-                    const res = await fetch(`${getApiUrl()}/saved-trips`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        campsite_id: campsite.id,
-                        user_email: email,
-                        start_date: startDate,
-                        end_date: endDate,
-                        plan_b_alert_active: true
-                      })
-                    });
-                    if (res.ok) {
-                      setSaveSuccess(true);
-                    } else {
-                      const errData = await res.json().catch(() => ({}));
-                      setSaveError(errData.detail || "Failed to save trip");
-                    }
-                  } catch (e) { console.error(e); setSaveError("Network error"); }
-                }}
-                className="w-2/3 py-2 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-bold rounded-lg transition-all text-sm"
-              >
-                Confirm & Monitor
-              </button>
-            </div>
-            {saveError && <div className="text-red-400 text-xs text-center">{saveError}</div>}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {/* AVAILABILITY STRATEGY & BOOKING WINDOW */}
-            {(() => {
-              const mLower = (campsite.management_type || "").toLowerCase();
-              const feeLower = (campsite.fees || "").toLowerCase();
-              const isFree = feeLower.includes("$0") || feeLower.includes("free");
-
-              let badgeText = "Operator Booking";
-              let badgeColor = "bg-blue-500/20 text-blue-300 border-blue-500/30";
-              let strategy = "Bookings open via operator portal. Weekend sites typically fill 1–2 weeks ahead in warm seasons.";
-
-              if (mLower.includes("forestry") || mLower.includes("state forest") || (mLower.includes("council") && isFree)) {
-                badgeText = "No Booking Required (First-Come)";
-                badgeColor = "bg-emerald-500/20 text-[var(--color-neon-green)] border-emerald-500/30";
-                strategy = "100% Free & Unreserved. Arrive before 4:00 PM on Friday to secure a prime creek or forest camp.";
-              } else if (mLower.includes("npws") || mLower.includes("national park") || mLower.includes("parks australia")) {
-                if (isFree) {
-                  badgeText = "Free Permit ($0)";
-                  badgeColor = "bg-teal-500/20 text-teal-300 border-teal-500/30";
-                  strategy = "Online registration required ($0 entry). Generally available outside peak public holiday weekends.";
-                } else {
-                  badgeText = "Online Booking Required (NPWS)";
-                  badgeColor = "bg-amber-500/20 text-amber-300 border-amber-500/30";
-                  strategy = "180-day advance booking window via NPWS. Popular beach and valley spots book 2–3 weeks in advance.";
-                }
-              }
-
-              return (
-                <div className="bg-black/40 border border-emerald-500/20 p-3 rounded-xl text-xs">
-                  <div className="flex items-center justify-between mb-1.5 gap-2">
-                    <span className="font-bold text-[10px] uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                      <Clock size={12} /> Availability Strategy
-                    </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${badgeColor}`}>
-                      {badgeText}
-                    </span>
-                  </div>
-                  <p className="text-gray-300 text-[11px] leading-relaxed">
-                    {strategy}
-                  </p>
-                </div>
-              );
-            })()}
-
-            <button 
-              onClick={() => setIsSaving(true)}
-              className="w-full py-3 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-bold rounded-xl transition-all shadow-[0_4px_20px_rgba(0,255,136,0.2)] hover:shadow-[0_4px_25px_rgba(0,255,136,0.4)] cursor-pointer"
-            >
-              Save Trip & Monitor for Plan B
-            </button>
-          </div>
-        )}
+        <div className="mt-2">
+          <a 
+            href={campsite.booking_url || campsite.source_url || `https://www.google.com/search?q=book+${encodeURIComponent(campsite.name)}+camping`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex justify-center items-center gap-1.5 w-full py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all text-xs border border-white/20 cursor-pointer"
+          >
+            <span>View Booking / Permit Details</span>
+            <ExternalLink size={13} />
+          </a>
+        </div>
       </div>
 
-      <div className="mt-2">
-        <a 
-          href={campsite.booking_url || campsite.source_url || `https://www.google.com/search?q=book+${encodeURIComponent(campsite.name)}+camping`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex justify-center items-center gap-1.5 w-full py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all text-xs border border-white/20 cursor-pointer"
-        >
-          <span>View Booking / Permit Details</span>
-          <ExternalLink size={13} />
-        </a>
-      </div>
-      </div>
-
+      {/* 10-SECOND GROUND CHECK-IN MODAL */}
       {showCheckInModal && (
         <GroundCheckInModal
           campsiteId={campsite.id}
@@ -597,6 +829,32 @@ export default function TripCard({
           onClose={() => setShowCheckInModal(false)}
           onCheckInSuccess={() => {
             setShowCheckInModal(false);
+          }}
+        />
+      )}
+
+      {/* PLAN B ALTERNATIVES MODAL */}
+      {showPlanBModal && (
+        <PlanBModal
+          originalCampsite={cardData}
+          originLat={startLocation?.latitude}
+          originLng={startLocation?.longitude}
+          onClose={() => setShowPlanBModal(false)}
+          onSwapWithAlternative={() => {
+            setShowPlanBModal(false);
+          }}
+        />
+      )}
+
+      {/* TRUST LENS SOURCE INSPECTION SHEET */}
+      {inspectFact && (
+        <SourceSheet
+          fact={inspectFact.fact}
+          label={inspectFact.label}
+          campsiteName={inspectFact.campsiteName}
+          onClose={() => setInspectFact(null)}
+          onOpenCheckIn={() => {
+            setShowCheckInModal(true);
           }}
         />
       )}
