@@ -13,6 +13,7 @@ from app.ingest.harvest import (
     harvest_campsite_record,
     run_harvest_batch,
     resolve_npws_candidate_urls,
+    resolve_sa_candidate_urls,
     PARSER_VERSION,
 )
 
@@ -170,3 +171,9 @@ def test_resolve_npws_candidate_urls():
     candidates = resolve_npws_candidate_urls("Horse Swamp campground")
     assert "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/horse-swamp-campground" in candidates
     assert "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds/horse-swamp" in candidates
+
+
+def test_resolve_sa_candidate_urls():
+    candidates = resolve_sa_candidate_urls("Mount Remarkable (NP)")
+    assert "https://www.parks.sa.gov.au/parks/mount-remarkable-national-park" in candidates
+    assert "https://www.parks.sa.gov.au/parks/mount-remarkable" in candidates

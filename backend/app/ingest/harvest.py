@@ -232,6 +232,29 @@ def resolve_npws_candidate_urls(name: str) -> list:
     return candidates
 
 
+def resolve_sa_candidate_urls(name: str) -> list:
+    """Generate candidate official NPWSA park URLs from an SA campsite name."""
+    clean = re.sub(r"\(NP\)", "national park", name, flags=re.I)
+    clean = re.sub(r"\(CP\)", "conservation park", clean, flags=re.I)
+    clean = re.sub(r"\(RR\)", "regional reserve", clean, flags=re.I)
+    clean = re.sub(r"\(RP\)", "recreation park", clean, flags=re.I)
+    clean = re.sub(r"\(WPA\)", "wilderness protection area", clean, flags=re.I)
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", clean.lower()).strip("-")
+
+    clean_no_suffix = re.sub(
+        r"(?i)\s+(national park|conservation park|regional reserve|recreation park|wilderness protection area).*",
+        "",
+        clean,
+    )
+    slug_short = re.sub(r"[^a-zA-Z0-9]+", "-", clean_no_suffix.lower()).strip("-")
+
+    candidates = [
+        f"https://www.parks.sa.gov.au/parks/{slug}",
+        f"https://www.parks.sa.gov.au/parks/{slug_short}",
+    ]
+    return list(dict.fromkeys(candidates))
+
+
 def harvest_campsite_record(db: Session, campsite: Campsite, proxy_url: Optional[str] = None) -> bool:
     """
     Harvests fact evidence for a given campsite using its booking_url or source_url.
@@ -242,16 +265,20 @@ def harvest_campsite_record(db: Session, campsite: Campsite, proxy_url: Optional
         return False
 
     GENERIC_NPWS_HUB = "https://www.nationalparks.nsw.gov.au/camping-and-accommodation/campgrounds"
+    GENERIC_SA_HUB = "https://www.parks.sa.gov.au/booking"
     urls_to_try = [url]
     if campsite.state == "NSW" and (url == GENERIC_NPWS_HUB or url.rstrip("/") == GENERIC_NPWS_HUB):
         candidates = resolve_npws_candidate_urls(campsite.name)
+        urls_to_try = candidates + [url]
+    elif campsite.state == "SA" and (url == GENERIC_SA_HUB or url.rstrip("/") == GENERIC_SA_HUB or "parks.sa.gov.au" in url):
+        candidates = resolve_sa_candidate_urls(campsite.name)
         urls_to_try = candidates + [url]
 
     html = None
     status = 0
     resolved_url = None
     for target_url in urls_to_try:
-        if target_url == GENERIC_NPWS_HUB or target_url.rstrip("/") == GENERIC_NPWS_HUB:
+        if target_url in (GENERIC_NPWS_HUB, GENERIC_SA_HUB) or target_url.rstrip("/") in (GENERIC_NPWS_HUB, GENERIC_SA_HUB):
             continue
         h, s, _ = fetch_page_cached(db, target_url, proxy_url=proxy_url)
         if h and s == 200 and len(h) > 50:
