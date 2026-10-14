@@ -37,17 +37,17 @@ export default function FireStrip({ fireDistrict, fireFact, state }: FireStripPr
   const agency = getStateFireAgency(state);
 
   return (
-    <div className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between text-xs gap-2">
+    <div className="bg-[#FAF2E6] border border-[#E8CFA9] rounded-xl px-3 py-2 flex items-center justify-between text-xs gap-2 text-[#1E2A24] shadow-xs">
       <div className="flex items-center gap-2 overflow-hidden">
-        <Flame size={14} className="text-amber-400 shrink-0" />
+        <Flame size={14} className="text-[#C9822B] shrink-0" />
         <div className="truncate">
-          <span className="font-semibold text-gray-300 text-[11px]">Fire Status: </span>
+          <span className="font-semibold text-[#536259] text-[11px]">Fire Status: </span>
           {districtName ? (
-            <span className="text-white text-[11px] font-bold">
+            <span className="text-[#1E2A24] text-[11px] font-bold">
               {districtName} ({state})
             </span>
           ) : (
-            <span className="text-amber-300/90 text-[11px] font-medium">
+            <span className="text-[#9A5C0E] text-[11px] font-medium">
               District Unmapped
             </span>
           )}
@@ -58,7 +58,7 @@ export default function FireStrip({ fireDistrict, fireFact, state }: FireStripPr
         href={agency.url}
         target="_blank"
         rel="noreferrer"
-        className="shrink-0 text-[10px] text-amber-300 hover:text-amber-200 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded font-bold flex items-center gap-1 transition-all"
+        className="shrink-0 text-[10px] text-[#9A5C0E] hover:text-[#7A4506] bg-[#FFFFFF] border border-[#E8CFA9] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 transition-all shadow-2xs"
         title={`Check live Fire Danger Rating on official ${agency.name}`}
       >
         <span>{agency.name}</span>

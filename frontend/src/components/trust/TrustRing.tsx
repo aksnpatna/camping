@@ -16,7 +16,7 @@ export default function TrustRing({ basis, confidence, size = "sm", showIcon = t
   if (basis === "official" || basis === "verified") {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-[#1F6FB2]/20 border border-[#1F6FB2] text-[#60a5fa] ${ringSize}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#1F6FB2]/15 border border-[#1F6FB2] text-[#1F6FB2] ${ringSize}`}
         title={`Official / Verified Source (Confidence ${confidence}/3)`}
         aria-label="Official verified fact"
       >
@@ -28,7 +28,7 @@ export default function TrustRing({ basis, confidence, size = "sm", showIcon = t
   if (basis === "rule") {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-[#B7791F]/20 border border-dashed border-[#B7791F] text-[#fbbf24] ${ringSize}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#B7791F]/15 border border-dashed border-[#B7791F] text-[#B7791F] ${ringSize}`}
         title={`Statutory Regulation / Policy Rule (Confidence ${confidence}/3)`}
         aria-label="Statutory rule"
       >
@@ -40,7 +40,7 @@ export default function TrustRing({ basis, confidence, size = "sm", showIcon = t
   if (basis === "community") {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-teal-500/20 border border-dotted border-teal-400 text-teal-300 ${ringSize}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#2F5D50]/15 border border-dotted border-[#2F5D50] text-[#2F5D50] ${ringSize}`}
         title={`Camper Ground Report < 14d (Confidence ${confidence}/3)`}
         aria-label="Recent camper ground report"
       >
@@ -52,7 +52,7 @@ export default function TrustRing({ basis, confidence, size = "sm", showIcon = t
   if (basis === "model") {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-sky-500/20 border border-sky-400 text-sky-300 ${ringSize}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#0284C7]/15 border border-[#0284C7] text-[#0284C7] ${ringSize}`}
         title={`Forecast / Climatological Model (Confidence ${confidence}/3)`}
         aria-label="Climatological model"
       >
@@ -64,7 +64,7 @@ export default function TrustRing({ basis, confidence, size = "sm", showIcon = t
   if (basis === "estimate") {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-amber-500/20 border border-dashed border-amber-400 text-amber-300 ${ringSize}`}
+        className={`inline-flex items-center justify-center rounded-full bg-[#C9822B]/15 border border-dashed border-[#C9822B] text-[#C9822B] ${ringSize}`}
         title={`Estimated Calculation (Confidence ${confidence}/3)`}
         aria-label="Estimated calculation"
       >
@@ -76,7 +76,7 @@ export default function TrustRing({ basis, confidence, size = "sm", showIcon = t
   // basis === "unknown"
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-full bg-gray-700/40 border border-dashed border-[#8A8F8C] text-[#9ca3af] ${ringSize}`}
+      className={`inline-flex items-center justify-center rounded-full bg-[#FAF6EF] border border-dashed border-[#8A8F8C] text-[#8A8F8C] ${ringSize}`}
       title="Unverified / Missing Information"
       aria-label="Fact unverified"
     >

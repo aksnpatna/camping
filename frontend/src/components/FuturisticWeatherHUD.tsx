@@ -104,41 +104,41 @@ export default function FuturisticWeatherHUD({
       case "dawn": {
         const dawnTemp = Math.round(tempMin + (tempMax - tempMin) * 0.05);
         const dewRisk = tempMin <= 4 ? "Extreme Frost Risk" : tempMin <= 9 ? "Heavy Morning Dew" : "Low Condensation";
-        const dewColor = tempMin <= 4 ? "text-cyan-300" : tempMin <= 9 ? "text-blue-300" : "text-emerald-300";
+        const dewColor = tempMin <= 4 ? "text-[#1F6FB2] font-bold" : tempMin <= 9 ? "text-[#1F6FB2]" : "text-[#2F5D50]";
         return {
           phaseName: "Dawn",
           timeLabel: "06:00 AM",
           tagline: "Morning Chill & Ground Condensation",
           temp: dawnTemp,
           feelsLike: dawnTemp - 1,
-          icon: <Sun size={20} className="text-amber-300 animate-pulse" />,
+          icon: <Sun size={20} className="text-[#C9822B]" />,
           telemetry: [
             {
               label: "Ground Condensation",
               value: dewRisk,
               color: dewColor,
-              icon: <Droplets size={14} />,
+              icon: <Droplets size={14} className="text-[#1F6FB2]" />,
               note: tempMin <= 9 ? "Ground tarp under tent floor essential to prevent damp seep." : "Standard tent floor adequate."
             },
             {
               label: "Morning Breeze",
               value: `${Math.round(windSpeed * 0.5)} km/h`,
-              color: "text-gray-200",
-              icon: <Wind size={14} />,
+              color: "text-[#1E2A24]",
+              icon: <Wind size={14} className="text-[#536259]" />,
               note: "Gentle morning valley airflow."
             },
             {
               label: "Sunrise Light",
               value: "Soft Diffuse",
-              color: "text-amber-200",
-              icon: <Sun size={14} />,
+              color: "text-[#C9822B]",
+              icon: <Sun size={14} className="text-[#C9822B]" />,
               note: "Ideal for camp wake-up and brewing coffee."
             },
             {
               label: "Clothing Layer",
               value: dawnTemp < 10 ? "Fleece + Thermal" : "Light Layer",
-              color: "text-emerald-300",
-              icon: <ShieldCheck size={14} />,
+              color: "text-[#2F5D50] font-bold",
+              icon: <ShieldCheck size={14} className="text-[#2F5D50]" />,
               note: "Pack a warm outer layer for packing down camp."
             }
           ]
@@ -153,34 +153,34 @@ export default function FuturisticWeatherHUD({
           tagline: "Peak Solar Intensity & Active Hours",
           temp: middayTemp,
           feelsLike: Math.round(middayTemp + (uvIndex > 7 ? 2 : 0)),
-          icon: <Sun size={20} className="text-yellow-400" />,
+          icon: <Sun size={20} className="text-[#C9822B]" />,
           telemetry: [
             {
               label: "Solar UV Index",
               value: `${uvIndex} (${uvWarning})`,
-              color: uvIndex >= 8 ? "text-rose-400" : "text-yellow-300",
-              icon: <Sun size={14} />,
+              color: uvIndex >= 8 ? "text-[#A83232] font-bold" : "text-[#C9822B]",
+              icon: <Sun size={14} className="text-[#C9822B]" />,
               note: uvIndex >= 8 ? "Pitch tarp/gazebo for canopy shade; SPF 50+ mandatory." : "Standard sun protection."
             },
             {
               label: "Hydration Need",
               value: middayTemp >= 28 ? "High (3L/person)" : "Moderate (2L/person)",
-              color: middayTemp >= 28 ? "text-amber-300" : "text-emerald-300",
-              icon: <Droplets size={14} />,
+              color: middayTemp >= 28 ? "text-[#C9822B] font-bold" : "text-[#2F5D50]",
+              icon: <Droplets size={14} className="text-[#1F6FB2]" />,
               note: "Keep water cool under shaded tent fly."
             },
             {
               label: "Peak Wind",
               value: `${windSpeed} km/h`,
-              color: windSpeed > 25 ? "text-amber-300" : "text-gray-200",
-              icon: <Wind size={14} />,
+              color: windSpeed > 25 ? "text-[#C9822B] font-bold" : "text-[#1E2A24]",
+              icon: <Wind size={14} className="text-[#536259]" />,
               note: windSpeed > 25 ? "Secure awning guy lines before heading on trails." : "Calm midday breeze."
             },
             {
               label: "Rain Probability",
               value: `${precipProb}%`,
-              color: precipProb > 40 ? "text-blue-300" : "text-emerald-300",
-              icon: <CloudRain size={14} />,
+              color: precipProb > 40 ? "text-[#1F6FB2] font-bold" : "text-[#2F5D50]",
+              icon: <CloudRain size={14} className="text-[#1F6FB2]" />,
               note: precipProb > 40 ? "Pack rain gear for afternoon walk." : "Low precipitation risk."
             }
           ]
@@ -189,41 +189,41 @@ export default function FuturisticWeatherHUD({
       case "dusk": {
         const duskTemp = Math.round(tempMax * 0.6 + tempMin * 0.4);
         const fireSafe = windSpeed <= 15 ? "Prime Fire Conditions" : windSpeed <= 25 ? "Breezy: Use Shielded Fire Pit" : "High Wind Hazard (No Open Fire)";
-        const fireColor = windSpeed <= 15 ? "text-emerald-300" : windSpeed <= 25 ? "text-amber-300" : "text-rose-400";
+        const fireColor = windSpeed <= 15 ? "text-[#2F5D50] font-bold" : windSpeed <= 25 ? "text-[#C9822B]" : "text-[#A83232] font-bold";
         return {
           phaseName: "Dusk",
           timeLabel: "06:30 PM",
           tagline: "Campfire Window & Temperature Transition",
           temp: duskTemp,
           feelsLike: duskTemp,
-          icon: <Flame size={20} className="text-orange-400" />,
+          icon: <Flame size={20} className="text-[#C9822B]" />,
           telemetry: [
             {
               label: "Campfire Safety Factor",
               value: fireSafe,
               color: fireColor,
-              icon: <Flame size={14} />,
+              icon: <Flame size={14} className="text-[#C9822B]" />,
               note: windSpeed > 25 ? "Embers can ignite dry bush; use gas stove only." : "Verify current local park fire ban."
             },
             {
               label: "Cooling Rate",
               value: "Rapid (-2°C / hr)",
-              color: "text-cyan-300",
-              icon: <Thermometer size={14} />,
+              color: "text-[#1F6FB2]",
+              icon: <Thermometer size={14} className="text-[#1F6FB2]" />,
               note: "Zip up inner tent mesh before insects gather at dusk."
             },
             {
               label: "Cooking Breeze",
               value: `${Math.round(windSpeed * 0.75)} km/h`,
-              color: "text-gray-200",
-              icon: <Wind size={14} />,
+              color: "text-[#1E2A24]",
+              icon: <Wind size={14} className="text-[#536259]" />,
               note: "Set up windbreak around camping stove."
             },
             {
               label: "Sunset Ambience",
               value: "Golden Hour Glow",
-              color: "text-amber-300",
-              icon: <Sun size={14} />,
+              color: "text-[#C9822B]",
+              icon: <Sun size={14} className="text-[#C9822B]" />,
               note: "Best window for campsite photos and settling in."
             }
           ]
@@ -233,7 +233,7 @@ export default function FuturisticWeatherHUD({
       default: {
         const nightTemp = tempMin;
         let sleepRating = currentData.sleepingBagRating || "10°C Comfort Bag";
-        let sleepColor = "text-emerald-300";
+        let sleepColor = "text-[#2F5D50] font-bold";
         let sleepNote = currentData.matRValue 
           ? `Physics-modeled requirement: R-value ≥ ${currentData.matRValue} insulated sleeping pad.`
           : "Comfortable standard sleeping bag and uninsulated mat.";
@@ -241,20 +241,20 @@ export default function FuturisticWeatherHUD({
         if (!currentData.sleepingBagRating) {
           if (nightTemp <= 4) {
             sleepRating = "❄️ 0°C Rated Bag + R4+ Mat";
-            sleepColor = "text-cyan-300 font-bold";
+            sleepColor = "text-[#1F6FB2] font-bold";
             sleepNote = "Cold air sinks in valley floor. Insulated sleeping pad is vital to block ground freeze.";
           } else if (nightTemp <= 10) {
             sleepRating = "🏕️ 5°C 3-Season Bag";
-            sleepColor = "text-[var(--color-neon-green)]";
+            sleepColor = "text-[#2F5D50] font-bold";
             sleepNote = "Standard thermal base layer and beanie recommended for sound sleep.";
           } else if (nightTemp >= 18) {
             sleepRating = "🌙 Summer Sheet / Open Quilt";
-            sleepColor = "text-amber-200";
+            sleepColor = "text-[#C9822B]";
             sleepNote = "Warm overnight conditions; keep tent mesh vented for airflow.";
           }
         } else {
-          if (nightTemp <= 4) sleepColor = "text-cyan-300 font-bold";
-          else if (nightTemp <= 10) sleepColor = "text-[var(--color-neon-green)]";
+          if (nightTemp <= 4) sleepColor = "text-[#1F6FB2] font-bold";
+          else if (nightTemp <= 10) sleepColor = "text-[#2F5D50] font-bold";
         }
 
         const stargazeClarity = precipProb <= 20 ? "95% Crystal Clear" : precipProb <= 50 ? "60% Scattered Stars" : "Overcast Horizon";
@@ -303,50 +303,41 @@ export default function FuturisticWeatherHUD({
 
   // Phase options for the interactive scrubber
   const PHASES: { id: DayPhase; label: string; icon: React.ReactNode; time: string }[] = [
-    { id: "dawn", label: "Dawn", icon: <Sun size={13} />, time: "06:00" },
-    { id: "midday", label: "Midday", icon: <Sun size={13} className="text-yellow-400" />, time: "13:00" },
-    { id: "dusk", label: "Dusk", icon: <Flame size={13} className="text-orange-400" />, time: "18:30" },
-    { id: "night", label: "Night", icon: <Moon size={13} className="text-indigo-300" />, time: "23:00" },
+    { id: "dawn", label: "Dawn", icon: <Sun size={13} className="text-[#C9822B]" />, time: "06:00" },
+    { id: "midday", label: "Midday", icon: <Sun size={13} className="text-[#C9822B]" />, time: "13:00" },
+    { id: "dusk", label: "Dusk", icon: <Flame size={13} className="text-[#C9822B]" />, time: "18:30" },
+    { id: "night", label: "Night", icon: <Moon size={13} className="text-[#1F6FB2]" />, time: "23:00" },
   ];
 
   return (
-    <div className="w-full shrink-0 bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-950/90 rounded-2xl p-3.5 border border-white/15 shadow-xl backdrop-blur-md relative overflow-hidden flex flex-col gap-3 transition-all">
-      {/* BACKGROUND ATMOSPHERIC RADIAL GLOW */}
-      <div 
-        className={`absolute -top-12 -right-12 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-20 transition-all duration-700 ${
-          activePhase === "night" ? "bg-indigo-500" :
-          activePhase === "dawn" ? "bg-cyan-400" :
-          activePhase === "midday" ? "bg-amber-400" : "bg-orange-500"
-        }`} 
-      />
-
+    <div className="w-full shrink-0 bg-[#FAF6EF] rounded-2xl p-3.5 border border-[#E2DAC8] shadow-xs flex flex-col gap-3 transition-all text-[#1E2A24]">
       {/* HEADER: MODE TOGGLE & LIVE TELEMETRY BADGE */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+      <div className="flex items-center justify-between gap-2 border-b border-[#E2DAC8] pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-200">
-            <Activity size={13} className="text-[var(--color-neon-green)] animate-pulse" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FFFFFF] border border-[#E2DAC8] text-xs font-bold text-[#1E2A24]">
+            <Activity size={13} className="text-[#2F5D50]" />
             <span>Atmospheric Telemetry</span>
           </div>
 
           {mode === "predictive" ? (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
-              <Sparkles size={11} /> Climatology AI
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-[#8A5818] bg-[#FFF9EE] px-2 py-0.5 rounded-full border border-[#F0D5A8]">
+              <Sparkles size={11} className="text-[#C9822B]" /> Climatology AI
             </span>
           ) : (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-              <Zap size={11} /> Live Radar Sync
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-[#2F5D50] bg-[#EBF2EE] px-2 py-0.5 rounded-full border border-[#2F5D50]/20">
+              <Zap size={11} className="text-[#2F5D50]" /> Live Radar Sync
             </span>
           )}
         </div>
 
         {/* MODE SWITCHER */}
-        <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/10 text-[11px] font-semibold">
+        <div className="flex items-center bg-[#F6F1E7] p-0.5 rounded-lg border border-[#E2DAC8] text-[11px] font-semibold">
           <button
             onClick={() => setMode("live")}
             className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
               mode === "live"
-                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] font-black shadow"
-                : "text-gray-400 hover:text-white"
+                ? "bg-[#2F5D50] text-white font-bold shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
             ⚡ Live
@@ -355,8 +346,8 @@ export default function FuturisticWeatherHUD({
             onClick={handlePredictiveMode}
             className={`px-2 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
               mode === "predictive"
-                ? "bg-purple-500 text-white font-black shadow"
-                : "text-gray-400 hover:text-white"
+                ? "bg-[#C9822B] text-white font-bold shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
             title="Seasonal Microclimate Prediction for Future Trip Dates"
           >
@@ -367,10 +358,10 @@ export default function FuturisticWeatherHUD({
 
       {/* CLIMATOLOGY ALERT BANNER IF IN PREDICTIVE MODE */}
       {mode === "predictive" && (
-        <div className="bg-purple-950/50 border border-purple-500/40 rounded-xl p-2.5 text-xs text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+        <div className="bg-[#FFF9EE] border border-[#F0D5A8] rounded-xl p-2.5 text-xs text-[#8A5818] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <Calendar size={14} className="text-purple-400 shrink-0" />
-            <span className="font-bold text-white text-xs">Trip Date:</span>
+            <Calendar size={14} className="text-[#C9822B] shrink-0" />
+            <span className="font-bold text-[#1E2A24] text-xs">Trip Date:</span>
             <input 
               type="date"
               value={targetDate}
@@ -380,16 +371,16 @@ export default function FuturisticWeatherHUD({
                 setTargetDate(val);
                 if (onDateChange) onDateChange(val);
               }}
-              className="bg-black/60 border border-purple-500/50 text-white text-xs font-semibold rounded-lg px-2.5 py-1 outline-none focus:border-[var(--color-neon-green)] cursor-pointer"
+              className="bg-[#FFFFFF] border border-[#E2DAC8] text-[#1E2A24] text-xs font-semibold rounded-lg px-2.5 py-1 outline-none focus:border-[#2F5D50] cursor-pointer"
             />
             {targetDate && (
-              <span className="text-[11px] text-purple-300 font-medium">
+              <span className="text-[11px] text-[#8A5818] font-medium">
                 ({new Date(targetDate + "T12:00:00").toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })})
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full font-mono font-bold border border-purple-500/30">
+            <span className="text-[10px] text-[#8A5818] bg-[#FFFFFF] px-2 py-0.5 rounded-full font-mono font-bold border border-[#F0D5A8]">
               P10-P90 Climatology Analog
             </span>
           </div>
@@ -398,64 +389,63 @@ export default function FuturisticWeatherHUD({
 
       {/* MAIN ATMOSPHERIC SNAPSHOT DISPLAY */}
       {isLoading ? (
-        <div className="py-6 flex flex-col items-center justify-center gap-2 text-gray-400 text-xs animate-pulse">
-          <div className="w-6 h-6 border-2 border-[var(--color-neon-green)] border-t-transparent rounded-full animate-spin" />
+        <div className="py-6 flex flex-col items-center justify-center gap-2 text-[#536259] text-xs animate-pulse">
+          <div className="w-6 h-6 border-2 border-[#2F5D50] border-t-transparent rounded-full animate-spin" />
           <span>Synchronizing microclimate sensors & terrain data...</span>
         </div>
       ) : currentData && phaseTelemetry ? (
         <>
           {/* PRIMARY CURRENT READING CARD */}
-          <div className="bg-black/30 rounded-xl p-3 border border-white/10 flex items-center justify-between gap-3">
+          <div className="bg-[#FFFFFF] rounded-xl p-3 border border-[#E2DAC8] flex items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shadow-inner">
+              <div className="w-12 h-12 rounded-xl bg-[#FAF6EF] border border-[#E2DAC8] flex items-center justify-center shadow-xs">
                 {phaseTelemetry.icon}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black text-white tracking-tight">{phaseTelemetry.temp}°C</span>
-                  <span className="text-xs text-gray-400 font-mono">Feels {phaseTelemetry.feelsLike}°C</span>
+                  <span className="text-2xl font-black text-[#1E2A24] tracking-tight">{phaseTelemetry.temp}°C</span>
+                  <span className="text-xs text-[#536259] font-mono">Feels {phaseTelemetry.feelsLike}°C</span>
                 </div>
-                <div className="text-xs font-semibold text-[var(--color-neon-green)] flex items-center gap-1.5">
+                <div className="text-xs font-bold text-[#2F5D50] flex items-center gap-1.5">
                   <span>{currentData.description}</span>
-                  <span className="text-gray-500">•</span>
-                  <span className="text-gray-300">{phaseTelemetry.tagline}</span>
+                  <span className="text-[#E2DAC8]">•</span>
+                  <span className="text-[#536259] font-medium">{phaseTelemetry.tagline}</span>
                 </div>
               </div>
             </div>
 
             <div className="text-right shrink-0">
-              <div className="text-[11px] text-gray-400 font-semibold">{phaseTelemetry.phaseName} Phase</div>
-              <div className="text-sm font-black text-white font-mono">{phaseTelemetry.timeLabel}</div>
+              <div className="text-[11px] text-[#536259] font-semibold">{phaseTelemetry.phaseName} Phase</div>
+              <div className="text-sm font-black text-[#1E2A24] font-mono">{phaseTelemetry.timeLabel}</div>
             </div>
           </div>
 
           {/* PHASE 3: AI CAMPING CONDITION SYNTHESIS BRIEFING */}
           {currentData.aiConditionSummary && (
-            <div className="bg-gradient-to-r from-purple-950/50 via-slate-900/80 to-purple-950/30 border border-purple-500/30 rounded-xl p-3 shadow-lg flex flex-col gap-1.5 animate-in fade-in duration-300">
+            <div className="bg-[#FFFFFF] border border-[#2F5D50]/20 rounded-xl p-3 shadow-xs flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[10px] font-black text-purple-300 uppercase tracking-wider">
-                  <Sparkles size={12} className="text-purple-400 animate-pulse" />
-                  <span>Camper Condition Synthesis (Qwen3 9B)</span>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#2F5D50] uppercase tracking-wider">
+                  <Sparkles size={12} className="text-[#2F5D50]" />
+                  <span>Camper Condition Synthesis</span>
                 </div>
-                <span className="text-[9px] font-mono font-bold text-purple-300/90 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30">
-                  Microclimate AI
+                <span className="text-[9px] font-mono font-bold text-[#2F5D50] bg-[#EBF2EE] px-1.5 py-0.5 rounded border border-[#2F5D50]/20">
+                  Microclimate Model
                 </span>
               </div>
-              <p className="text-xs text-gray-200 leading-relaxed font-medium">
+              <p className="text-xs text-[#536259] leading-relaxed font-medium">
                 {currentData.aiConditionSummary}
               </p>
             </div>
           )}
 
-
           {/* INTERACTIVE 24-HOUR CAMPING DIURNAL SCRUBBER */}
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-[11px] text-gray-400 px-1">
-              <span className="font-semibold text-gray-300">Camping Diurnal Cycle</span>
-              <span className="text-[10px] text-[var(--color-neon-green)]">Tap phase to inspect</span>
+            <div className="flex items-center justify-between text-[11px] text-[#536259] px-1">
+              <span className="font-bold text-[#1E2A24]">Camping Diurnal Cycle</span>
+              <span className="text-[10px] text-[#2F5D50] font-semibold">Tap phase to inspect</span>
             </div>
 
-            <div className="grid grid-cols-4 gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+            <div className="grid grid-cols-4 gap-1.5 bg-[#FFFFFF] p-1 rounded-xl border border-[#E2DAC8]">
               {PHASES.map(p => {
                 const isActive = activePhase === p.id;
                 return (
@@ -464,15 +454,15 @@ export default function FuturisticWeatherHUD({
                     onClick={() => setActivePhase(p.id)}
                     className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all text-center cursor-pointer ${
                       isActive
-                        ? "bg-gradient-to-b from-white/20 to-white/10 text-white font-black shadow-lg border border-white/30 scale-[1.02]"
-                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                        ? "bg-[#2F5D50] text-white font-bold shadow-xs border border-[#2F5D50]"
+                        : "text-[#536259] hover:text-[#1E2A24] hover:bg-[#FAF6EF]"
                     }`}
                   >
                     <div className="flex items-center gap-1 text-[11px]">
                       {p.icon}
                       <span>{p.label}</span>
                     </div>
-                    <span className="text-[9px] font-mono opacity-70 mt-0.5">{p.time}</span>
+                    <span className="text-[9px] font-mono opacity-80 mt-0.5">{p.time}</span>
                   </button>
                 );
               })}
@@ -484,16 +474,16 @@ export default function FuturisticWeatherHUD({
             {phaseTelemetry.telemetry.map((t, idx) => (
               <div 
                 key={idx}
-                className="bg-white/5 hover:bg-white/10 transition-colors rounded-xl p-2.5 border border-white/10 flex flex-col justify-between gap-1"
+                className="bg-[#FFFFFF] hover:bg-[#FAF6EF]/60 transition-colors rounded-xl p-2.5 border border-[#E2DAC8] flex flex-col justify-between gap-1 shadow-xs"
               >
-                <div className="flex items-center justify-between text-[11px] text-gray-400">
-                  <span className="truncate">{t.label}</span>
-                  <span className="text-gray-300 shrink-0">{t.icon}</span>
+                <div className="flex items-center justify-between text-[11px] text-[#536259]">
+                  <span className="truncate font-medium">{t.label}</span>
+                  <span className="shrink-0">{t.icon}</span>
                 </div>
-                <div className={`text-xs md:text-sm font-extrabold truncate ${t.color}`}>
+                <div className={`text-xs md:text-sm font-bold truncate ${t.color}`}>
                   {t.value}
                 </div>
-                <div className="text-[10px] text-gray-400 leading-tight line-clamp-2 mt-0.5">
+                <div className="text-[10px] text-[#536259] leading-tight line-clamp-2 mt-0.5">
                   {t.note}
                 </div>
               </div>
@@ -504,52 +494,52 @@ export default function FuturisticWeatherHUD({
           <div className="pt-1">
             <button
               onClick={() => setExpandedDetails(!expandedDetails)}
-              className="w-full text-[11px] text-gray-400 hover:text-white flex items-center justify-between px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 transition-all cursor-pointer"
+              className="w-full text-[11px] text-[#536259] hover:text-[#1E2A24] flex items-center justify-between px-2.5 py-2 rounded-lg bg-[#FFFFFF] border border-[#E2DAC8] transition-all cursor-pointer shadow-xs"
             >
-              <span className="font-semibold flex items-center gap-1.5">
-                <Thermometer size={13} className="text-[var(--color-neon-green)]" />
+              <span className="font-bold flex items-center gap-1.5 text-[#1E2A24]">
+                <Thermometer size={13} className="text-[#2F5D50]" />
                 <span>Microclimate Envelope & Terrain Impact</span>
               </span>
-              <span className="text-xs font-mono">{expandedDetails ? "▲ Hide" : "▼ Expand"}</span>
+              <span className="text-xs font-mono font-semibold">{expandedDetails ? "▲ Hide" : "▼ Expand"}</span>
             </button>
 
             {expandedDetails && (
-              <div className="mt-2 p-3 rounded-xl bg-black/50 border border-white/10 text-xs text-gray-300 space-y-2 animate-in fade-in duration-200">
-                <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-white/10">
+              <div className="mt-2 p-3 rounded-xl bg-[#FFFFFF] border border-[#E2DAC8] text-xs text-[#536259] space-y-2 shadow-xs">
+                <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-[#E2DAC8]">
                   <div>
-                    <span className="text-[10px] text-gray-400 block">Day High</span>
-                    <strong className="text-white text-sm">{currentData.tempMax}°C</strong>
+                    <span className="text-[10px] text-[#536259] block">Day High</span>
+                    <strong className="text-[#1E2A24] text-sm font-bold">{currentData.tempMax}°C</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 block">Night Low</span>
-                    <strong className="text-cyan-300 text-sm">{currentData.tempMin}°C</strong>
+                    <span className="text-[10px] text-[#536259] block">Night Low</span>
+                    <strong className="text-[#1F6FB2] text-sm font-bold">{currentData.tempMin}°C</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 block">Max Wind</span>
-                    <strong className="text-amber-300 text-sm">{currentData.windSpeed} km/h</strong>
+                    <span className="text-[10px] text-[#536259] block">Max Wind</span>
+                    <strong className="text-[#C9822B] text-sm font-bold">{currentData.windSpeed} km/h</strong>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-gray-300 space-y-1.5">
+                <div className="text-[11px] text-[#536259] space-y-1.5">
                   {currentData.terrainNotes && currentData.terrainNotes.length > 0 ? (
                     currentData.terrainNotes.map((note, idx) => (
                       <div key={idx} className="flex items-start gap-1.5">
-                        <span className="text-[var(--color-neon-green)] shrink-0">⚡</span>
+                        <span className="text-[#2F5D50] shrink-0 font-bold">•</span>
                         <span>{note}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="flex items-start gap-1.5">
-                      <span className="text-[var(--color-neon-green)] shrink-0">📍</span>
+                    <div key="terrain-default" className="flex items-start gap-1.5">
+                      <span className="text-[#2F5D50] shrink-0 font-bold">•</span>
                       <span>
-                        <strong>Terrain Factor ({campsiteName || "Campground"}):</strong> {campsiteElevation ? `~${campsiteElevation}m elevation` : "Valley basin"}. Expect overnight temperature inversion where cold air settles in low-lying campsite zones.
+                        <strong className="text-[#1E2A24]">Terrain Factor ({campsiteName || "Campground"}):</strong> {campsiteElevation ? `~${campsiteElevation}m elevation` : "Valley basin"}. Expect overnight temperature inversion where cold air settles in low-lying campsite zones.
                       </span>
                     </div>
                   )}
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-amber-400 shrink-0">⚠️</span>
+                  <div className="flex items-start gap-1.5 pt-1 border-t border-[#E2DAC8]/60 text-[#8A5818]">
+                    <AlertTriangle size={13} className="text-[#C9822B] shrink-0 mt-0.5" />
                     <span>
-                      <strong>Packing Rule:</strong> Always prepare for night temperatures 3°C to 5°C colder than regional town forecasts.
+                      <strong className="text-[#8A5818]">Packing Rule:</strong> Always prepare for night temperatures 3°C to 5°C colder than regional town forecasts.
                     </span>
                   </div>
                 </div>
@@ -558,8 +548,8 @@ export default function FuturisticWeatherHUD({
           </div>
         </>
       ) : (
-        <div className="py-4 text-center text-xs text-gray-400 flex flex-col items-center gap-1">
-          <AlertTriangle size={16} className="text-amber-400" />
+        <div className="py-4 text-center text-xs text-[#536259] flex flex-col items-center gap-1">
+          <AlertTriangle size={16} className="text-[#C9822B]" />
           <span>Live atmospheric feed unavailable. Check park alerts prior to departure.</span>
         </div>
       )}

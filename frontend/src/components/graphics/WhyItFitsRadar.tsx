@@ -1,5 +1,6 @@
 import React from "react";
 import { TripCardData } from "../FindWeekendPlanner";
+import { Clock, Car } from "lucide-react";
 
 interface WhyItFitsRadarProps {
   card: TripCardData;
@@ -71,10 +72,10 @@ export default function WhyItFitsRadar({ card, size = 180 }: WhyItFitsRadarProps
   const polygonPath = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 
   return (
-    <div className="flex flex-col items-center bg-black/40 border border-white/10 rounded-xl p-3">
-      <div className="text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center justify-between w-full">
+    <div className="flex flex-col items-center bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl p-3 text-[#1E2A24] shadow-xs">
+      <div className="text-[11px] font-bold text-[#536259] uppercase tracking-wider mb-1 flex items-center justify-between w-full">
         <span>5-Axis Match Profile</span>
-        <span className="text-[10px] text-emerald-400 font-mono">
+        <span className="text-[10px] text-[#2F5D50] font-mono font-bold">
           {axes.filter(a => a.isKnown).length}/5 Measured
         </span>
       </div>
@@ -88,7 +89,7 @@ export default function WhyItFitsRadar({ card, size = 180 }: WhyItFitsRadarProps
             cy={center}
             r={radius * level}
             fill="none"
-            stroke="rgba(255,255,255,0.08)"
+            stroke="#E2DAC8"
             strokeDasharray={idx === 2 ? undefined : "3,3"}
           />
         ))}
@@ -105,7 +106,7 @@ export default function WhyItFitsRadar({ card, size = 180 }: WhyItFitsRadarProps
                 y1={center}
                 x2={x2}
                 y2={y2}
-                stroke={axis.isKnown ? "rgba(255,255,255,0.15)" : "rgba(255,100,100,0.2)"}
+                stroke={axis.isKnown ? "#CDC3AF" : "#E2DAC8"}
                 strokeDasharray={axis.isKnown ? undefined : "2,2"}
               />
               {/* Axis Label */}
@@ -115,7 +116,7 @@ export default function WhyItFitsRadar({ card, size = 180 }: WhyItFitsRadarProps
                 textAnchor="middle"
                 fontSize="9"
                 fontWeight={axis.isKnown ? "bold" : "normal"}
-                fill={axis.isKnown ? "#9ca3af" : "#6b7280"}
+                fill={axis.isKnown ? "#1E2A24" : "#8B9891"}
                 className={axis.isKnown ? "" : "italic"}
               >
                 {axis.label}
@@ -127,10 +128,9 @@ export default function WhyItFitsRadar({ card, size = 180 }: WhyItFitsRadarProps
         {/* Filled Data Polygon */}
         <polygon
           points={polygonPath}
-          fill="rgba(0, 255, 136, 0.2)"
-          stroke="var(--color-neon-green)"
-          strokeWidth="1.5"
-          className="drop-shadow"
+          fill="rgba(47, 93, 80, 0.2)"
+          stroke="#2F5D50"
+          strokeWidth="2"
         />
 
         {/* Data points */}
@@ -140,16 +140,20 @@ export default function WhyItFitsRadar({ card, size = 180 }: WhyItFitsRadarProps
             cx={p.x}
             cy={p.y}
             r={axes[i].isKnown ? "3" : "2"}
-            fill={axes[i].isKnown ? "var(--color-neon-green)" : "#8A8F8C"}
-            stroke="#0b2019"
-            strokeWidth="1"
+            fill={axes[i].isKnown ? "#2F5D50" : "#8A8F8C"}
+            stroke="#FFFFFF"
+            strokeWidth="1.5"
           />
         ))}
       </svg>
       
-      <div className="w-full flex justify-between text-[10px] text-gray-400 mt-2 pt-1 border-t border-white/5">
-        <span>⏱️ {card.driving_time_minutes}m drive</span>
-        <span>{card.vehicle_clearance === "4WD_ONLY" ? "🚙 4WD Req" : "🚗 2WD Easy"}</span>
+      <div className="w-full flex justify-between text-[10px] text-[#536259] mt-2 pt-1 border-t border-[#E2DAC8]">
+        <span className="flex items-center gap-1">
+          <Clock size={11} className="text-[#8B9891]" /> {card.driving_time_minutes}m drive
+        </span>
+        <span className="flex items-center gap-1 font-semibold">
+          <Car size={11} className="text-[#8B9891]" /> {card.vehicle_clearance === "4WD_ONLY" ? "4WD Required" : "2WD Accessible"}
+        </span>
       </div>
     </div>
   );

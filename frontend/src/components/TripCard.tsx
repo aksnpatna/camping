@@ -13,7 +13,10 @@ import {
   Flame,
   Droplets,
   Layers,
-  Wifi
+  Wifi,
+  Fuel,
+  Backpack,
+  Check
 } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
@@ -375,20 +378,20 @@ export default function TripCard({
   if (!campsite) return null;
 
   return (
-    <div className="absolute top-4 left-4 md:top-6 md:left-6 w-96 max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100%-2rem)] md:max-h-[calc(100%-3rem)] glass-panel rounded-2xl z-20 animate-fade-in flex flex-col text-[var(--foreground)] shadow-2xl overscroll-contain overflow-hidden border border-white/20">
+    <div className="absolute top-4 left-4 md:top-6 md:left-6 w-96 max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100%-2rem)] md:max-h-[calc(100%-3rem)] bg-[#FFFFFF] rounded-2xl z-20 animate-fade-in flex flex-col text-[#1E2A24] shadow-2xl overscroll-contain overflow-hidden border border-[#E2DAC8]">
       {/* Sticky Header with Title and Close Button */}
-      <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md px-5 pt-4 pb-3 border-b border-white/10 flex flex-col gap-2 shrink-0">
+      <div className="sticky top-0 z-10 bg-[#FFFFFF] px-5 pt-4 pb-3 border-b border-[#E2DAC8] flex flex-col gap-2 shrink-0">
         <div className="flex justify-between items-start">
           <div className="pr-4">
-            <div className="flex items-center gap-2 text-[var(--color-neon-green)] text-xs font-semibold mb-0.5 uppercase tracking-wider">
-              <MapPin size={13} />
+            <div className="flex items-center gap-1.5 text-[#2F5D50] text-xs font-bold mb-0.5 uppercase tracking-wider">
+              <MapPin size={13} className="text-[#2F5D50]" />
               {campsite.state} • {campsite.management_type || "Public Reserve"}
             </div>
-            <h2 className="text-xl md:text-2xl font-bold leading-tight text-white">{campsite.name}</h2>
+            <h2 className="text-xl md:text-2xl font-black leading-tight text-[#1E2A24]">{campsite.name}</h2>
           </div>
           <button 
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="p-1.5 rounded-full hover:bg-[#F6F1E7] text-[#536259] hover:text-[#1E2A24] transition-colors cursor-pointer shrink-0"
             aria-label="Close campsite details"
           >
             <X size={18} />
@@ -406,25 +409,25 @@ export default function TripCard({
       {/* Scrollable Body */}
       <div className="flex-1 min-h-0 p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-3.5 custom-scrollbar">
         {routeDistance !== undefined && routeDistance !== null && (
-          <div className="flex gap-4 text-xs font-medium text-[var(--color-neon-green)] bg-white/5 p-2 rounded-lg border border-white/10 shrink-0">
-            <div className="flex items-center gap-1">
-              <Car size={14} /> 
+          <div className="flex gap-4 text-xs font-semibold text-[#2F5D50] bg-[#FAF6EF] p-2.5 rounded-xl border border-[#E2DAC8] shrink-0">
+            <div className="flex items-center gap-1.5">
+              <Car size={14} className="text-[#2F5D50]" /> 
               {Math.round(routeDistance / 1000)} km from Start
             </div>
-            <div className="flex items-center gap-1 opacity-80">
-              ⛽ Est. Fuel: ${( (routeDistance / 1000) * 0.24 ).toFixed(2)} (4WD)
+            <div className="flex items-center gap-1.5 text-[#536259]">
+              <Fuel size={14} className="text-[#C9822B]" /> Est. Fuel: ${( (routeDistance / 1000) * 0.24 ).toFixed(2)} (4WD)
             </div>
           </div>
         )}
 
         {/* PERSPECTIVE SELECTOR (Glance / 5-Axis Radar / Weather Ribbon / Telemetry) */}
-        <div className="flex items-center justify-between bg-black/50 p-1 rounded-xl border border-white/10 text-[11px] shrink-0">
+        <div className="flex items-center justify-between bg-[#F6F1E7] p-1 rounded-xl border border-[#E2DAC8] text-[11px] shrink-0">
           <button
             onClick={() => setPerspective("glance")}
             className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
               perspective === "glance"
-                ? "bg-white/20 text-white shadow"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-[#FFFFFF] text-[#1E2A24] shadow-xs border border-[#E2DAC8]"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
             Glance
@@ -433,8 +436,8 @@ export default function TripCard({
             onClick={() => setPerspective("radar")}
             className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
               perspective === "radar"
-                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-[#2F5D50] text-white shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
             5-Axis Radar
@@ -443,8 +446,8 @@ export default function TripCard({
             onClick={() => setPerspective("weather")}
             className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
               perspective === "weather"
-                ? "bg-sky-500 text-black shadow"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-[#1F6FB2] text-white shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
             Weather Ribbon
@@ -453,8 +456,8 @@ export default function TripCard({
             onClick={() => setPerspective("telemetry")}
             className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
               perspective === "telemetry"
-                ? "bg-amber-500 text-black shadow"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-[#C9822B] text-white shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
             Diurnal
@@ -489,7 +492,7 @@ export default function TripCard({
             <div className="grid grid-cols-3 gap-1.5">
               <FactChip
                 label="Access"
-                icon={<Car size={11} className="text-gray-300" />}
+                icon={<Car size={11} className="text-[#536259]" />}
                 displayValue={campsite.rig_access?.includes("4WD_ONLY") ? "4WD Only" : "2WD Easy"}
                 fact={fullDetails?.facts?.vehicle_access}
                 onInspect={() => {
@@ -506,7 +509,7 @@ export default function TripCard({
 
               <FactChip
                 label="Telco"
-                icon={<Wifi size={11} className="text-gray-300" />}
+                icon={<Wifi size={11} className="text-[#536259]" />}
                 displayValue={fullDetails?.facts?.telco?.value ? String(fullDetails.facts.telco.value) : "Unspecified"}
                 fact={fullDetails?.facts?.telco}
                 onInspect={() => {
@@ -522,7 +525,7 @@ export default function TripCard({
 
               <FactChip
                 label="Campfire"
-                icon={<Flame size={11} className="text-gray-300" />}
+                icon={<Flame size={11} className="text-[#536259]" />}
                 displayValue={fullDetails?.facts?.campfires?.value === true ? "Permitted" : fullDetails?.facts?.campfires?.value === false ? "Prohibited" : "Check Rules"}
                 fact={fullDetails?.facts?.campfires}
                 onInspect={() => {
@@ -538,7 +541,7 @@ export default function TripCard({
 
               <FactChip
                 label="Water"
-                icon={<Droplets size={11} className="text-gray-300" />}
+                icon={<Droplets size={11} className="text-[#536259]" />}
                 displayValue={fullDetails?.facts?.water?.value ? "Available" : "Carry In"}
                 fact={fullDetails?.facts?.water}
                 onInspect={() => {
@@ -554,7 +557,7 @@ export default function TripCard({
 
               <FactChip
                 label="Toilets"
-                icon={<Layers size={11} className="text-gray-300" />}
+                icon={<Layers size={11} className="text-[#536259]" />}
                 displayValue={fullDetails?.facts?.toilets?.value ? String(fullDetails.facts.toilets.value) : "Unverified"}
                 fact={fullDetails?.facts?.toilets}
                 onInspect={() => {
@@ -570,7 +573,7 @@ export default function TripCard({
 
               <FactChip
                 label="Pets"
-                icon={<Dog size={11} className="text-gray-300" />}
+                icon={<Dog size={11} className="text-[#536259]" />}
                 displayValue={campsite.dog_friendly === true ? "Dogs OK" : campsite.dog_friendly === false ? "No Pets" : "Check Rules"}
                 fact={fullDetails?.facts?.dog_friendly}
                 onInspect={() => {
@@ -595,11 +598,12 @@ export default function TripCard({
         )}
 
         {/* CONDITION-AWARE GEAR-FIT BADGE (D9) */}
-        <div className="bg-emerald-950/40 border border-emerald-500/25 px-3 py-1.5 rounded-xl text-xs flex items-center justify-between text-emerald-200 shrink-0">
-          <span className="font-semibold text-[11px] flex items-center gap-1.5">
-            🎒 <strong className="text-white">Gear Fit:</strong> 15°C Summer Quilt / Light Bag ✔
+        <div className="bg-[#FAF6EF] border border-[#E2DAC8] px-3 py-2 rounded-xl text-xs flex items-center justify-between text-[#1E2A24] shrink-0">
+          <span className="font-medium text-[11px] flex items-center gap-1.5">
+            <Backpack size={13} className="text-[#2F5D50]" />
+            <strong className="text-[#1E2A24]">Gear Fit:</strong> 15°C Summer Quilt / Light Bag <Check size={12} className="inline text-[#2F5D50]" />
           </span>
-          <span className="text-[10px] text-emerald-400 font-bold">Overnight ~14°C</span>
+          <span className="text-[10px] text-[#536259] font-bold">Overnight ~14°C</span>
         </div>
 
         {/* ONE-TAP DIRECT GPS NAVIGATION & PLAN B ACTION BUTTONS */}
@@ -607,14 +611,14 @@ export default function TripCard({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setShowPlanBModal(true)}
-              className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow"
+              className="bg-[#FFF9EE] hover:bg-[#FFF3DC] text-[#8A5818] border border-[#F0D5A8] py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
               title="Inspect condition-aware Plan B alternatives for this campsite"
             >
-              <Shuffle size={13} className="text-amber-400" /> Plan B Alternatives
+              <Shuffle size={13} className="text-[#C9822B]" /> Plan B Alternatives
             </button>
             <button
               onClick={() => setShowCheckInModal(true)}
-              className="bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[var(--color-neon-green)] py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#2F5D50] border border-[#2F5D50]/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
             >
               📡 10s Ground Report
             </button>
@@ -637,17 +641,17 @@ export default function TripCard({
                   href={googleMapsUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                  className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-[#E2DAC8]"
                 >
-                  <Navigation size={13} className="text-cyan-400" /> Google Maps
+                  <Navigation size={13} className="text-[#1F6FB2]" /> Google Maps
                 </a>
                 <a
                   href={appleMapsUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="bg-white/10 hover:bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                  className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-[#E2DAC8]"
                 >
-                  <Compass size={13} className="text-emerald-300" /> Apple Maps
+                  <Compass size={13} className="text-[#2F5D50]" /> Apple Maps
                 </a>
               </div>
             );
@@ -655,108 +659,108 @@ export default function TripCard({
         </div>
 
         {aiSummary && (
-          <p className="text-sm text-gray-300 leading-relaxed border-l-2 border-white/20 pl-3 shrink-0">
-            <span className="font-semibold text-white/50 text-xs block mb-1">AI Pitch</span>
+          <p className="text-xs text-[#536259] leading-relaxed border-l-2 border-[#2F5D50] pl-3 shrink-0">
+            <span className="font-bold text-[#2F5D50] text-xs block mb-1">Field Summary</span>
             {aiSummary}
           </p>
         )}
 
         {/* Community Field Notes & Sourced Insights Section */}
-        <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2 border border-white/10 shrink-0">
-          <div className="flex justify-between items-center text-sm text-gray-300">
-            <span className="font-semibold text-white flex items-center gap-1.5">
+        <div className="bg-[#FAF6EF] rounded-xl p-3 flex flex-col gap-2 border border-[#E2DAC8] shrink-0">
+          <div className="flex justify-between items-center text-sm text-[#1E2A24]">
+            <span className="font-bold flex items-center gap-1.5">
               <span>Town & Field Notes</span>
-              <span className="text-[10px] text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-mono">AI Web Synthesis</span>
+              <span className="text-[10px] text-[#8A5818] bg-[#FFF9EE] px-1.5 py-0.5 rounded border border-[#F0D5A8] font-mono">AI Web Synthesis</span>
             </span>
             {insights?.retrieved_at && (
-              <span className="text-[10px] text-gray-400">
+              <span className="text-[10px] text-[#536259]">
                 Checked {new Date(insights.retrieved_at).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
               </span>
             )}
           </div>
           
           {loadingInsights ? (
-            <div className="text-xs text-gray-400 animate-pulse py-2">Scanning nearby town amenities & field reports...</div>
+            <div className="text-xs text-[#536259] animate-pulse py-2">Scanning nearby town amenities & field reports...</div>
           ) : insights ? (
-            <div className="space-y-2.5 text-xs text-gray-300">
+            <div className="space-y-2.5 text-xs text-[#1E2A24]">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-gray-400 block mb-0.5">⛽ Fuel</span>
-                  <span className="text-white font-medium">{insights.nearest_fuel}</span>
+                  <span className="text-[#536259] block mb-0.5">Fuel</span>
+                  <span className="font-semibold text-[#1E2A24]">{insights.nearest_fuel}</span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block mb-0.5">🛒 Groceries</span>
-                  <span className="text-white font-medium">{insights.nearest_grocery}</span>
+                  <span className="text-[#536259] block mb-0.5">Groceries</span>
+                  <span className="font-semibold text-[#1E2A24]">{insights.nearest_grocery}</span>
                 </div>
               </div>
 
               {insights.observations && insights.observations.length > 0 && (
-                <div className="border-t border-white/10 pt-2 space-y-1.5">
-                  <span className="text-gray-400 block text-[11px] font-semibold uppercase tracking-wider">Ground Truth Observations</span>
+                <div className="border-t border-[#E2DAC8] pt-2 space-y-1.5">
+                  <span className="text-[#536259] block text-[11px] font-bold uppercase tracking-wider">Ground Truth Observations</span>
                   {insights.observations.map((obs, i) => (
-                    <div key={i} className="bg-black/30 p-2 rounded-lg border border-white/5 space-y-0.5">
+                    <div key={i} className="bg-[#FFFFFF] p-2.5 rounded-lg border border-[#E2DAC8] space-y-0.5 shadow-xs">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-emerald-300 font-bold uppercase">{obs.category}</span>
-                        <span className="text-gray-500 italic">via {obs.source_attribution}</span>
+                        <span className="text-[#2F5D50] font-bold uppercase">{obs.category}</span>
+                        <span className="text-[#536259] italic">via {obs.source_attribution}</span>
                       </div>
-                      <div className="text-gray-200 text-xs">{obs.observation}</div>
+                      <div className="text-[#1E2A24] text-xs">{obs.observation}</div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="border-t border-white/10 pt-2">
-                <span className="text-gray-400 block mb-1">Top Activities</span>
+              <div className="border-t border-[#E2DAC8] pt-2">
+                <span className="text-[#536259] block mb-1">Top Activities</span>
                 <div className="flex flex-wrap gap-1">
                   {insights.top_activities.map((act, i) => (
-                    <span key={i} className="bg-white/10 px-2 py-0.5 rounded text-white text-[11px]">{act}</span>
+                    <span key={i} className="bg-[#FFFFFF] border border-[#E2DAC8] px-2 py-0.5 rounded text-[#1E2A24] text-[11px]">{act}</span>
                   ))}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="text-xs text-gray-400">Field notes currently unavailable</div>
+            <div className="text-xs text-[#536259]">Field notes currently unavailable</div>
           )}
         </div>
 
         {/* Plan B Monitoring Form */}
-        <div className="mt-2 border-t border-white/10 pt-4 shrink-0">
+        <div className="mt-2 border-t border-[#E2DAC8] pt-4 shrink-0">
           {saveSuccess ? (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center flex flex-col gap-3">
-              <div className="text-[var(--color-neon-green)] font-bold">✨ Trip Saved & Plan B Monitor Armed!</div>
-              <p className="text-xs text-gray-300">We will monitor rain, severe heat, and park closures for your weekend and alert you if conditions worsen.</p>
+            <div className="p-4 bg-[#EBF2EE] border border-[#2F5D50]/30 rounded-xl text-center flex flex-col gap-3">
+              <div className="text-[#2F5D50] font-bold">✨ Trip Saved & Plan B Monitor Armed!</div>
+              <p className="text-xs text-[#536259]">We will monitor rain, severe heat, and park closures for your weekend and alert you if conditions worsen.</p>
               <button 
                 onClick={() => setSaveSuccess(false)}
-                className="text-xs text-white underline"
+                className="text-xs text-[#2F5D50] underline font-semibold cursor-pointer"
               >
                 Save another date
               </button>
             </div>
           ) : isSaving ? (
-            <form onSubmit={handleSaveTrip} className="flex flex-col gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
-              <span className="text-xs font-semibold text-white">Save Trip & Arm Plan B Monitor</span>
+            <form onSubmit={handleSaveTrip} className="flex flex-col gap-3 bg-[#FAF6EF] p-4 rounded-xl border border-[#E2DAC8]">
+              <span className="text-xs font-bold text-[#1E2A24]">Save Trip & Arm Plan B Monitor</span>
               
               {saveError && (
-                <div className="text-xs text-red-400 bg-red-500/10 p-2 rounded border border-red-500/20">
+                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
                   {saveError}
                 </div>
               )}
 
               <div>
-                <label className="text-[10px] text-gray-400 block mb-1">Your Email</label>
+                <label className="text-[10px] text-[#536259] block mb-1 font-medium">Your Email</label>
                 <input 
                   type="email" 
                   required
                   placeholder="camper@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--color-neon-green)]"
+                  className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-lg px-3 py-1.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-gray-400 block mb-1">Start Date</label>
+                  <label className="text-[10px] text-[#536259] block mb-1 font-medium">Start Date</label>
                   <input 
                     type="date" 
                     required
@@ -765,17 +769,17 @@ export default function TripCard({
                       setStartDate(e.target.value);
                       if (!e.target.value) setFutureWeather(null);
                     }}
-                    className="w-full bg-black/40 border border-white/20 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--color-neon-green)]"
+                    className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-lg px-2 py-1.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-400 block mb-1">End Date</label>
+                  <label className="text-[10px] text-[#536259] block mb-1 font-medium">End Date</label>
                   <input 
                     type="date" 
                     required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-black/40 border border-white/20 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--color-neon-green)]"
+                    className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-lg px-2 py-1.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
                   />
                 </div>
               </div>
@@ -784,13 +788,13 @@ export default function TripCard({
                 <button 
                   type="button"
                   onClick={() => setIsSaving(false)}
-                  className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                  className="flex-1 py-2 bg-[#FFFFFF] hover:bg-[#F6F1E7] text-[#536259] text-xs font-bold rounded-lg border border-[#E2DAC8] transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 py-2 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] text-xs font-bold rounded-lg transition-all cursor-pointer"
+                  className="flex-1 py-2 bg-[#2F5D50] hover:bg-[#254A40] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-xs"
                 >
                   Confirm & Monitor
                 </button>
@@ -800,7 +804,7 @@ export default function TripCard({
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => setIsSaving(true)}
-                className="w-full py-2.5 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-bold text-xs rounded-xl transition-all shadow-[0_4px_20px_rgba(0,255,136,0.2)] hover:shadow-[0_4px_25px_rgba(0,255,136,0.4)] cursor-pointer"
+                className="w-full py-2.5 bg-[#2F5D50] hover:bg-[#254A40] text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer"
               >
                 Save Trip & Monitor for Plan B
               </button>
@@ -813,7 +817,7 @@ export default function TripCard({
             href={campsite.booking_url || campsite.source_url || `https://www.google.com/search?q=book+${encodeURIComponent(campsite.name)}+camping`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex justify-center items-center gap-1.5 w-full py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all text-xs border border-white/20 cursor-pointer"
+            className="flex justify-center items-center gap-1.5 w-full py-2 bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] font-bold rounded-xl transition-all text-xs border border-[#E2DAC8] cursor-pointer"
           >
             <span>View Booking / Permit Details</span>
             <ExternalLink size={13} />

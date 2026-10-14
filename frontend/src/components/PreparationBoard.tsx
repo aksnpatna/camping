@@ -174,24 +174,24 @@ export default function PreparationBoard({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 md:p-6 animate-fadeIn">
-      <div className="bg-[#0b1f17] border border-white/20 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col text-white shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 md:p-6 animate-fadeIn">
+      <div className="bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col text-[#1E2A24] shadow-2xl overflow-hidden">
         
         {/* HEADER */}
-        <div className="p-5 md:p-6 border-b border-white/10 flex items-center justify-between bg-black/40">
+        <div className="p-5 md:p-6 border-b border-[#E2DAC8] flex items-center justify-between bg-[#FFFFFF]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-[var(--color-neon-green)] bg-[var(--color-neon-green)]/10 border border-[var(--color-neon-green)]/30 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#2F5D50] bg-[#EBF2EE] border border-[#2F5D50]/30 px-2.5 py-0.5 rounded-full">
                 Phase 2 • Preparation Board
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-[#536259]">
                 Party of {partySize} {hasDog && "• 🐶 Dog"}
               </span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white mt-1">
+            <h2 className="text-2xl md:text-3xl font-black text-[#1E2A24] mt-1">
               {campsiteName}
             </h2>
-            <p className="text-xs text-gray-300">
+            <p className="text-xs text-[#536259]">
               Condition-aware checklist with calculated reasons, water rations, and pre-departure tasks.
             </p>
           </div>
@@ -201,7 +201,7 @@ export default function PreparationBoard({
               href={`/pack/${campsiteId}`}
               target="_blank"
               rel="noreferrer"
-              className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] border border-[#E2DAC8] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               title="Print Offline PDF"
             >
               <Printer size={15} />
@@ -213,7 +213,7 @@ export default function PreparationBoard({
                 setCopiedLink(true);
                 setTimeout(() => setCopiedLink(false), 2000);
               }}
-              className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] border border-[#E2DAC8] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               title="Share Checklist"
             >
               <Share2 size={15} />
@@ -221,7 +221,7 @@ export default function PreparationBoard({
             </button>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white p-2 text-xl font-bold rounded-lg hover:bg-white/10 transition-all cursor-pointer"
+              className="text-[#536259] hover:text-[#1E2A24] p-2 text-xl font-bold rounded-lg hover:bg-[#F6F1E7] transition-all cursor-pointer"
             >
               <X size={20} />
             </button>
@@ -229,14 +229,14 @@ export default function PreparationBoard({
         </div>
 
         {/* PROGRESS BAR & TABS */}
-        <div className="bg-black/20 border-b border-white/10 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-[#FAF6EF] border-b border-[#E2DAC8] px-6 py-3 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab("packing")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "packing"
-                  ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
-                  : "text-gray-300 hover:text-white"
+                  ? "bg-[#2F5D50] text-white shadow-xs"
+                  : "text-[#536259] hover:text-[#1E2A24]"
               }`}
             >
               <Package size={14} /> Packing List ({packedCount}/{totalPackingCount})
@@ -245,8 +245,8 @@ export default function PreparationBoard({
               onClick={() => setActiveTab("departure")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "departure"
-                  ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
-                  : "text-gray-300 hover:text-white"
+                  ? "bg-[#2F5D50] text-white shadow-xs"
+                  : "text-[#536259] hover:text-[#1E2A24]"
               }`}
             >
               <Flame size={14} /> Departure & Food ({checklist?.departure_tasks.length || 0})
@@ -255,8 +255,8 @@ export default function PreparationBoard({
               onClick={() => setActiveTab("gear")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "gear"
-                  ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
-                  : "text-gray-300 hover:text-white"
+                  ? "bg-[#2F5D50] text-white shadow-xs"
+                  : "text-[#536259] hover:text-[#1E2A24]"
               }`}
             >
               🎒 My Gear Profile ({gearProfile.length})
@@ -264,12 +264,12 @@ export default function PreparationBoard({
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="text-xs font-bold text-gray-300">
+            <div className="text-xs font-bold text-[#1E2A24]">
               {progressPercent}% Packed
             </div>
-            <div className="w-32 bg-white/10 h-2 rounded-full overflow-hidden">
+            <div className="w-32 bg-[#E2DAC8] h-2 rounded-full overflow-hidden">
               <div 
-                className="bg-[var(--color-neon-green)] h-full transition-all duration-300"
+                className="bg-[#2F5D50] h-full transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -277,18 +277,18 @@ export default function PreparationBoard({
         </div>
 
         {/* BODY CONTENT */}
-        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6 bg-[#FAF6EF]/30">
           
           {loading ? (
-            <div className="text-center py-16 text-gray-400 animate-pulse text-sm">
+            <div className="text-center py-16 text-[#536259] animate-pulse text-sm">
               Analyzing campsite terrain, weather forecasts, and gear needs...
             </div>
           ) : activeTab === "gear" ? (
             /* TAB 1: REUSABLE GEAR PROFILE */
             <div className="space-y-6">
-              <div className="bg-black/30 border border-white/10 p-4 rounded-xl">
-                <h3 className="text-sm font-bold text-white mb-1">Personal Equipment Profile</h3>
-                <p className="text-xs text-gray-400 mb-4">
+              <div className="bg-[#FFFFFF] border border-[#E2DAC8] p-4 rounded-xl shadow-xs">
+                <h3 className="text-sm font-bold text-[#1E2A24] mb-1">Personal Equipment Profile</h3>
+                <p className="text-xs text-[#536259] mb-4">
                   Select the camping items you already own. We match these against trip requirements to flag missing essentials and suggest borrowing before buying.
                 </p>
 
@@ -301,8 +301,8 @@ export default function PreparationBoard({
                         onClick={() => toggleProfileItem(item)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
                           owned
-                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm"
-                            : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20 hover:text-gray-200"
+                            ? "bg-[#EBF2EE] text-[#2F5D50] border-[#2F5D50]/40 shadow-xs font-bold"
+                            : "bg-[#FAF6EF] text-[#536259] border-[#E2DAC8] hover:border-[#2F5D50]/40 hover:text-[#1E2A24]"
                         }`}
                       >
                         {owned ? <CheckCircle2 size={13} /> : <Plus size={13} />}
@@ -319,11 +319,11 @@ export default function PreparationBoard({
                     value={customGearInput}
                     onChange={e => setCustomGearInput(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleAddCustomGear()}
-                    className="flex-1 bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[var(--color-neon-green)]"
+                    className="flex-1 bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl px-3 py-2 text-xs text-[#1E2A24] outline-none focus:border-[#2F5D50]"
                   />
                   <button
                     onClick={handleAddCustomGear}
-                    className="bg-white/15 hover:bg-white/25 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    className="bg-[#2F5D50] hover:bg-[#254A40] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
                   >
                     Add Item
                   </button>
@@ -332,19 +332,19 @@ export default function PreparationBoard({
 
               {gearProfile.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#536259] mb-2">
                     Your Saved Gear ({gearProfile.length} items)
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {gearProfile.map((g) => (
                       <span 
                         key={g} 
-                        className="bg-white/10 border border-white/10 text-white text-xs px-2.5 py-1 rounded-md flex items-center gap-1.5"
+                        className="bg-[#FFFFFF] border border-[#E2DAC8] text-[#1E2A24] text-xs px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs"
                       >
                         {g}
                         <button 
                           onClick={() => saveGearProfile(gearProfile.filter(i => i !== g))}
-                          className="text-gray-400 hover:text-red-400"
+                          className="text-[#536259] hover:text-[#A83232] cursor-pointer"
                         >
                           ✕
                         </button>
@@ -359,21 +359,21 @@ export default function PreparationBoard({
             <div className="space-y-6">
               
               {/* WATER & HYDRATION HIGHLIGHT */}
-              <div className="bg-sky-500/10 border border-sky-500/30 p-4 rounded-xl flex items-start gap-3">
-                <Droplets className="text-sky-400 shrink-0 mt-0.5" size={20} />
+              <div className="bg-[#EEF5FA] border border-[#1F6FB2]/30 p-4 rounded-xl flex items-start gap-3">
+                <Droplets className="text-[#1F6FB2] shrink-0 mt-0.5" size={20} />
                 <div>
-                  <h4 className="text-sm font-bold text-sky-200">
+                  <h4 className="text-sm font-bold text-[#1F6FB2]">
                     Mandatory Water Ration: {partySize * 5} Litres Minimum
                   </h4>
-                  <p className="text-xs text-sky-300/80 mt-1">
+                  <p className="text-xs text-[#536259] mt-1">
                     Calculated at 5L per person/day for Australian conditions. Do not rely on unpotable creek or dam water.
                   </p>
                 </div>
               </div>
 
               {/* FOOD & SHOPPING */}
-              <div className="bg-black/30 border border-white/10 p-5 rounded-xl space-y-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <div className="bg-[#FFFFFF] border border-[#E2DAC8] p-5 rounded-xl space-y-3 shadow-xs">
+                <h3 className="text-sm font-bold text-[#1E2A24] flex items-center gap-2">
                   🛒 Food & Shopping Essentials
                 </h3>
                 <div className="space-y-2">
@@ -381,14 +381,14 @@ export default function PreparationBoard({
                     <div 
                       key={idx}
                       onClick={() => toggleTask(`food_${idx}`)}
-                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 cursor-pointer text-xs transition-colors"
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-[#FAF6EF] cursor-pointer text-xs transition-colors"
                     >
                       {completedTasks[`food_${idx}`] ? (
-                        <CheckSquare className="text-[var(--color-neon-green)] shrink-0" size={16} />
+                        <CheckSquare className="text-[#2F5D50] shrink-0" size={16} />
                       ) : (
-                        <Square className="text-gray-500 shrink-0" size={16} />
+                        <Square className="text-[#536259]" size={16} />
                       )}
-                      <span className={completedTasks[`food_${idx}`] ? "line-through text-gray-500" : "text-gray-200 font-medium"}>
+                      <span className={completedTasks[`food_${idx}`] ? "line-through text-[#536259]" : "text-[#1E2A24] font-medium"}>
                         {item}
                       </span>
                     </div>
@@ -397,23 +397,23 @@ export default function PreparationBoard({
               </div>
 
               {/* PRE-DEPARTURE TASKS */}
-              <div className="bg-black/30 border border-white/10 p-5 rounded-xl space-y-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Flame size={16} className="text-amber-400" /> Pre-Departure Safety Tasks
+              <div className="bg-[#FFFFFF] border border-[#E2DAC8] p-5 rounded-xl space-y-3 shadow-xs">
+                <h3 className="text-sm font-bold text-[#1E2A24] flex items-center gap-2">
+                  <Flame size={16} className="text-[#C9822B]" /> Pre-Departure Safety Tasks
                 </h3>
                 <div className="space-y-2">
                   {checklist?.departure_tasks.map((task, idx) => (
                     <div 
                       key={idx}
                       onClick={() => toggleTask(`dept_${idx}`)}
-                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 cursor-pointer text-xs transition-colors"
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-[#FAF6EF] cursor-pointer text-xs transition-colors"
                     >
                       {completedTasks[`dept_${idx}`] ? (
-                        <CheckSquare className="text-[var(--color-neon-green)] shrink-0" size={16} />
+                        <CheckSquare className="text-[#2F5D50] shrink-0" size={16} />
                       ) : (
-                        <Square className="text-gray-500 shrink-0" size={16} />
+                        <Square className="text-[#536259]" size={16} />
                       )}
-                      <span className={completedTasks[`dept_${idx}`] ? "line-through text-gray-500" : "text-gray-200 font-medium"}>
+                      <span className={completedTasks[`dept_${idx}`] ? "line-through text-[#536259]" : "text-[#1E2A24] font-medium"}>
                         {task}
                       </span>
                     </div>
@@ -427,12 +427,12 @@ export default function PreparationBoard({
               
               {/* MISSING EQUIPMENT BORROW ALERT BANNER */}
               {checklist && checklist.missing_equipment_alerts.length > 0 && (
-                <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl space-y-2">
-                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
-                    <AlertTriangle size={16} className="shrink-0" />
+                <div className="bg-[#FFF9EE] border border-[#F0D5A8] p-4 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2 text-[#8A5818] font-bold text-xs">
+                    <AlertTriangle size={16} className="shrink-0 text-[#C9822B]" />
                     <span>Missing Gear Alert — Prioritize Borrowing or Renting First:</span>
                   </div>
-                  <ul className="list-disc pl-5 text-xs text-amber-200/80 space-y-1">
+                  <ul className="list-disc pl-5 text-xs text-[#8A5818]/90 space-y-1">
                     {checklist.missing_equipment_alerts.slice(0, 3).map((alert, i) => (
                       <li key={i}>{alert}</li>
                     ))}
@@ -442,12 +442,12 @@ export default function PreparationBoard({
 
               {/* GROUPED CATEGORIES */}
               {Object.entries(categories).map(([catName, items]) => (
-                <div key={catName} className="bg-black/30 border border-white/10 p-5 rounded-xl space-y-3">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                <div key={catName} className="bg-[#FFFFFF] border border-[#E2DAC8] p-5 rounded-xl space-y-3 shadow-xs">
+                  <div className="flex justify-between items-center border-b border-[#E2DAC8] pb-2">
+                    <h3 className="text-sm font-black text-[#1E2A24] uppercase tracking-wider">
                       {catName}
                     </h3>
-                    <span className="text-[11px] text-gray-400 font-medium">
+                    <span className="text-[11px] text-[#536259] font-medium">
                       {items.filter(i => packedItems[i.item]).length} of {items.length} packed
                     </span>
                   </div>
@@ -461,33 +461,33 @@ export default function PreparationBoard({
                           onClick={() => togglePacked(item.item)}
                           className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
                             isPacked 
-                              ? "bg-emerald-950/20 border-emerald-500/30 opacity-75"
-                              : "bg-white/5 border-white/5 hover:border-white/15"
+                              ? "bg-[#FAF6EF] border-[#E2DAC8] opacity-75"
+                              : "bg-[#FFFFFF] border-[#E2DAC8] hover:border-[#2F5D50]/40 shadow-xs"
                           }`}
                         >
                           <div className="mt-0.5 shrink-0">
                             {isPacked ? (
-                              <CheckSquare className="text-[var(--color-neon-green)]" size={17} />
+                              <CheckSquare className="text-[#2F5D50]" size={17} />
                             ) : (
-                              <Square className="text-gray-500" size={17} />
+                              <Square className="text-[#536259]" size={17} />
                             )}
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center justify-between gap-1">
-                              <span className={`text-xs font-bold ${isPacked ? "line-through text-gray-400" : "text-white"}`}>
+                              <span className={`text-xs font-bold ${isPacked ? "line-through text-[#536259]" : "text-[#1E2A24]"}`}>
                                 {item.item}
                               </span>
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] bg-white/10 text-gray-300 px-2 py-0.5 rounded font-mono">
+                                <span className="text-[10px] bg-[#FAF6EF] text-[#536259] border border-[#E2DAC8] px-2 py-0.5 rounded font-mono">
                                   {item.quantity}
                                 </span>
                                 {item.owned ? (
-                                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold">
+                                  <span className="text-[10px] bg-[#EBF2EE] text-[#2F5D50] border border-[#2F5D50]/30 px-1.5 py-0.5 rounded font-bold">
                                     Owned
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-bold">
+                                  <span className="text-[10px] bg-[#FFF9EE] text-[#8A5818] border border-[#F0D5A8] px-1.5 py-0.5 rounded font-bold">
                                     Borrow/Rent
                                   </span>
                                 )}
@@ -495,8 +495,8 @@ export default function PreparationBoard({
                             </div>
                             
                             {/* Calculated Reason */}
-                            <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
-                              <HelpCircle size={11} className="text-[var(--color-neon-green)] shrink-0" />
+                            <p className="text-[11px] text-[#536259] mt-1 flex items-center gap-1">
+                              <HelpCircle size={11} className="text-[#2F5D50] shrink-0" />
                               <span>{item.reason}</span>
                             </p>
                           </div>
@@ -511,13 +511,13 @@ export default function PreparationBoard({
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="p-4 bg-black/40 border-t border-white/10 flex items-center justify-between">
-          <span className="text-xs text-gray-400">
+        <div className="p-4 bg-[#FFFFFF] border-t border-[#E2DAC8] flex items-center justify-between">
+          <span className="text-xs text-[#536259]">
             Camp Smart Australia • All packing advice is condition-calculated.
           </span>
           <button
             onClick={onClose}
-            className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] font-bold text-xs px-5 py-2 rounded-xl transition-all hover:bg-[#00e67a] cursor-pointer"
+            className="bg-[#2F5D50] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all hover:bg-[#254A40] cursor-pointer shadow-xs"
           >
             Done Preparing
           </button>

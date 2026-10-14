@@ -10,6 +10,7 @@ import TripCard from '@/components/TripCard';
 import SearchFilter, { FilterParams } from '@/components/SearchFilter';
 import FindWeekendPlanner from '@/components/FindWeekendPlanner';
 import { getApiUrl } from '@/config';
+import { Compass, Map, Bookmark } from "lucide-react";
 
 interface PlanBAlertAlternative {
   id: number;
@@ -264,9 +265,9 @@ export default function Home() {
   }, [filters]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-[var(--color-forest-900)] flex flex-col">
+    <main className="relative w-screen h-screen overflow-hidden bg-[#F6F1E7] text-[#1E2A24] flex flex-col">
       {/* TOP NAVIGATION BAR */}
-      <header className="w-full bg-black/60 border-b border-white/10 px-4 md:px-6 py-3.5 flex items-center justify-between z-30 backdrop-blur-md shrink-0">
+      <header className="w-full bg-[#FFFFFF] border-b border-[#E2DAC8] px-4 md:px-6 py-3 flex items-center justify-between z-30 shadow-xs shrink-0">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
@@ -275,18 +276,19 @@ export default function Home() {
               setRouteGeoJson(null);
               setRouteDistance(null);
             }} 
-            className="text-xl md:text-2xl font-black text-white tracking-tighter flex items-center gap-1.5 cursor-pointer text-left"
+            className="text-xl md:text-2xl font-black text-[#1E2A24] tracking-tight flex items-center gap-1.5 cursor-pointer text-left"
           >
             <span>CAMP SMART</span>
-            <span className="text-[var(--color-neon-green)]">AU</span>
+            <span className="text-[#2F5D50] bg-[#EBF2EE] border border-[#2F5D50]/20 text-xs px-2 py-0.5 rounded-md font-black tracking-widest uppercase">AU</span>
           </button>
-          <span className="hidden lg:inline-block text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-            Condition-Aware Trip Engine
+          <span className="hidden lg:inline-flex items-center gap-1.5 text-[11px] bg-[#FAF6EF] text-[#536259] border border-[#E2DAC8] px-2.5 py-1 rounded-full font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2F5D50]"></span>
+            Field Guide • Condition-Aware Trip Engine
           </span>
         </div>
 
         {/* VIEW MODE TOGGLE */}
-        <div className="bg-white/10 border border-white/15 p-1 rounded-xl flex items-center gap-1">
+        <div className="bg-[#EFE9DD] border border-[#E2DAC8] p-1 rounded-xl flex items-center gap-1">
           <button
             onClick={() => {
               setViewMode("planner");
@@ -296,21 +298,23 @@ export default function Home() {
             }}
             className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               viewMode === "planner"
-                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow-md"
-                : "text-gray-300 hover:text-white"
+                ? "bg-[#2F5D50] text-white shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
-            🎯 3 Best Trips
+            <Compass size={14} className={viewMode === "planner" ? "text-[#C9822B]" : ""} /> 
+            <span>3 Best Trips</span>
           </button>
           <button
             onClick={() => setViewMode("map")}
             className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               viewMode === "map"
-                ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow-md"
-                : "text-gray-300 hover:text-white"
+                ? "bg-[#2F5D50] text-white shadow-xs"
+                : "text-[#536259] hover:text-[#1E2A24]"
             }`}
           >
-            🗺️ Interactive Map
+            <Map size={14} className={viewMode === "map" ? "text-[#C9822B]" : ""} /> 
+            <span>Interactive Map</span>
           </button>
         </div>
 
@@ -318,13 +322,14 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowDashboard(true)}
-            className="bg-white/10 hover:bg-white/20 border border-white/10 px-3.5 py-1.5 rounded-xl font-bold text-white text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            className="bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3.5 py-1.5 rounded-xl font-bold text-[#1E2A24] text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
-            ⛺ My Trips
+            <Bookmark size={14} className="text-[#2F5D50]" /> 
+            <span>My Trips</span>
           </button>
           <Link
             href="/explore/nsw"
-            className="hidden sm:inline-flex bg-white/5 hover:bg-white/15 border border-white/10 px-3 py-1.5 rounded-xl font-semibold text-gray-300 text-xs transition-all"
+            className="hidden sm:inline-flex bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3 py-1.5 rounded-xl font-semibold text-[#536259] text-xs transition-all shadow-xs"
           >
             Fire Rules
           </Link>
@@ -391,16 +396,17 @@ export default function Home() {
 
       {/* My Trips Dashboard Modal */}
       {showDashboard && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-white/20 p-6 rounded-2xl w-full max-w-md text-white shadow-2xl">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E2DAC8] p-6 rounded-2xl w-full max-w-lg text-[#1E2A24] shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-xl font-black text-[var(--color-neon-green)] flex items-center gap-2">
+                <h2 className="text-xl font-black text-[#1E2A24] flex items-center gap-2">
+                  <Bookmark className="text-[#2F5D50]" size={20} />
                   <span>My Saved Trips & Condition Monitor</span>
                 </h2>
-                <p className="text-xs text-gray-400">Track weather shifts, group shortlists, and 1-click Plan B backups</p>
+                <p className="text-xs text-[#536259]">Track weather shifts, group shortlists, and 1-click Plan B backups</p>
               </div>
-              <button onClick={() => setShowDashboard(false)} className="text-gray-400 hover:text-white p-2">✕</button>
+              <button onClick={() => setShowDashboard(false)} className="text-[#536259] hover:text-[#1E2A24] p-2 text-lg">✕</button>
             </div>
             
             <div className="flex flex-col gap-2.5 mb-6">
@@ -414,7 +420,7 @@ export default function Home() {
                     setDashError("");
                     setMagicLinkFeedback("");
                   }}
-                  className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green"
+                  className="flex-1 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg px-3 py-2 text-sm text-[#1E2A24] outline-none focus:border-[#2F5D50]"
                 />
                 <button
                   type="button"
@@ -455,7 +461,7 @@ export default function Home() {
                       setRequestingMagicLink(false);
                     }
                   }}
-                  className="bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-2 rounded-lg font-bold text-xs text-white transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                  className="bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3 py-2 rounded-lg font-bold text-xs text-[#1E2A24] transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer shadow-xs"
                 >
                   {requestingMagicLink ? "Sending..." : "Send Magic Link 📧"}
                 </button>
@@ -467,7 +473,7 @@ export default function Home() {
                   placeholder="Access Token (from email)" 
                   value={dashToken}
                   onChange={e => setDashToken(e.target.value)}
-                  className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neon-green font-mono text-xs"
+                  className="flex-1 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg px-3 py-2 text-sm text-[#1E2A24] outline-none focus:border-[#2F5D50] font-mono text-xs"
                 />
                 <button 
                   onClick={async () => {
@@ -490,38 +496,38 @@ export default function Home() {
                     }
                     setLoadingTrips(false);
                   }}
-                  className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#00e67a] cursor-pointer shrink-0"
+                  className="bg-[#2F5D50] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#24493F] cursor-pointer shrink-0 shadow-xs"
                 >
                   Load
                 </button>
               </div>
               {magicLinkFeedback && (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-2 rounded-lg text-center font-medium">
+                <div className="bg-[#EBF2EE] border border-[#2F5D50]/30 text-[#2F5D50] text-xs p-2 rounded-lg text-center font-medium">
                   {magicLinkFeedback}
                 </div>
               )}
-              {dashError && <div className="text-red-400 text-xs text-center mt-1">{dashError}</div>}
+              {dashError && <div className="text-[#B3261E] text-xs text-center mt-1">{dashError}</div>}
               {actionMessage && (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-2.5 rounded-lg text-center font-bold">
+                <div className="bg-[#EBF2EE] border border-[#2F5D50]/30 text-[#2F5D50] text-xs p-2.5 rounded-lg text-center font-bold">
                   {actionMessage}
                 </div>
               )}
             </div>
 
             {loadingTrips ? (
-              <div className="text-center text-sm text-gray-400 py-6 animate-pulse">Loading your trips and condition monitors...</div>
+              <div className="text-center text-sm text-[#536259] py-6 animate-pulse">Loading your trips and condition monitors...</div>
             ) : myTrips ? (
               myTrips.length === 0 ? (
-                <div className="text-center text-sm text-gray-400 py-6">No trips found for this email.</div>
+                <div className="text-center text-sm text-[#536259] py-6">No trips found for this email.</div>
               ) : (
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                   {myTrips.map(trip => (
-                    <div key={trip.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col justify-between">
+                    <div key={trip.id} className="bg-[#FAF6EF] border border-[#E2DAC8] p-4 rounded-xl flex flex-col justify-between shadow-xs">
                       <div>
                         <div className="flex justify-between items-start gap-2 mb-2">
                           <div>
-                            <h3 className="font-bold text-white text-base">{trip.campsite_name}</h3>
-                            <div className="text-xs text-gray-400 mt-0.5">
+                            <h3 className="font-bold text-[#1E2A24] text-base">{trip.campsite_name}</h3>
+                            <div className="text-xs text-[#536259] mt-0.5">
                               {trip.state} • {trip.start_date} to {trip.end_date}
                             </div>
                           </div>
@@ -530,7 +536,7 @@ export default function Home() {
                               <Link 
                                 href={`/trip/${trip.room_token}`}
                                 target="_blank"
-                                className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-lg font-bold hover:bg-emerald-500/30 transition-all flex items-center gap-1"
+                                className="text-xs bg-[#EBF2EE] text-[#2F5D50] border border-[#2F5D50]/30 px-2.5 py-1 rounded-lg font-bold hover:bg-[#DFEBE5] transition-all flex items-center gap-1"
                               >
                                 Room ↗
                               </Link>
@@ -539,24 +545,24 @@ export default function Home() {
                               href={`/pack/${trip.campsite_id}`} 
                               target="_blank" 
                               rel="noreferrer" 
-                              className="text-xs bg-white/10 text-gray-200 border border-white/15 px-2.5 py-1 rounded-lg font-bold hover:bg-white/20 transition-all"
+                              className="text-xs bg-[#FFFFFF] text-[#1E2A24] border border-[#E2DAC8] px-2.5 py-1 rounded-lg font-bold hover:bg-[#FAF6EF] transition-all shadow-xs"
                             >
                               Pack List
                             </a>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs py-2 border-y border-white/5 my-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs py-2 border-y border-[#E2DAC8]/60 my-2">
                           <div className="flex items-center gap-2">
                             {trip.plan_b_active ? (
-                              <span className="text-[var(--color-neon-green)] flex items-center gap-1 font-bold">
+                              <span className="text-[#2E7D32] flex items-center gap-1 font-bold">
                                 🟢 Plan B Active
                               </span>
                             ) : (
-                              <span className="text-gray-500">⚪ Monitor Inactive</span>
+                              <span className="text-[#8B9891]">⚪ Monitor Inactive</span>
                             )}
                             {trip.is_shortlist && (
-                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded font-bold">
+                              <span className="bg-[#FAF2E6] text-[#9A5C0E] border border-[#E8CFA9] text-[10px] px-2 py-0.5 rounded font-bold">
                                 Shortlist
                               </span>
                             )}
@@ -590,7 +596,7 @@ export default function Home() {
                               }
                             }}
                             disabled={simulatingTripId === trip.id}
-                            className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            className="text-[11px] bg-[#FAF2E6] hover:bg-[#F3E5D0] text-[#9A5C0E] border border-[#E8CFA9] px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
                             title="Simulate severe condition shift to test Plan B alternatives"
                           >
                             <span>⚡ {simulatingTripId === trip.id ? "Simulating..." : "Test Condition Shift"}</span>
@@ -599,26 +605,26 @@ export default function Home() {
 
                         {/* PLAN B ALERT BANNER WITH 1-CLICK ALTERNATIVE SWITCHING */}
                         {trip.alerts && trip.alerts.length > 0 && (
-                          <div className="mt-3 bg-red-950/70 border border-red-500/40 p-3.5 rounded-xl text-xs space-y-2.5 shadow-lg">
-                            <div className="flex items-center gap-2 text-red-300 font-bold">
-                              <span className="animate-pulse text-base">🚨</span>
+                          <div className="mt-3 bg-[#FDF2F2] border border-[#F5C2C2] p-3.5 rounded-xl text-xs space-y-2.5 shadow-xs">
+                            <div className="flex items-center gap-2 text-[#B3261E] font-bold">
+                              <span className="text-base">⚠️</span>
                               <span>{trip.alerts[0].details}</span>
                             </div>
 
                             {trip.alerts[0].suggested_alternatives && trip.alerts[0].suggested_alternatives.length > 0 && (
-                              <div className="space-y-2 pt-2 border-t border-red-500/20">
-                                <span className="text-[11px] text-gray-300 font-bold block uppercase tracking-wider">
+                              <div className="space-y-2 pt-2 border-t border-[#F5C2C2]">
+                                <span className="text-[11px] text-[#536259] font-bold block uppercase tracking-wider">
                                   Safe Alternative Campsites:
                                 </span>
                                 <div className="grid grid-cols-1 gap-2">
                                   {trip.alerts[0].suggested_alternatives.map((alt) => (
-                                    <div key={alt.id} className="bg-black/60 p-3 rounded-xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                                    <div key={alt.id} className="bg-[#FFFFFF] p-3 rounded-xl border border-[#E2DAC8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
                                       <div>
-                                        <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                                        <div className="font-bold text-[#1E2A24] text-xs flex items-center gap-1.5">
                                           <span>{alt.name}</span>
-                                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 uppercase font-mono">{alt.state}</span>
+                                          <span className="text-[10px] text-[#2F5D50] bg-[#EBF2EE] px-1.5 py-0.2 rounded border border-[#2F5D50]/20 uppercase font-mono">{alt.state}</span>
                                         </div>
-                                        <div className="text-[11px] text-gray-300 mt-0.5">{alt.reason}</div>
+                                        <div className="text-[11px] text-[#536259] mt-0.5">{alt.reason}</div>
                                       </div>
 
                                       <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
@@ -631,7 +637,7 @@ export default function Home() {
                                               setViewMode("map");
                                             }
                                           }}
-                                          className="text-[11px] bg-white/10 hover:bg-white/20 text-gray-300 px-2.5 py-1.5 rounded-lg font-bold cursor-pointer"
+                                          className="text-[11px] bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] text-[#1E2A24] px-2.5 py-1.5 rounded-lg font-bold cursor-pointer"
                                         >
                                           Map
                                         </button>
@@ -660,7 +666,7 @@ export default function Home() {
                                             }
                                           }}
                                           disabled={switchingTripId === trip.id}
-                                          className="flex-1 sm:flex-none text-[11px] bg-[var(--color-neon-green)] text-[var(--color-forest-900)] hover:bg-[#00e67a] px-3 py-1.5 rounded-lg font-black transition-all cursor-pointer disabled:opacity-50"
+                                          className="flex-1 sm:flex-none text-[11px] bg-[#2F5D50] text-white hover:bg-[#24493F] px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer disabled:opacity-50 shadow-xs"
                                         >
                                           {switchingTripId === trip.id ? "Switching..." : "⚡ Switch Here"}
                                         </button>
@@ -678,7 +684,7 @@ export default function Home() {
                 </div>
               )
             ) : (
-              <div className="text-center text-sm text-gray-500 py-6">Enter your email and token to view your planned trips, test Plan B shifts, and switch campgrounds.</div>
+              <div className="text-center text-sm text-[#536259] py-6">Enter your email and token to view your planned trips, test Plan B shifts, and switch campgrounds.</div>
             )}
           </div>
         </div>

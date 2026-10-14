@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { 
-  Sparkles, 
   MapPin, 
   Calendar, 
   AlertCircle, 
@@ -21,7 +20,13 @@ import {
   Droplets,
   Layers,
   Dog,
-  Shuffle
+  Shuffle,
+  Clock,
+  Backpack,
+  Download,
+  Check,
+  Radio,
+  Scale
 } from "lucide-react";
 import { getApiUrl } from "@/config";
 import PreparationBoard from "./PreparationBoard";
@@ -293,30 +298,30 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
     <div className="w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* HERO & SEARCH BAR */}
       <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[var(--color-neon-green)] text-xs font-bold uppercase tracking-wider mb-3">
-          <Sparkles size={14} /> Answer-First Weekend Finder
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FAF2E6] border border-[#E8CFA9] text-[#9A5C0E] text-xs font-bold uppercase tracking-wider mb-3">
+          <Compass size={14} className="text-[#C9822B]" /> Answer-First Weekend Finder
         </div>
-        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3">
+        <h1 className="text-3xl md:text-5xl font-black text-[#1E2A24] tracking-tight mb-3">
           Turn your free weekend into <br className="hidden md:block"/>
-          <span className="text-[var(--color-neon-green)]">the right camping trip</span>
+          <span className="text-[#2F5D50]">the right camping trip</span>
         </h1>
-        <p className="text-gray-300 text-sm md:text-base mb-4">
+        <p className="text-[#536259] text-sm md:text-base mb-4 font-medium">
           Condition-aware trip cards matched to your group, your vehicle, and your gear. No 50,000 dots to guess from.
         </p>
 
         {/* ORIGIN LOCATION BADGE */}
         <div className="relative mb-4 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/50 border border-white/15 text-xs text-gray-200 backdrop-blur-md shadow-lg">
-            <MapPin size={14} className="text-[var(--color-neon-green)]" />
-            <span>Departing from <strong className="text-white">{city}, {state}</strong></span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFFFFF] border border-[#E2DAC8] text-xs text-[#1E2A24] shadow-xs">
+            <MapPin size={14} className="text-[#C9822B]" />
+            <span>Departing from <strong className="text-[#1E2A24]">{city}, {state}</strong></span>
             {startLocation?.isDetected && (
-              <span className="text-[10px] text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
-                {startLocation.source === "gps" ? "📍 GPS Location" : "🌐 IP Detected"}
+              <span className="text-[10px] text-[#2F5D50] bg-[#EBF2EE] px-2 py-0.5 rounded-full font-bold border border-[#2F5D50]/20">
+                {startLocation.source === "gps" ? "GPS Location" : "IP Detected"}
               </span>
             )}
             <button
               onClick={() => setShowOriginDropdown(!showOriginDropdown)}
-              className="text-[11px] text-[var(--color-neon-green)] hover:underline ml-1 font-bold cursor-pointer"
+              className="text-[11px] text-[#2F5D50] hover:underline ml-1 font-bold cursor-pointer"
             >
               {showOriginDropdown ? "Close" : "Change City"}
             </button>
@@ -324,7 +329,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
           {/* QUICK ORIGIN SWITCHER DROPDOWN */}
           {showOriginDropdown && (
-            <div className="absolute top-10 z-30 bg-slate-900/95 border border-white/20 rounded-xl p-2.5 shadow-2xl backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-1.5 min-w-[320px]">
+            <div className="absolute top-10 z-30 bg-[#FFFFFF] border border-[#E2DAC8] rounded-xl p-2.5 shadow-2xl grid grid-cols-2 sm:grid-cols-4 gap-1.5 min-w-[320px]">
               {MAJOR_AU_ORIGINS.map(origin => (
                 <button
                   key={origin.city}
@@ -342,10 +347,10 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                       onUpdateStartLocation(newLoc);
                     }
                   }}
-                  className={`text-xs px-3 py-2 rounded-lg text-left font-medium transition-all cursor-pointer ${
+                  className={`text-xs px-3 py-2 rounded-lg text-left font-semibold transition-all cursor-pointer ${
                     city === origin.city
-                      ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] font-black shadow"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                      ? "bg-[#2F5D50] text-white shadow-xs"
+                      : "text-[#536259] hover:bg-[#FAF6EF] hover:text-[#1E2A24]"
                   }`}
                 >
                   {origin.city}, {origin.state}
@@ -356,9 +361,9 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
         </div>
 
         {/* INPUT FORM */}
-        <div className="w-full bg-black/40 border border-white/15 rounded-2xl p-2.5 shadow-2xl backdrop-blur-md flex flex-col md:flex-row gap-2">
+        <div className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl p-2 shadow-md flex flex-col md:flex-row gap-2">
           <div className="relative flex-1 flex items-center">
-            <Search className="absolute left-3.5 text-gray-400" size={18} />
+            <Search className="absolute left-3.5 text-[#8B9891]" size={18} />
             <input 
               type="text"
               value={activePrompt}
@@ -367,16 +372,16 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
               }}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
               placeholder={`e.g. 2 adults, kids and a dog, leaving ${city} Friday, under 3 hours...`}
-              className="w-full bg-transparent pl-11 pr-4 py-3 text-sm md:text-base text-white outline-none placeholder:text-gray-500 font-medium"
+              className="w-full bg-transparent pl-11 pr-4 py-3 text-sm md:text-base text-[#1E2A24] outline-none placeholder:text-[#8B9891] font-medium"
             />
           </div>
           <button 
             onClick={() => handleSearch()}
             disabled={loading}
-            className="bg-[var(--color-neon-green)] text-[var(--color-forest-900)] px-6 py-3 rounded-xl font-black text-sm md:text-base hover:bg-[#00e67a] transition-all flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer shadow-[0_0_20px_rgba(0,255,136,0.25)]"
+            className="bg-[#2F5D50] text-white px-6 py-3 rounded-xl font-bold text-sm md:text-base hover:bg-[#24493F] transition-all flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {loading ? (
-              <span className="animate-spin">🔄</span>
+              <span className="animate-spin">◌</span>
             ) : (
               <>Find My 3 Trips <ArrowRight size={18} /></>
             )}
@@ -385,7 +390,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
         {/* PRESET QUERY CHIPS */}
         <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-          <span className="text-xs text-gray-400 mr-1 font-semibold">Try:</span>
+          <span className="text-xs text-[#536259] mr-1 font-semibold">Try:</span>
           {presets.map((preset, idx) => (
             <button
               key={idx}
@@ -393,7 +398,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                 setUserPrompt(preset.prompt);
                 handleSearch(preset.prompt);
               }}
-              className="text-xs bg-white/5 hover:bg-white/15 text-gray-200 border border-white/10 px-3 py-1.5 rounded-full transition-all cursor-pointer font-medium"
+              className="text-xs bg-[#FFFFFF] hover:bg-[#FAF6EF] text-[#536259] hover:text-[#1E2A24] border border-[#E2DAC8] px-3.5 py-1.5 rounded-full transition-all cursor-pointer font-medium shadow-2xs"
             >
               {preset.label}
             </button>
@@ -403,12 +408,12 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
       {/* LIMITING CONSTRAINT BANNER (When zero or restricted) */}
       {limitingConstraint && (
-        <div className="bg-amber-950/60 border border-amber-500/40 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-amber-200 shadow-xl backdrop-blur-md">
+        <div className="bg-[#FAF2E6] border border-[#E8CFA9] p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-[#7A4506] shadow-xs">
           <div className="flex items-start gap-3">
-            <AlertCircle className="text-amber-400 shrink-0 mt-0.5" size={22} />
+            <AlertCircle className="text-[#C9822B] shrink-0 mt-0.5" size={22} />
             <div>
-              <h4 className="font-bold text-base text-amber-300">Limiting Constraint Identified</h4>
-              <p className="text-sm text-amber-200/90 mt-0.5">{limitingConstraint}</p>
+              <h4 className="font-bold text-base text-[#9A5C0E]">Limiting Constraint Identified</h4>
+              <p className="text-sm text-[#7A4506]/90 mt-0.5">{limitingConstraint}</p>
             </div>
           </div>
           {suggestedAdjustments.length > 0 && (
@@ -417,7 +422,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                 <button
                   key={i}
                   onClick={() => handleWhatIfAdjust(adj)}
-                  className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-xs px-3 py-2 rounded-lg font-bold transition-all cursor-pointer"
+                  className="bg-[#FFFFFF] hover:bg-[#FAF6EF] border border-[#E8CFA9] text-[#9A5C0E] text-xs px-3 py-2 rounded-lg font-bold transition-all cursor-pointer shadow-2xs"
                 >
                   ⚡ {adj}
                 </button>
@@ -429,14 +434,14 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
       {/* ASSUMED ORIGIN TRANSPARENCY BANNER */}
       {assumedOrigin && cards.length > 0 && (
-        <div className="bg-sky-950/40 border border-sky-500/30 px-4 py-2.5 rounded-xl text-xs text-sky-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-md backdrop-blur-md">
+        <div className="bg-[#F0F7FB] border border-[#BAE0F3] px-4 py-2.5 rounded-xl text-xs text-[#1F6FB2] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs">
           <div className="flex items-center gap-2">
-            <Compass size={15} className="text-sky-400 shrink-0" />
+            <Compass size={15} className="text-[#1F6FB2] shrink-0" />
             <span>
-              Search routed from assumed origin: <strong className="text-white">{assumedOrigin}</strong>. Drive times & distances are estimates from here.
+              Search routed from assumed origin: <strong className="text-[#1E2A24] font-bold">{assumedOrigin}</strong>. Drive times & distances are estimates from here.
             </span>
           </div>
-          <span className="text-[11px] text-sky-300/70 shrink-0">
+          <span className="text-[11px] text-[#1F6FB2]/80 shrink-0">
             Set your departure town or enable GPS for exact drive times
           </span>
         </div>
@@ -487,7 +492,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
               return (
                 <div 
                   key={card.id}
-                  className="bg-[#0b2019]/95 border border-emerald-500/25 rounded-2xl flex flex-col justify-between shadow-2xl hover:border-emerald-500/50 transition-all backdrop-blur-md relative overflow-hidden group"
+                  className="bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:border-[#2F5D50]/40 transition-all relative overflow-hidden group"
                 >
                   {/* HERO VISUAL COVER PHOTO BANNER */}
                   <div className="relative h-44 w-full overflow-hidden shrink-0">
@@ -496,56 +501,56 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                       alt={card.name} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b2019] via-[#0b2019]/50 to-black/40" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1E2A24]/90 via-[#1E2A24]/40 to-transparent" />
 
                     {card.is_illustrative_photo && (
-                      <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-[9px] text-gray-300/80 px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-wider">
+                      <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-[9px] text-gray-200 px-1.5 py-0.5 rounded border border-white/20 uppercase tracking-wider">
                         Illustrative Photo
                       </div>
                     )}
 
                     {/* TOP FLOATING CONTROLS */}
                     <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                      <span className="bg-black/70 backdrop-blur-md text-[var(--color-neon-green)] border border-emerald-500/40 text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow">
+                      <span className="bg-[#1E2A24]/85 backdrop-blur-md text-[#FAF6EF] border border-white/20 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider shadow-xs">
                         {card.highlight_badge || `#${index + 1} Pick`}
                       </span>
-                      <span className="bg-black/70 backdrop-blur-md text-gray-200 border border-white/10 text-[10px] px-2.5 py-1 rounded-full font-bold shadow">
-                        ⏱️ {driveHours > 0 ? `${driveHours}h ` : ""}{driveMins}m
+                      <span className="bg-[#1E2A24]/85 backdrop-blur-md text-[#FAF6EF] border border-white/20 text-[10px] px-2.5 py-1 rounded-full font-medium shadow-xs flex items-center gap-1">
+                        <Clock size={11} className="text-[#C9822B]" /> {driveHours > 0 ? `${driveHours}h ` : ""}{driveMins}m
                       </span>
                     </div>
 
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
                       <button
                         onClick={() => handleSaveOffline(card)}
-                        className={`text-[10px] px-2 py-1 rounded-lg font-black backdrop-blur-md border transition-all cursor-pointer shadow ${
+                        className={`text-[10px] px-2.5 py-1 rounded-lg font-bold backdrop-blur-md border transition-all cursor-pointer shadow-xs flex items-center gap-1 ${
                           isSavedOffline
-                            ? "bg-amber-400 text-black border-amber-300"
-                            : "bg-black/60 hover:bg-black/80 text-white border-white/20"
+                            ? "bg-[#C9822B] text-white border-[#C9822B]"
+                            : "bg-[#1E2A24]/75 hover:bg-[#1E2A24] text-white border-white/20"
                         }`}
                         title={isSavedOffline ? "Saved in Offline Bush Vault" : "Save for offline bush mode"}
                       >
-                        {isSavedOffline ? "💾 Cached" : "📥 Offline"}
+                        <Download size={11} /> {isSavedOffline ? "Saved" : "Offline"}
                       </button>
 
                       <button
                         onClick={() => toggleCompare(card.id)}
-                        className={`text-[10px] px-2 py-1 rounded-lg font-black backdrop-blur-md border transition-all cursor-pointer shadow ${
+                        className={`text-[10px] px-2.5 py-1 rounded-lg font-bold backdrop-blur-md border transition-all cursor-pointer shadow-xs flex items-center gap-1 ${
                           isCompared 
-                            ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] border-[var(--color-neon-green)]" 
-                            : "bg-black/60 hover:bg-black/80 text-white border-white/20"
+                            ? "bg-[#2F5D50] text-white border-[#2F5D50]" 
+                            : "bg-[#1E2A24]/75 hover:bg-[#1E2A24] text-white border-white/20"
                         }`}
                       >
-                        {isCompared ? "✓ Compared" : "+ Compare"}
+                        {isCompared ? <><Check size={11} /> Compared</> : "+ Compare"}
                       </button>
                     </div>
 
                     {/* TITLE & LOCATION OVERLAY */}
                     <div className="absolute bottom-2 left-3 right-3">
-                      <h3 className="text-xl font-black text-white leading-tight drop-shadow-md group-hover:text-[var(--color-neon-green)] transition-colors">
+                      <h3 className="text-lg font-black text-white leading-tight drop-shadow-sm group-hover:text-[#FAF6EF] transition-colors">
                         {card.name}
                       </h3>
-                      <p className="text-[11px] text-emerald-300/90 flex items-center gap-1 mt-0.5 font-medium">
-                        <MapPin size={11} className="text-emerald-400" />
+                      <p className="text-[11px] text-[#FAF6EF]/90 flex items-center gap-1 mt-0.5 font-medium">
+                        <MapPin size={11} className="text-[#E2DAC8]" />
                         {card.state} • {card.management_type || "Public Reserve"} • {card.driving_distance_km}km
                       </p>
                     </div>
@@ -554,13 +559,13 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                   {/* BODY CONTENT */}
                   <div className="p-4 flex flex-col gap-3">
                     {/* PERSPECTIVE SELECTOR (Glance / 5-Axis Radar / Weather Ribbon) */}
-                    <div className="flex items-center justify-between bg-black/50 p-1 rounded-xl border border-white/10 text-[11px]">
+                    <div className="flex items-center justify-between bg-[#F6F1E7] p-1 rounded-xl border border-[#E2DAC8] text-[11px]">
                       <button
                         onClick={() => setCardViewMode(prev => ({ ...prev, [card.id]: "glance" }))}
                         className={`flex-1 py-1 px-2 rounded-lg font-bold transition-all cursor-pointer text-center ${
                           (cardViewMode[card.id] || "glance") === "glance"
-                            ? "bg-white/20 text-white shadow"
-                            : "text-gray-400 hover:text-gray-200"
+                            ? "bg-[#FFFFFF] text-[#1E2A24] shadow-xs border border-[#E2DAC8]"
+                            : "text-[#536259] hover:text-[#1E2A24]"
                         }`}
                       >
                         Glance
@@ -569,8 +574,8 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                         onClick={() => setCardViewMode(prev => ({ ...prev, [card.id]: "radar" }))}
                         className={`flex-1 py-1 px-2 rounded-lg font-bold transition-all cursor-pointer text-center ${
                           cardViewMode[card.id] === "radar"
-                            ? "bg-[var(--color-neon-green)] text-[var(--color-forest-900)] shadow"
-                            : "text-gray-400 hover:text-gray-200"
+                            ? "bg-[#2F5D50] text-white shadow-xs"
+                            : "text-[#536259] hover:text-[#1E2A24]"
                         }`}
                       >
                         5-Axis Radar
@@ -579,8 +584,8 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                         onClick={() => setCardViewMode(prev => ({ ...prev, [card.id]: "weather" }))}
                         className={`flex-1 py-1 px-2 rounded-lg font-bold transition-all cursor-pointer text-center ${
                           cardViewMode[card.id] === "weather"
-                            ? "bg-sky-500 text-black shadow"
-                            : "text-gray-400 hover:text-gray-200"
+                            ? "bg-[#1F6FB2] text-white shadow-xs"
+                            : "text-[#536259] hover:text-[#1E2A24]"
                         }`}
                       >
                         Weather Ribbon
@@ -609,7 +614,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                         <div className="grid grid-cols-3 gap-1.5">
                           <FactChip
                             label="Access"
-                            icon={<Car size={11} className="text-gray-300" />}
+                            icon={<Car size={11} className="text-[#536259]" />}
                             displayValue={card.visual_badges?.clearance || (card.vehicle_clearance === "4WD_ONLY" ? "4WD Only" : "2WD Easy")}
                             fact={card.facts?.vehicle_access}
                             onInspect={() => {
@@ -626,7 +631,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                           <FactChip
                             label="Telco"
-                            icon={<Wifi size={11} className="text-gray-300" />}
+                            icon={<Wifi size={11} className="text-[#536259]" />}
                             displayValue={card.visual_badges?.telco || "Coverage Unspecified"}
                             fact={card.facts?.telco}
                             onInspect={() => {
@@ -643,7 +648,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                           <FactChip
                             label="Campfire"
-                            icon={<Flame size={11} className="text-gray-300" />}
+                            icon={<Flame size={11} className="text-[#536259]" />}
                             displayValue={card.visual_badges?.campfire || "Check Fire Rules"}
                             fact={card.facts?.campfires}
                             onInspect={() => {
@@ -660,7 +665,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                           <FactChip
                             label="Water"
-                            icon={<Droplets size={11} className="text-gray-300" />}
+                            icon={<Droplets size={11} className="text-[#536259]" />}
                             displayValue={card.visual_badges?.water || "Water Unverified"}
                             fact={card.facts?.water}
                             onInspect={() => {
@@ -677,7 +682,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                           <FactChip
                             label="Toilets"
-                            icon={<Layers size={11} className="text-gray-300" />}
+                            icon={<Layers size={11} className="text-[#536259]" />}
                             displayValue={card.visual_badges?.toilets || "Toilets Unverified"}
                             fact={card.facts?.toilets}
                             onInspect={() => {
@@ -694,7 +699,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                           <FactChip
                             label="Pets"
-                            icon={<Dog size={11} className="text-gray-300" />}
+                            icon={<Dog size={11} className="text-[#536259]" />}
                             displayValue={card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Check Regulations"}
                             fact={card.facts?.dog_friendly}
                             onInspect={() => {
@@ -720,32 +725,34 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                     )}
 
                     {/* GEAR-FIT BADGE (D9) */}
-                    <div className="bg-emerald-950/40 border border-emerald-500/25 px-3 py-1.5 rounded-xl text-xs flex items-center justify-between text-emerald-200">
-                      <span className="font-semibold text-[11px] flex items-center gap-1.5">
-                        🎒 <strong className="text-white">Gear Fit:</strong> 15°C Summer Quilt / Light Bag ✔
+                    <div className="bg-[#FAF6EF] border border-[#E2DAC8] px-3 py-2 rounded-xl text-xs flex items-center justify-between text-[#1E2A24]">
+                      <span className="font-medium text-[11px] flex items-center gap-1.5">
+                        <Backpack size={13} className="text-[#2F5D50]" />
+                        <strong className="text-[#1E2A24]">Gear Fit:</strong> 15°C Summer Quilt / Light Bag <Check size={12} className="inline text-[#2F5D50]" />
                       </span>
-                      <span className="text-[10px] text-emerald-400 font-bold">Overnight ~14°C</span>
+                      <span className="text-[10px] text-[#536259] font-bold">Overnight ~14°C</span>
                     </div>
 
                     {/* LIVE COMMUNITY GROUND REPORT & 10S CHECK-IN */}
-                    <div className="bg-black/40 border border-emerald-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5 overflow-hidden text-gray-300">
-                        <span className="text-[var(--color-neon-green)] font-black text-[10px] uppercase shrink-0">📡 Ground (14d decay):</span>
+                    <div className="bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 overflow-hidden text-[#536259]">
+                        <Radio size={12} className="text-[#2F5D50] shrink-0" />
+                        <span className="text-[#2F5D50] font-bold text-[10px] uppercase shrink-0">Field Reports (14d):</span>
                         {card.community_signals && Object.keys(card.community_signals).length > 0 ? (
-                          <span className="text-[11px] text-gray-300 truncate">
-                            {card.community_signals.water === "dry" ? "❌ Creek Dry" : card.community_signals.water === "flowing" ? "💧 Creek Flowing" : "💧 Water Unreported"} • {" "}
-                            {card.community_signals.toilets === "clean" ? "✨ Clean" : card.community_signals.toilets === "dirty" ? "⚠️ Needs Attention" : "🧻 Toilets Unreported"} • {" "}
-                            {card.community_signals.vibe === "full" ? "🔴 Full" : card.community_signals.vibe === "quiet" ? "🟢 Quiet" : "🟢 Space"}
+                          <span className="text-[11px] text-[#536259] truncate">
+                            {card.community_signals.water === "dry" ? "Creek Dry" : card.community_signals.water === "flowing" ? "Creek Flowing" : "Water Unreported"} • {" "}
+                            {card.community_signals.toilets === "clean" ? "Clean" : card.community_signals.toilets === "dirty" ? "Needs Attention" : "Toilets Unreported"} • {" "}
+                            {card.community_signals.vibe === "full" ? "Full" : card.community_signals.vibe === "quiet" ? "Quiet" : "Space"}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-gray-400 italic truncate">
+                          <span className="text-[11px] text-[#536259]/80 italic truncate">
                             No recent field reports — be the first to check in
                           </span>
                         )}
                       </div>
                       <button
                         onClick={() => setCheckInSite({ id: card.id, name: card.name })}
-                        className="shrink-0 bg-white/10 hover:bg-white/20 text-[var(--color-neon-green)] border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer"
+                        className="shrink-0 bg-[#FFFFFF] hover:bg-[#F6F1E7] text-[#2F5D50] border border-[#2F5D50]/30 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                         title="Report real conditions at this campsite in 10 seconds"
                       >
                         ⚡ 10s Check-in
@@ -753,28 +760,28 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                     </div>
 
                     {/* THE MAIN COMPROMISE */}
-                    <div className="bg-amber-950/40 border border-amber-500/30 px-3 py-2 rounded-xl text-xs text-amber-200/90 flex items-start gap-1.5">
-                      <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div className="bg-[#FFF9EE] border border-[#F0D5A8] px-3 py-2 rounded-xl text-xs text-[#8A5818] flex items-start gap-2">
+                      <AlertCircle size={13} className="text-[#C9822B] shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-black text-amber-300 uppercase text-[10px] mr-1">The Catch:</span>
-                        <span className="text-[11px] leading-tight">{card.main_compromise}</span>
+                        <span className="font-bold text-[#8A5818] uppercase text-[10px] mr-1">The Catch:</span>
+                        <span className="text-[11px] leading-relaxed text-[#536259]">{card.main_compromise}</span>
                       </div>
                     </div>
 
                     {/* COST & BOOKING WINDOW */}
-                    <div className="flex items-center justify-between text-xs py-1 px-1 border-t border-white/5">
+                    <div className="flex items-center justify-between text-xs py-1 px-1 border-t border-[#E2DAC8]/60">
                       <div>
-                        <span className="text-gray-400 text-[11px]">Fee: </span>
-                        <span className="font-bold text-white text-xs">{card.estimated_cost}</span>
+                        <span className="text-[#536259] text-[11px]">Fee: </span>
+                        <span className="font-bold text-[#1E2A24] text-xs">{card.estimated_cost}</span>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
                         card.booking_type === "FIRST_COME_FIRST_SERVED"
-                          ? "bg-emerald-500/20 text-[var(--color-neon-green)] border border-emerald-500/30"
+                          ? "bg-[#EBF2EE] text-[#2F5D50] border border-[#2F5D50]/20"
                           : card.booking_type === "ONLINE_BOOKING_REQUIRED"
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          ? "bg-[#FFF9EE] text-[#8A5818] border border-[#C9822B]/30"
                           : card.booking_type === "FREE_REGISTRATION_REQUIRED"
-                          ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
-                          : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                          ? "bg-[#EBF2EE] text-[#2F5D50] border border-[#2F5D50]/20"
+                          : "bg-[#EEF5FA] text-[#1F6FB2] border border-[#1F6FB2]/30"
                       }`}>
                         {card.booking_type === "FIRST_COME_FIRST_SERVED"
                           ? "No Booking Req"
@@ -799,22 +806,22 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                         : `https://maps.apple.com/?daddr=${card.latitude},${card.longitude}`;
 
                       return (
-                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#E2DAC8]/60">
                           <a
                             href={googleMapsUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                            className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] py-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors border border-[#E2DAC8]"
                           >
-                            <Navigation size={12} className="text-cyan-400" /> Google Maps
+                            <Navigation size={12} className="text-[#1F6FB2]" /> Google Maps
                           </a>
                           <a
                             href={appleMapsUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="bg-white/5 hover:bg-white/15 text-gray-200 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                            className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] py-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors border border-[#E2DAC8]"
                           >
-                            <Compass size={12} className="text-emerald-300" /> Apple Maps
+                            <Compass size={12} className="text-[#2F5D50]" /> Apple Maps
                           </a>
                         </div>
                       );
@@ -825,37 +832,37 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                   <div className="p-3 pt-0 flex gap-2">
                     <button
                       onClick={() => onOpenSaveModal(card.id, card.name)}
-                      className="flex-1 bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                      className="flex-1 bg-[#2F5D50] hover:bg-[#254A40] text-white py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Calendar size={13} /> Save & Monitor
                     </button>
                     <button
                       onClick={() => setPlanBCampsite(card)}
-                      className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2.5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="bg-[#FFF9EE] hover:bg-[#FFF3DC] text-[#8A5818] border border-[#F0D5A8] px-2.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                       title="Inspect condition-aware Plan B alternatives"
                     >
-                      <Shuffle size={13} className="text-amber-400" /> Plan B
+                      <Shuffle size={13} className="text-[#C9822B]" /> Plan B
                     </button>
                     <button
                       onClick={() => setPrepCampsite({ id: card.id, name: card.name })}
-                      className="bg-white/10 hover:bg-white/20 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] border border-[#E2DAC8] px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                       title="Open Condition-Aware Preparation Board"
                     >
-                      <ClipboardList size={13} /> Prep
+                      <ClipboardList size={13} className="text-[#536259]" /> Prep
                     </button>
                     <button
                       onClick={() => onSelectSiteOnMap(card.id)}
-                      className="bg-white/10 hover:bg-white/20 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] border border-[#E2DAC8] px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                       title="View on Map"
                     >
-                      <MapPin size={13} /> Map
+                      <MapPin size={13} className="text-[#536259]" /> Map
                     </button>
                     {card.booking_url && (
                       <a
                         href={card.booking_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="bg-white/5 hover:bg-white/15 text-gray-300 px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center cursor-pointer"
+                        className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#536259] border border-[#E2DAC8] px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center cursor-pointer"
                         title="Official Booking Information"
                       >
                         <ExternalLink size={13} />
@@ -871,12 +878,12 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
       {/* "WHAT-IF" ADJUSTMENT TOOLBAR */}
       {cards.length > 0 && (
-        <div className="bg-black/40 border border-white/15 rounded-2xl p-5 shadow-2xl backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-white">
-            <SlidersHorizontal size={20} className="text-[var(--color-neon-green)]" />
+        <div className="bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-[#1E2A24]">
+            <SlidersHorizontal size={20} className="text-[#2F5D50]" />
             <div>
-              <h4 className="font-bold text-sm text-white">Need to adjust? Ask &apos;What If?&apos;</h4>
-              <p className="text-xs text-gray-400">Our engine recalculates tradeoffs immediately</p>
+              <h4 className="font-bold text-sm text-[#1E2A24]">Need to adjust? Ask &apos;What If?&apos;</h4>
+              <p className="text-xs text-[#536259]">Our engine recalculates tradeoffs immediately</p>
             </div>
           </div>
 
@@ -891,7 +898,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                 key={i}
                 onClick={() => handleWhatIfAdjust(chip)}
                 disabled={adjusting}
-                className="bg-white/5 hover:bg-white/15 text-gray-200 border border-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
+                className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] border border-[#E2DAC8] px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
               >
                 {chip}
               </button>
@@ -905,12 +912,12 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
               onChange={e => setWhatIfInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleWhatIfAdjust(whatIfInput)}
               placeholder="e.g. Leave Saturday morning..."
-              className="bg-black/50 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white outline-none w-full md:w-48 placeholder:text-gray-500"
+              className="bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl px-3 py-1.5 text-xs text-[#1E2A24] outline-none w-full md:w-48 placeholder:text-[#536259]/60 focus:border-[#2F5D50]"
             />
             <button
               onClick={() => handleWhatIfAdjust(whatIfInput)}
               disabled={adjusting || !whatIfInput}
-              className="bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+              className="bg-[#2F5D50] hover:bg-[#254A40] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
             >
               Apply
             </button>
@@ -953,19 +960,19 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
       {/* FLOATING COMPARE TRAY BAR */}
       {selectedForCompare.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-black/90 border border-emerald-500/40 rounded-full px-5 py-2.5 shadow-2xl backdrop-blur-md flex items-center gap-4 text-xs">
-          <span className="text-white font-bold flex items-center gap-1.5">
-            ⚖️ <span>{selectedForCompare.length} campsite{selectedForCompare.length > 1 ? "s" : ""} selected</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#1E2A24] border border-[#2F5D50]/50 rounded-full px-5 py-2.5 shadow-2xl flex items-center gap-4 text-xs">
+          <span className="text-[#FAF6EF] font-bold flex items-center gap-1.5">
+            <Scale size={14} className="text-[#C9822B]" /> <span>{selectedForCompare.length} campsite{selectedForCompare.length > 1 ? "s" : ""} selected</span>
           </span>
           <button
             onClick={() => setShowCompareModal(true)}
-            className="bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] px-3.5 py-1.5 rounded-full font-black text-xs transition-all cursor-pointer shadow-md"
+            className="bg-[#2F5D50] hover:bg-[#254A40] text-white px-3.5 py-1.5 rounded-full font-bold text-xs transition-all cursor-pointer shadow-sm"
           >
             Compare Side-by-Side
           </button>
           <button
             onClick={() => setSelectedForCompare([])}
-            className="text-gray-400 hover:text-white text-xs font-semibold cursor-pointer"
+            className="text-[#E2DAC8] hover:text-white text-xs font-medium cursor-pointer"
           >
             Clear
           </button>

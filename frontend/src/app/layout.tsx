@@ -12,18 +12,18 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Camp Smart Australia | Answer-First Trip Finder",
-  description: "Curated, rigorous, condition-aware Trip Cards with live weather and fire rules.",
+  title: "Camp Smart Australia | Condition-Aware Field Guide",
+  description: "Curated, rigorous, condition-aware Australian camping trip finder with live fire rules and microclimate forecasting.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "CampSmart AU"
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#051c14",
+  themeColor: "#2F5D50",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -35,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${outfit.variable} font-sans antialiased`}>
+    <html lang="en">
+      <body className={`${outfit.variable} font-sans antialiased bg-[#F6F1E7] text-[#1E2A24]`}>
         {children}
         <OfflineManager />
         <Suspense fallback={null}>

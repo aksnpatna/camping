@@ -67,12 +67,12 @@ export default function GroundCheckInModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="relative w-full max-w-lg bg-[#0b2019] border border-emerald-500/40 rounded-2xl shadow-2xl p-6 text-white overflow-hidden max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      <div className="relative w-full max-w-lg bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl shadow-2xl p-6 text-[#1E2A24] overflow-hidden max-h-[92vh] overflow-y-auto">
         {/* CLOSE BUTTON */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 p-2 text-[#536259] hover:text-[#1E2A24] rounded-full bg-[#FAF6EF] hover:bg-[#F6F1E7] transition-colors cursor-pointer"
           aria-label="Close Ground Check-in"
         >
           <X size={18} />
@@ -80,29 +80,29 @@ export default function GroundCheckInModal({
 
         {/* HEADER */}
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[var(--color-neon-green)] font-black text-sm">
+          <div className="w-8 h-8 rounded-full bg-[#EBF2EE] border border-[#2F5D50]/30 flex items-center justify-center text-[#2F5D50] font-black text-sm">
             📡
           </div>
           <div>
-            <h3 className="text-lg font-black tracking-tight">10-Second Ground Report</h3>
-            <p className="text-xs text-gray-400">Live conditions at <span className="text-white font-semibold">{campsiteName}</span></p>
+            <h3 className="text-lg font-black tracking-tight text-[#1E2A24]">10-Second Ground Report</h3>
+            <p className="text-xs text-[#536259]">Live conditions at <span className="text-[#1E2A24] font-semibold">{campsiteName}</span></p>
           </div>
         </div>
 
         {submitted ? (
           <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center text-2xl font-bold animate-bounce">
+            <div className="w-14 h-14 rounded-full bg-[#EBF2EE] border border-[#2F5D50] text-[#2F5D50] flex items-center justify-center text-2xl font-bold">
               ✓
             </div>
-            <div className="text-lg font-black text-white">Ground Report Logged!</div>
-            <p className="text-xs text-emerald-300">Other Australian campers now see your live verified report.</p>
+            <div className="text-lg font-black text-[#1E2A24]">Ground Report Logged!</div>
+            <p className="text-xs text-[#2F5D50]">Other Australian campers now see your live verified report.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4 text-xs">
             {/* CREEK / WATER */}
             <div>
-              <label className="font-bold text-gray-300 flex items-center gap-1.5 mb-2">
-                <Droplets size={14} className="text-cyan-400" /> Creek & Water State
+              <label className="font-bold text-[#1E2A24] flex items-center gap-1.5 mb-2">
+                <Droplets size={14} className="text-[#1F6FB2]" /> Creek & Water State
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -116,12 +116,12 @@ export default function GroundCheckInModal({
                     onClick={() => setWater(opt.id)}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       water === opt.id
-                        ? "bg-cyan-500/20 border-cyan-400 text-white font-bold"
-                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                        ? "bg-[#EBF2EE] border-[#2F5D50] text-[#1E2A24] font-bold shadow-xs"
+                        : "bg-[#FAF6EF] border-[#E2DAC8] text-[#536259] hover:bg-[#F6F1E7]"
                     }`}
                   >
                     <div>{opt.label}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</div>
+                    <div className="text-[10px] text-[#536259] mt-0.5">{opt.desc}</div>
                   </button>
                 ))}
               </div>
@@ -129,7 +129,7 @@ export default function GroundCheckInModal({
 
             {/* TOILETS */}
             <div>
-              <label className="font-bold text-gray-300 flex items-center gap-1.5 mb-2">
+              <label className="font-bold text-[#1E2A24] flex items-center gap-1.5 mb-2">
                 <span>🧻</span> Amenities & Toilets
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -144,12 +144,12 @@ export default function GroundCheckInModal({
                     onClick={() => setToilets(opt.id)}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       toilets === opt.id
-                        ? "bg-emerald-500/20 border-emerald-400 text-white font-bold"
-                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                        ? "bg-[#EBF2EE] border-[#2F5D50] text-[#1E2A24] font-bold shadow-xs"
+                        : "bg-[#FAF6EF] border-[#E2DAC8] text-[#536259] hover:bg-[#F6F1E7]"
                     }`}
                   >
                     <div>{opt.label}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</div>
+                    <div className="text-[10px] text-[#536259] mt-0.5">{opt.desc}</div>
                   </button>
                 ))}
               </div>
@@ -157,8 +157,8 @@ export default function GroundCheckInModal({
 
             {/* ROAD ACCESS */}
             <div>
-              <label className="font-bold text-gray-300 flex items-center gap-1.5 mb-2">
-                <Navigation size={14} className="text-amber-400" /> Road Surface Today
+              <label className="font-bold text-[#1E2A24] flex items-center gap-1.5 mb-2">
+                <Navigation size={14} className="text-[#C9822B]" /> Road Surface Today
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -172,12 +172,12 @@ export default function GroundCheckInModal({
                     onClick={() => setRoad(opt.id)}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       road === opt.id
-                        ? "bg-amber-500/20 border-amber-400 text-white font-bold"
-                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                        ? "bg-[#FFF9EE] border-[#C9822B] text-[#1E2A24] font-bold shadow-xs"
+                        : "bg-[#FAF6EF] border-[#E2DAC8] text-[#536259] hover:bg-[#F6F1E7]"
                     }`}
                   >
                     <div>{opt.label}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</div>
+                    <div className="text-[10px] text-[#536259] mt-0.5">{opt.desc}</div>
                   </button>
                 ))}
               </div>
@@ -186,13 +186,13 @@ export default function GroundCheckInModal({
             {/* TELCO RECEPTION & SPACE */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-gray-300 flex items-center gap-1.5 mb-1.5">
-                  <Wifi size={13} className="text-purple-400" /> Mobile Reception
+                <label className="font-bold text-[#1E2A24] flex items-center gap-1.5 mb-1.5">
+                  <Wifi size={13} className="text-[#1F6FB2]" /> Mobile Reception
                 </label>
                 <select
                   value={telco}
                   onChange={(e) => setTelco(e.target.value)}
-                  className="w-full bg-black/50 border border-white/15 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-400"
+                  className="w-full bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl p-2.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
                 >
                   <option value="telstra_4g">📶 Telstra 4G/5G Good</option>
                   <option value="optus_4g">📶 Optus 4G Good</option>
@@ -202,13 +202,13 @@ export default function GroundCheckInModal({
               </div>
 
               <div>
-                <label className="font-bold text-gray-300 flex items-center gap-1.5 mb-1.5">
-                  <Users size={13} className="text-teal-400" /> Campsite Space
+                <label className="font-bold text-[#1E2A24] flex items-center gap-1.5 mb-1.5">
+                  <Users size={13} className="text-[#2F5D50]" /> Campsite Space
                 </label>
                 <select
                   value={space}
                   onChange={(e) => setSpace(e.target.value)}
-                  className="w-full bg-black/50 border border-white/15 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-400"
+                  className="w-full bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl p-2.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
                 >
                   <option value="plenty_space">🟢 Plenty of Spots</option>
                   <option value="filling_fast">🟡 Filling Up Fast</option>
@@ -219,7 +219,7 @@ export default function GroundCheckInModal({
 
             {/* OPTIONAL SHORT NOTE */}
             <div>
-              <label className="font-bold text-gray-400 text-[11px] block mb-1">
+              <label className="font-bold text-[#536259] text-[11px] block mb-1">
                 Quick Ground Note (Optional)
               </label>
               <input
@@ -228,29 +228,29 @@ export default function GroundCheckInModal({
                 maxLength={140}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400"
+                className="w-full bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl px-3 py-2 text-xs text-[#1E2A24] placeholder-[#536259]/60 focus:outline-none focus:border-[#2F5D50]"
               />
             </div>
 
             {error && (
-              <div className="p-2.5 rounded-lg bg-red-950/60 border border-red-500/30 text-red-300 text-[11px]">
+              <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[11px]">
                 {error}
               </div>
             )}
 
             {/* ACTION BUTTONS */}
-            <div className="flex gap-2 pt-2 border-t border-white/10">
+            <div className="flex gap-2 pt-2 border-t border-[#E2DAC8]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs"
+                className="px-4 py-2.5 rounded-xl bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#536259] border border-[#E2DAC8] font-bold text-xs cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 py-2.5 rounded-xl bg-[var(--color-neon-green)] hover:bg-[#00e67a] text-[var(--color-forest-900)] font-black text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg disabled:opacity-50 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-[#2F5D50] hover:bg-[#254A40] text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 {submitting ? "Logging..." : "✓ Publish Ground Report"}
               </button>

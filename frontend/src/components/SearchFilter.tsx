@@ -36,20 +36,20 @@ export default function SearchFilter({ onFilterChange }: { onFilterChange: (filt
   };
 
   return (
-    <div className="w-full bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-2xl flex flex-col gap-4">
-      <div className="flex items-center gap-2 text-white font-semibold">
-        <Search className="w-5 h-5 text-neon-green" />
-        <h2>Find Your Trip</h2>
+    <div className="w-full bg-[#FFFFFF]/95 backdrop-blur-md border border-[#E2DAC8] rounded-2xl p-4 shadow-xl flex flex-col gap-4 text-[#1E2A24]">
+      <div className="flex items-center gap-2 text-[#1E2A24] font-bold">
+        <Search className="w-4 h-4 text-[#2F5D50]" />
+        <h2 className="text-sm font-black tracking-tight">Filter Campground Data</h2>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Region / State</label>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] text-[#536259] font-bold uppercase tracking-wider">Region / State</label>
         <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8B9891]" />
           <select 
             value={selectedState || "ALL"}
             onChange={handleStateChange}
-            className="w-full bg-slate-800/80 text-white text-sm rounded-lg pl-9 pr-3 py-2 border border-white/10 focus:outline-none focus:border-neon-green/50 appearance-none transition-colors"
+            className="w-full bg-[#FAF6EF] text-[#1E2A24] text-xs font-semibold rounded-xl pl-9 pr-3 py-2.5 border border-[#E2DAC8] focus:outline-none focus:border-[#2F5D50] appearance-none transition-colors"
           >
             <option value="ALL">All Australia (2,964 Sites)</option>
             <option value="NSW">New South Wales (746)</option>
@@ -65,14 +65,14 @@ export default function SearchFilter({ onFilterChange }: { onFilterChange: (filt
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Rig Type</label>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] text-[#536259] font-bold uppercase tracking-wider">Rig & Vehicle Clearance</label>
         <div className="relative">
-          <Truck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Truck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8B9891]" />
           <select 
             value={rigAccess || "ANY"}
             onChange={handleRigChange}
-            className="w-full bg-slate-800/80 text-white text-sm rounded-lg pl-9 pr-3 py-2 border border-white/10 focus:outline-none focus:border-neon-green/50 appearance-none transition-colors"
+            className="w-full bg-[#FAF6EF] text-[#1E2A24] text-xs font-semibold rounded-xl pl-9 pr-3 py-2.5 border border-[#E2DAC8] focus:outline-none focus:border-[#2F5D50] appearance-none transition-colors"
           >
             <option value="ANY">Any Rig / Setup</option>
             <option value="TENT">Tent (Car Camping)</option>
@@ -84,20 +84,20 @@ export default function SearchFilter({ onFilterChange }: { onFilterChange: (filt
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-2">
-          <Dog className="w-4 h-4" />
-          Dog Friendly
+      <div className="flex items-center justify-between pt-1 border-t border-[#E2DAC8]/60">
+        <label className="text-[11px] text-[#536259] font-bold uppercase tracking-wider flex items-center gap-1.5">
+          <Dog className="w-3.5 h-3.5 text-[#8B9891]" />
+          Pet Friendly
         </label>
         
         <button 
           onClick={handleDogToggle}
-          className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+          className={`px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer ${
             dogFriendly === true 
-              ? "bg-neon-green/20 text-neon-green border-neon-green/50" 
+              ? "bg-[#EBF2EE] text-[#2F5D50] border-[#2F5D50]/40 shadow-xs" 
               : dogFriendly === false
-                ? "bg-sunset-orange/20 text-sunset-orange border-sunset-orange/50"
-                : "bg-slate-800 text-slate-300 border-white/10"
+                ? "bg-[#FDF2F2] text-[#B3261E] border-[#F5C2C2]" 
+                : "bg-[#FAF6EF] text-[#536259] border-[#E2DAC8]"
           }`}
         >
           {dogFriendly === null ? "Doesn't Matter" : dogFriendly ? "Yes (Required)" : "No Dogs"}
