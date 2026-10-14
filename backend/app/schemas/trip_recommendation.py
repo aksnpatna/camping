@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
+from app.schemas.facts import CampsiteFacts
 
 class FindWeekendRequest(BaseModel):
     prompt: Optional[str] = None
@@ -45,6 +46,7 @@ class TripRecommendationCard(BaseModel):
     community_signals: Optional[Dict[str, Any]] = None
     photo_url: Optional[str] = None
     is_illustrative_photo: bool = False
+    facts: Optional[CampsiteFacts] = None
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]

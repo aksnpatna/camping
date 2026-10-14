@@ -274,6 +274,13 @@ class RecommendationEngine:
             else:
                 comm_signals = None
 
+            from app.services.facts import FactBuilder
+            facts = FactBuilder.build_campsite_facts(
+                site=site,
+                check_ins=check_ins,
+                drive_minutes=drive_mins
+            )
+
             cards.append(TripRecommendationCard(
                 id=site.id,
                 name=site.name,
@@ -303,7 +310,8 @@ class RecommendationEngine:
                 visual_badges=visual_badges,
                 community_signals=comm_signals,
                 photo_url=photo,
-                is_illustrative_photo=True
+                is_illustrative_photo=True,
+                facts=facts
             ))
 
         return FindWeekendResponse(cards=cards, assumed_origin=assumed_origin)

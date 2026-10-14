@@ -14,13 +14,24 @@ import {
   ClipboardList, 
   WifiOff, 
   Navigation, 
-  Compass 
+  Compass,
+  Car,
+  Wifi,
+  Flame,
+  Droplets,
+  Layers,
+  Dog
 } from "lucide-react";
 import { getApiUrl } from "@/config";
 import PreparationBoard from "./PreparationBoard";
 import TripRoomModal from "./TripRoomModal";
 import GroundCheckInModal from "./GroundCheckInModal";
 import OfflineBushVaultModal, { saveTripOffline, getOfflineTrips } from "./OfflineBushVaultModal";
+import FactChip from "./trust/FactChip";
+import ConfidenceMeter from "./trust/ConfidenceMeter";
+import SourceSheet from "./trust/SourceSheet";
+import FireStrip from "./trust/FireStrip";
+import { CampsiteFacts, Fact } from "@/types/facts";
 
 export interface TripCardData {
   id: number;
@@ -52,6 +63,7 @@ export interface TripCardData {
   community_signals?: Record<string, unknown> | null;
   photo_url?: string | null;
   is_illustrative_photo?: boolean;
+  facts?: CampsiteFacts | null;
 }
 
 interface FindWeekendResponse {
@@ -135,6 +147,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
   const [whatIfInput, setWhatIfInput] = useState("");
   const [adjusting, setAdjusting] = useState(false);
   const [checkInSite, setCheckInSite] = useState<{ id: number; name: string } | null>(null);
+  const [inspectFact, setInspectFact] = useState<{ fact: Fact; label: string; campsiteName: string } | null>(null);
   const [showOfflineVault, setShowOfflineVault] = useState(false);
   const [offlineCount, setOfflineCount] = useState<number>(() => {
     if (typeof window === "undefined") return 0;
@@ -510,62 +523,124 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
 
                   {/* BODY CONTENT */}
                   <div className="p-4 flex flex-col gap-3">
-                    {/* 6-PILL VISUAL ATTRIBUTE HUD */}
+                    {/* SITE CONFIDENCE METER */}
+                    <ConfidenceMeter 
+                      knownCount={card.facts?.known_facts_count ?? (card.facilities ? 6 : 4)}
+                      totalCount={card.facts?.total_facts_count ?? 9}
+                      officialCount={card.facts?.official_or_verified_count ?? (card.data_status === "verified" ? 4 : 2)}
+                    />
+
+                    {/* 6-PILL VISUAL ATTRIBUTE HUD WITH TRUST LENS */}
                     <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
-                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          🚗 Access
-                        </div>
-                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.clearance || (card.vehicle_clearance === "4WD_ONLY" ? "4WD Only" : "2WD Easy")}
-                        </div>
-                      </div>
+                      <FactChip
+                        label="Access"
+                        icon={<Car size={11} className="text-gray-300" />}
+                        displayValue={card.visual_badges?.clearance || (card.vehicle_clearance === "4WD_ONLY" ? "4WD Only" : "2WD Easy")}
+                        fact={card.facts?.vehicle_access}
+                        onInspect={() => {
+                          const fact: Fact = card.facts?.vehicle_access || {
+                            value: card.vehicle_clearance,
+                            basis: "official",
+                            confidence: 2,
+                            source: card.source_url || "Park Dataset",
+                            note: card.vehicle_clearance === "4WD_ONLY" ? "High clearance 4WD required" : "Accessible by standard 2WD vehicles"
+                          };
+                          setInspectFact({ fact, label: "Vehicle Access", campsiteName: card.name });
+                        }}
+                      />
 
-                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
-                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          📶 Telco
-                        </div>
-                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.telco || "Coverage Unspecified"}
-                        </div>
-                      </div>
+                      <FactChip
+                        label="Telco"
+                        icon={<Wifi size={11} className="text-gray-300" />}
+                        displayValue={card.visual_badges?.telco || "Coverage Unspecified"}
+                        fact={card.facts?.telco}
+                        onInspect={() => {
+                          const fact: Fact = card.facts?.telco || {
+                            value: card.visual_badges?.telco || null,
+                            basis: card.visual_badges?.telco ? "community" : "unknown",
+                            confidence: card.visual_badges?.telco ? 2 : 0,
+                            source: card.visual_badges?.telco ? "Recent Camper Check-in" : undefined,
+                            note: card.visual_badges?.telco ? `Carrier coverage: ${card.visual_badges.telco}` : "Mobile signal unverified — download offline maps before travel"
+                          };
+                          setInspectFact({ fact, label: "Mobile Reception", campsiteName: card.name });
+                        }}
+                      />
 
-                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
-                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          🔥 Fire
-                        </div>
-                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.campfire || "Check Fire Rules"}
-                        </div>
-                      </div>
+                      <FactChip
+                        label="Campfire"
+                        icon={<Flame size={11} className="text-gray-300" />}
+                        displayValue={card.visual_badges?.campfire || "Check Fire Rules"}
+                        fact={card.facts?.campfires}
+                        onInspect={() => {
+                          const fact: Fact = card.facts?.campfires || {
+                            value: card.visual_badges?.campfire === "Fire Pits Allowed",
+                            basis: card.facilities?.campfires !== undefined ? "official" : "unknown",
+                            confidence: card.facilities?.campfires !== undefined ? 2 : 0,
+                            source: card.source_url || "Park facilities dataset",
+                            note: card.visual_badges?.campfire || "Campfire regulations unverified — verify current fire danger ratings and park signs"
+                          };
+                          setInspectFact({ fact, label: "Campfires", campsiteName: card.name });
+                        }}
+                      />
 
-                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
-                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          💧 Water
-                        </div>
-                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.water || "Water Unverified"}
-                        </div>
-                      </div>
+                      <FactChip
+                        label="Water"
+                        icon={<Droplets size={11} className="text-gray-300" />}
+                        displayValue={card.visual_badges?.water || "Water Unverified"}
+                        fact={card.facts?.water}
+                        onInspect={() => {
+                          const fact: Fact = card.facts?.water || {
+                            value: card.visual_badges?.water || null,
+                            basis: card.facilities?.drinking_water !== undefined ? "official" : "unknown",
+                            confidence: card.facilities?.drinking_water !== undefined ? 2 : 0,
+                            source: card.source_url || "Park facilities dataset",
+                            note: card.visual_badges?.water || "Water availability unverified — carry all drinking water"
+                          };
+                          setInspectFact({ fact, label: "Water", campsiteName: card.name });
+                        }}
+                      />
 
-                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
-                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          🧻 Toilets
-                        </div>
-                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.visual_badges?.toilets || "Toilets Unverified"}
-                        </div>
-                      </div>
+                      <FactChip
+                        label="Toilets"
+                        icon={<Layers size={11} className="text-gray-300" />}
+                        displayValue={card.visual_badges?.toilets || "Toilets Unverified"}
+                        fact={card.facts?.toilets}
+                        onInspect={() => {
+                          const fact: Fact = card.facts?.toilets || {
+                            value: card.visual_badges?.toilets || null,
+                            basis: card.facilities?.toilets ? "official" : "unknown",
+                            confidence: card.facilities?.toilets ? 2 : 0,
+                            source: card.source_url || "Park facilities dataset",
+                            note: card.visual_badges?.toilets || "Toilet facilities unverified — carry necessary hygiene supplies"
+                          };
+                          setInspectFact({ fact, label: "Toilets", campsiteName: card.name });
+                        }}
+                      />
 
-                      <div className="bg-black/30 border border-white/5 rounded-lg p-1.5 text-center">
-                        <div className="text-[10px] text-gray-400 font-semibold flex items-center justify-center gap-1">
-                          🐶 Pets
-                        </div>
-                        <div className="text-[11px] font-bold text-white mt-0.5 truncate">
-                          {card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Check Regulations"}
-                        </div>
-                      </div>
+                      <FactChip
+                        label="Pets"
+                        icon={<Dog size={11} className="text-gray-300" />}
+                        displayValue={card.dog_friendly === true ? "Dogs OK" : card.dog_friendly === false ? "No Pets" : "Check Regulations"}
+                        fact={card.facts?.dog_friendly}
+                        onInspect={() => {
+                          const fact: Fact = card.facts?.dog_friendly || {
+                            value: card.dog_friendly,
+                            basis: card.dog_friendly === false && card.state === "NSW" && (card.management_type?.includes("National Park") || card.management_type?.includes("NPWS")) ? "rule" : (card.dog_friendly !== null ? "official" : "unknown"),
+                            confidence: card.dog_friendly !== null ? 3 : 0,
+                            source: card.source_url || "National Parks policy",
+                            note: card.dog_friendly === true ? "Dogs allowed on leash" : card.dog_friendly === false ? "Dogs strictly prohibited under state conservation rules" : "Pet policy unconfirmed — check with local ranger"
+                          };
+                          setInspectFact({ fact, label: "Pet Policy", campsiteName: card.name });
+                        }}
+                      />
                     </div>
+
+                    {/* LIVE FIRE AGENCY & DISTRICT STRIP */}
+                    <FireStrip 
+                      fireDistrict={card.fire_district} 
+                      fireFact={card.facts?.fire_status} 
+                      state={card.state} 
+                    />
 
                     {/* LIVE COMMUNITY GROUND REPORT & 10S CHECK-IN */}
                     <div className="bg-black/40 border border-emerald-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
@@ -867,6 +942,22 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
           onSelectSite={(id) => {
             setShowOfflineVault(false);
             onSelectSiteOnMap(id);
+          }}
+        />
+      )}
+
+      {/* TRUST LENS SOURCE INSPECTION SHEET */}
+      {inspectFact && (
+        <SourceSheet
+          fact={inspectFact.fact}
+          label={inspectFact.label}
+          campsiteName={inspectFact.campsiteName}
+          onClose={() => setInspectFact(null)}
+          onOpenCheckIn={() => {
+            const card = cards.find(c => c.name === inspectFact.campsiteName);
+            if (card) {
+              setCheckInSite({ id: card.id, name: card.name });
+            }
           }}
         />
       )}

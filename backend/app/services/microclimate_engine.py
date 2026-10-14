@@ -39,16 +39,45 @@ class MicroclimateEngine:
     @staticmethod
     def calculate_distance_to_coast_km(longitude: float, latitude: float) -> float:
         """
-        Approximates distance to eastern Australian coastline based on coastal coordinate bounds.
+        Calculates distance in km to the nearest Australian continental/Tasmanian coastline vertex.
         """
-        # Coastline longitude rough projection for NSW (-28 to -37 latitude)
-        # At lat -28 (Tweed Heads): lon ~153.5
-        # At lat -34 (Sydney): lon ~151.25
-        # At lat -37 (Eden): lon ~149.9
-        coast_lon = 153.5 - ((latitude - (-28.0)) / (-37.0 - (-28.0))) * (153.5 - 149.9)
-        lon_diff = max(0.0, coast_lon - longitude)
-        # 1 degree of longitude at ~33°S is approx 93 km
-        return lon_diff * 93.0
+        import math
+        AU_COAST = [
+            # NSW / QLD East Coast
+            (-37.5, 149.9), (-36.3, 150.1), (-34.5, 150.9), (-33.8, 151.3), (-32.9, 151.8),
+            (-31.4, 152.9), (-28.2, 153.5), (-27.0, 153.2), (-24.8, 152.4), (-23.1, 150.8),
+            (-21.1, 149.2), (-19.2, 146.8), (-16.9, 145.8), (-14.5, 144.5), (-10.7, 142.5),
+            # Gulf of Carpentaria & Top End
+            (-12.2, 141.8), (-16.5, 139.2), (-15.5, 136.5), (-12.2, 136.8), (-11.2, 132.5),
+            (-12.4, 130.8), (-14.8, 129.5),
+            # Kimberley & WA Coast
+            (-14.0, 126.0), (-16.4, 123.0), (-17.9, 122.2), (-20.3, 118.6), (-21.9, 114.1),
+            (-24.9, 113.6), (-26.1, 113.2), (-28.8, 114.6), (-31.9, 115.8), (-34.3, 115.1),
+            (-35.0, 117.9), (-33.9, 121.9), (-31.7, 128.9),
+            # SA / Bight / Spencer Gulf / Fleurieu
+            (-32.2, 132.5), (-34.7, 135.9), (-32.5, 137.8), (-35.5, 138.1), (-37.5, 140.0),
+            # VIC South Coast
+            (-38.3, 141.6), (-38.8, 143.5), (-38.3, 144.7), (-38.5, 145.5), (-39.0, 146.4),
+            (-37.8, 148.0), (-37.5, 149.9),
+            # Tasmania
+            (-40.8, 145.0), (-40.8, 148.3), (-42.0, 148.3), (-43.2, 147.9), (-43.6, 146.8),
+            (-42.2, 145.2), (-40.8, 145.0)
+        ]
+        r = 6371.0 # Earth radius in km
+        min_dist = float("inf")
+        lat1 = math.radians(latitude)
+        lon1 = math.radians(longitude)
+        for c_lat, c_lon in AU_COAST:
+            lat2 = math.radians(c_lat)
+            lon2 = math.radians(c_lon)
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = math.sin(dlat / 2.0)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2.0)**2
+            c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+            d = r * c
+            if d < min_dist:
+                min_dist = d
+        return min_dist
 
     @classmethod
     def compute_microclimate(
@@ -336,7 +365,10 @@ class MicroclimateEngine:
                 with httpx.Client(timeout=timeout) as client:
                     resp = client.get(url)
                 if resp.status_code == 200:
-                    data = resp.json().get("daily", {})
+                    resp_json = resp.json()
+                    if elevation_m is None and resp_json.get("elevation") is not None:
+                        elev = float(resp_json.get("elevation"))
+                    data = resp_json.get("daily", {})
                     times = data.get("time", [])
                     if diff_days < len(times):
                         t_max = data.get("temperature_2m_max", [])[diff_days]

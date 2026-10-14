@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from app.schemas.facts import CampsiteFacts
 
 class CampsiteBase(BaseModel):
     name: str
@@ -32,5 +33,6 @@ class CampsiteResponse(CampsiteBase):
     latitude: float
     verified_at: Optional[datetime] = None
     last_verified_at: Optional[datetime] = None
+    facts: Optional[CampsiteFacts] = None
     
     model_config = ConfigDict(from_attributes=True)

@@ -128,7 +128,12 @@ def get_campsite(campsite_id: int, db: Session = Depends(get_db)):
     campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
     if not campsite:
         raise HTTPException(status_code=404, detail="Campsite not found")
-    return campsite
+    from app.services.facts import FactBuilder
+    from app.models.check_in import CampsiteCheckIn
+    check_ins = db.query(CampsiteCheckIn).filter(CampsiteCheckIn.campsite_id == campsite.id).order_by(CampsiteCheckIn.created_at.desc()).limit(5).all()
+    resp = CampsiteResponse.model_validate(campsite)
+    resp.facts = FactBuilder.build_campsite_facts(campsite, check_ins=check_ins)
+    return resp
 
 AI_SUMMARY_CACHE = {}
 AI_SUMMARY_CACHE_TTL = 86400  # 24 hours cache
