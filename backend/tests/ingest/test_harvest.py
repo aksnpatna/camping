@@ -11,6 +11,7 @@ from app.ingest.harvest import (
     extract_fees_from_html,
     fetch_page_cached,
     harvest_campsite_record,
+    run_harvest_batch,
     PARSER_VERSION,
 )
 
@@ -121,6 +122,43 @@ def test_fetch_page_cached_and_harvest():
         assert site.facilities["bbq"] is True
 
         # Clean up
+        db.query(FactEvidence).filter(FactEvidence.campsite_id == site.id).delete()
+        db.query(HarvestCache).filter(HarvestCache.url == test_url).delete()
+        db.delete(site)
+        db.commit()
+
+
+def test_run_harvest_batch():
+    test_url = "https://example.com/camp/batch-test-site"
+    with SessionLocal() as db:
+        site = Campsite(
+            name="Batch Test Camp",
+            location="SRID=4326;POINT(151.20 -33.85)",
+            state="NSW",
+            management_type="NPWS",
+            booking_url=test_url,
+            data_status="unverified"
+        )
+        db.add(site)
+        db.commit()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = SAMPLE_HTML
+        mock_resp.headers = {"etag": "xyz-456", "last-modified": "Sun, 11 Oct 2026 12:00:00 GMT"}
+
+        with patch("httpx.Client") as mock_client:
+            instance = mock_client.return_value.__enter__.return_value
+            instance.get.return_value = mock_resp
+
+            stats = run_harvest_batch(db, limit=5, state="NSW", delay=0.0, campsite_ids=[site.id])
+            assert stats["attempted"] == 1
+            assert stats["successful"] == 1
+
+        db.refresh(site)
+        assert site.data_status == DATA_STATUS_VERIFIED
+
+        # Cleanup
         db.query(FactEvidence).filter(FactEvidence.campsite_id == site.id).delete()
         db.query(HarvestCache).filter(HarvestCache.url == test_url).delete()
         db.delete(site)

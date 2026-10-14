@@ -267,3 +267,65 @@ def harvest_campsite_record(db: Session, campsite: Campsite, proxy_url: Optional
 
     logger.info("Successfully harvested and verified campsite %s (ID %s)", campsite.name, campsite.id)
     return True
+
+
+def run_harvest_batch(
+    db: Session,
+    limit: int = 20,
+    state: Optional[str] = None,
+    delay: float = 0.5,
+    proxy_url: Optional[str] = None,
+    campsite_ids: Optional[list] = None,
+) -> Dict[str, int]:
+    """
+    Harvests a batch of unverified campsites politely with Smartproxy routing.
+    """
+    query = db.query(Campsite).filter(
+        Campsite.data_status != DATA_STATUS_VERIFIED,
+        (Campsite.booking_url.isnot(None)) | (Campsite.source_url.isnot(None)),
+    )
+    if state:
+        query = query.filter(Campsite.state == state.upper())
+    if campsite_ids:
+        query = query.filter(Campsite.id.in_(campsite_ids))
+
+    campsites = query.limit(limit).all()
+    stats = {"attempted": 0, "successful": 0, "failed": 0}
+
+    for site in campsites:
+        stats["attempted"] += 1
+        try:
+            ok = harvest_campsite_record(db, site, proxy_url=proxy_url)
+            if ok:
+                stats["successful"] += 1
+            else:
+                stats["failed"] += 1
+        except Exception as e:
+            logger.error("Error harvesting site %s (ID %s): %s", site.name, site.id, e)
+            stats["failed"] += 1
+
+        if delay > 0:
+            time.sleep(delay)
+
+    return stats
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Harvest campsites using Smartproxy")
+    parser.add_argument("--limit", type=int, default=20, help="Max records to harvest")
+    parser.add_argument("--state", type=str, default=None, help="Filter by state (e.g. NSW)")
+    parser.add_argument("--delay", type=float, default=0.5, help="Polite delay between requests (seconds)")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    logger.info("Starting harvest batch (limit=%s, state=%s, delay=%ss)", args.limit, args.state, args.delay)
+
+    with SessionLocal() as db:
+        stats = run_harvest_batch(db, limit=args.limit, state=args.state, delay=args.delay)
+        print("Harvest batch completed:", stats)
+
+
+if __name__ == "__main__":
+    main()
