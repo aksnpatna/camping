@@ -701,7 +701,8 @@ export default function Home() {
       )}
       {/* BETA FEEDBACK DRAWER & FLOATING TRIGGER */}
       <BetaFeedbackModal 
-        isOpen={showFeedback ? true : undefined} 
+        isOpen={showFeedback} 
+        onOpen={() => setShowFeedback(true)}
         onClose={() => setShowFeedback(false)} 
         currentCampsiteName={selectedSite?.name || null} 
       />

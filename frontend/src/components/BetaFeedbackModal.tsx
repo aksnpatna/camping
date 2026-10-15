@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { MessageSquarePlus, X, CheckCircle2, AlertTriangle, Bug, Sparkles, MapPin, Send } from "lucide-react";
 import { getApiUrl } from "@/config";
 
 export interface BetaFeedbackModalProps {
   currentCampsiteName?: string | null;
   isOpen?: boolean;
+  onOpen?: () => void;
   onClose?: () => void;
 }
 
@@ -42,18 +43,36 @@ const CATEGORIES: { id: FeedbackCategory; label: string; icon: React.ReactNode; 
 export default function BetaFeedbackModal({
   currentCampsiteName,
   isOpen: controlledIsOpen,
+  onOpen: controlledOnOpen,
   onClose: controlledOnClose
 }: BetaFeedbackModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalOpen;
-  
-  const handleClose = () => {
-    if (controlledOnClose) {
-      controlledOnClose();
-    } else {
-      setInternalOpen(false);
-    }
-  };
+  const isControlled = typeof controlledIsOpen === "boolean";
+  const isOpen = isControlled ? controlledIsOpen : internalOpen;
+
+  const handleOpen = useCallback(() => {
+    setInternalOpen(true);
+    controlledOnOpen?.();
+  }, [controlledOnOpen]);
+
+  const handleClose = useCallback(() => {
+    setInternalOpen(false);
+    controlledOnClose?.();
+  }, [controlledOnClose]);
+
+  // Support closing with the Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, handleClose]);
 
   const [category, setCategory] = useState<FeedbackCategory>("data_issue");
   const [rating, setRating] = useState<number>(5);
@@ -117,10 +136,11 @@ export default function BetaFeedbackModal({
 
   return (
     <>
-      {/* Floating Trigger Button for Standalone Usage */}
-      {controlledIsOpen === undefined && (
+      {/* Floating Trigger Button - only displayed when modal is closed */}
+      {!isOpen && (
         <button
-          onClick={() => setInternalOpen(true)}
+          type="button"
+          onClick={handleOpen}
           className="fixed bottom-5 left-5 z-40 flex items-center gap-2 bg-[#FFFFFF] hover:bg-[#FAF6EF] text-[#1E2A24] border border-[#E2DAC8] hover:border-[#CDC3AF] px-3.5 py-2 rounded-full shadow-lg text-xs font-semibold transition-all hover:scale-105 cursor-pointer group"
           aria-label="Open Beta Feedback"
         >
@@ -135,15 +155,20 @@ export default function BetaFeedbackModal({
 
       {/* Feedback Modal Backdrop */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          onClick={handleClose}
+        >
           <div
             className="relative w-full max-w-lg bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl shadow-2xl p-6 text-[#1E2A24] max-h-[92vh] overflow-y-auto"
             role="dialog"
             aria-modal="true"
             aria-labelledby="feedback-title"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
+              type="button"
               onClick={handleClose}
               className="absolute top-4 right-4 p-2 text-[#536259] hover:text-[#1E2A24] rounded-full bg-[#FAF6EF] hover:bg-[#F6F1E7] transition-colors cursor-pointer"
               aria-label="Close Feedback Modal"
@@ -223,6 +248,9 @@ export default function BetaFeedbackModal({
                     type="text"
                     value={campsiteName}
                     onChange={(e) => setCustomCampsiteName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                    }}
                     placeholder="e.g. Euroka Campground, Blue Mountains"
                     className="w-full text-xs px-3 py-2 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg focus:outline-none focus:border-[#2F5D50] text-[#1E2A24]"
                   />
@@ -288,6 +316,9 @@ export default function BetaFeedbackModal({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                    }}
                     placeholder="your-email@example.com.au"
                     className="w-full text-xs px-3 py-2 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg focus:outline-none focus:border-[#2F5D50] text-[#1E2A24]"
                   />
