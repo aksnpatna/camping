@@ -120,7 +120,7 @@ def get_analytics_summary(db: Session, limit: int = 15) -> Dict[str, Any]:
 def get_email_leads(db: Session, skip: int = 0, limit: int = 100) -> List[EmailLead]:
     return (
         db.query(EmailLead)
-        .order_by(EmailLead.created_at.desc())
+        .order_by(EmailLead.last_active_at.desc())
         .offset(skip)
         .limit(limit)
         .all()

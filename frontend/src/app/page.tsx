@@ -9,8 +9,9 @@ const CampingMap = dynamic(() => import('@/components/Map'), { ssr: false });
 import TripCard from '@/components/TripCard';
 import SearchFilter, { FilterParams } from '@/components/SearchFilter';
 import FindWeekendPlanner from '@/components/FindWeekendPlanner';
+import BetaFeedbackModal from '@/components/BetaFeedbackModal';
 import { getApiUrl } from '@/config';
-import { Compass, Map, Bookmark } from "lucide-react";
+import { Compass, Map, Bookmark, MessageSquarePlus } from "lucide-react";
 
 interface PlanBAlertAlternative {
   id: number;
@@ -62,6 +63,7 @@ export default function Home() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [dashEmail, setDashEmail] = useState("");
   const [dashToken, setDashToken] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
   const [myTrips, setMyTrips] = useState<SavedTripDashboard[] | null>(null);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [dashError, setDashError] = useState("");
@@ -326,6 +328,14 @@ export default function Home() {
           >
             <Bookmark size={14} className="text-[#2F5D50]" /> 
             <span>My Trips</span>
+          </button>
+          <button
+            onClick={() => setShowFeedback(true)}
+            className="bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3 py-1.5 rounded-xl font-bold text-[#1E2A24] text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Share beta feedback or report an issue"
+          >
+            <MessageSquarePlus size={14} className="text-[#C9822B]" />
+            <span className="hidden sm:inline">Feedback</span>
           </button>
           <Link
             href="/explore/nsw"
@@ -689,6 +699,12 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* BETA FEEDBACK DRAWER & FLOATING TRIGGER */}
+      <BetaFeedbackModal 
+        isOpen={showFeedback ? true : undefined} 
+        onClose={() => setShowFeedback(false)} 
+        currentCampsiteName={selectedSite?.name || null} 
+      />
     </main>
   );
 }

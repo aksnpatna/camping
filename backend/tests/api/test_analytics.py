@@ -45,3 +45,33 @@ def test_analytics_event_ingestion_and_summary():
     leads = leads_res.json()
     emails = [l["email"] for l in leads]
     assert lead_email in emails
+
+
+def test_beta_feedback_event_and_lead_capture():
+    feedback_email = "feedback_camper@example.com.au"
+    payload = {
+        "event_type": "beta_feedback",
+        "path": "/?city=Sydney&max_hours=3",
+        "session_id": "test-feedback-session-456",
+        "user_email": feedback_email,
+        "meta_data": {
+            "category": "data_issue",
+            "rating": 4,
+            "message": "Euroka Campground toilets had no toilet paper on Saturday morning.",
+            "campsite_name": "Euroka Campground",
+            "viewport": "390x844"
+        }
+    }
+    res = client.post("/api/v1/analytics/events", json=payload)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["event_type"] == "beta_feedback"
+    assert data["meta_data"]["category"] == "data_issue"
+    assert data["meta_data"]["campsite_name"] == "Euroka Campground"
+    assert data["user_email"] == feedback_email
+
+    # Verify that the email is captured as a lead
+    leads_res = client.get("/api/v1/analytics/leads")
+    assert leads_res.status_code == 200
+    emails = [l["email"] for l in leads_res.json()]
+    assert feedback_email in emails

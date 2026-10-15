@@ -14,6 +14,8 @@ from app.ingest.harvest import (
     run_harvest_batch,
     resolve_npws_candidate_urls,
     resolve_sa_candidate_urls,
+    resolve_vic_candidate_urls,
+    resolve_qld_candidate_urls,
     PARSER_VERSION,
 )
 
@@ -177,3 +179,21 @@ def test_resolve_sa_candidate_urls():
     candidates = resolve_sa_candidate_urls("Mount Remarkable (NP)")
     assert "https://www.parks.sa.gov.au/parks/mount-remarkable-national-park" in candidates
     assert "https://www.parks.sa.gov.au/parks/mount-remarkable" in candidates
+
+
+def test_resolve_vic_candidate_urls():
+    candidates = resolve_vic_candidate_urls("Grampians National Park")
+    assert any("grampians-national-park" in c for c in candidates)
+    assert any("https://www.parks.vic.gov.au/places-to-see/parks/grampians" in c or "grampians-national-park" in c for c in candidates)
+
+    camp_candidates = resolve_vic_candidate_urls("Glendinning Campsite")
+    assert any("glendinning" in c for c in camp_candidates)
+
+
+def test_resolve_qld_candidate_urls():
+    candidates = resolve_qld_candidate_urls("Conondale National Park")
+    assert any("conondale" in c for c in candidates)
+    assert any("parks.desi.qld.gov.au" in c or "parks.des.qld.gov.au" in c for c in candidates)
+
+    forest_candidates = resolve_qld_candidate_urls("The Bluff State Forest")
+    assert any("the-bluff" in c for c in forest_candidates)

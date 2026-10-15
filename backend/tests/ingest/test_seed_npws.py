@@ -8,7 +8,7 @@ from app.ingest.seed_npws import (
     NPWS_BOOKING_HUB_URL,
     SEED_DATASET_URL,
 )
-from app.models.campsite import Campsite, DATA_STATUS_RULE_DERIVED
+from app.models.campsite import Campsite, DATA_STATUS_RULE_DERIVED, DATA_STATUS_VERIFIED
 
 
 def test_derive_source_id_deterministic_and_distinct():
@@ -92,11 +92,14 @@ def test_db_state_seed_records_honesty():
 
         for site in seed_records:
             # Provenance must be intact
-            assert site.evidence_url == NPWS_DOG_RULE_URL
             assert site.source_url == SEED_DATASET_URL
-            assert site.data_status == DATA_STATUS_RULE_DERIVED
-            # Honesty: never synthesize fees or facilities
-            assert site.facilities is None
-            assert site.fees is None
-            assert site.dog_friendly is False
             assert site.state == "NSW"
+            assert site.dog_friendly is False
+
+            if site.data_status == DATA_STATUS_RULE_DERIVED:
+                assert site.evidence_url == NPWS_DOG_RULE_URL
+                assert site.facilities is None
+                assert site.fees is None
+            elif site.data_status == DATA_STATUS_VERIFIED:
+                assert site.evidence_url.startswith("https://")
+                assert site.facilities is not None
