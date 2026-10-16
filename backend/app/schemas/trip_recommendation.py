@@ -2,6 +2,22 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from app.schemas.facts import CampsiteFacts
 
+class WeatherDaySummary(BaseModel):
+    dayName: str
+    dateStr: str
+    minTemp: float
+    maxTemp: float
+    rainProb: int
+    gearRecommendation: str
+    conditionIcon: str  # "sun" | "rain" | "wind"
+
+class GearFitSummary(BaseModel):
+    overnight_min_temp: float
+    sleeping_bag_rating: str
+    recommended_mat_r_value: float
+    dew_frost_index: str
+    campfire_wind_risk: str
+
 class FindWeekendRequest(BaseModel):
     prompt: Optional[str] = None
     origin_lat: Optional[float] = -33.8688 # Sydney CBD default
@@ -9,6 +25,7 @@ class FindWeekendRequest(BaseModel):
     max_drive_hours: Optional[float] = 4.0
     dog_friendly: Optional[bool] = None
     rig_access: Optional[str] = None
+    target_weekend: Optional[str] = "this_weekend"  # "this_weekend" | "next_weekend" | "long_weekend" | "custom"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
@@ -47,6 +64,8 @@ class TripRecommendationCard(BaseModel):
     photo_url: Optional[str] = None
     is_illustrative_photo: bool = False
     facts: Optional[CampsiteFacts] = None
+    weather_days: Optional[List[WeatherDaySummary]] = None
+    gear_fit: Optional[GearFitSummary] = None
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]

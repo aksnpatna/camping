@@ -38,10 +38,18 @@ import ConfidenceMeter from "./trust/ConfidenceMeter";
 import SourceSheet from "./trust/SourceSheet";
 import FireStrip from "./trust/FireStrip";
 import WhyItFitsRadar from "./graphics/WhyItFitsRadar";
-import WeekendWeatherRibbon from "./graphics/WeekendWeatherRibbon";
+import WeekendWeatherRibbon, { WeatherDay } from "./graphics/WeekendWeatherRibbon";
 import CompareTrayModal from "./graphics/CompareTrayModal";
 import PlanBModal, { PlanBAlternative } from "./trust/PlanBModal";
 import { CampsiteFacts, Fact } from "@/types/facts";
+
+export interface GearFit {
+  overnight_min_temp: number;
+  sleeping_bag_rating: string;
+  recommended_mat_r_value: number;
+  dew_frost_index: string;
+  campfire_wind_risk: string;
+}
 
 export interface TripCardData {
   id: number;
@@ -74,6 +82,8 @@ export interface TripCardData {
   photo_url?: string | null;
   is_illustrative_photo?: boolean;
   facts?: CampsiteFacts | null;
+  weather_days?: WeatherDay[] | null;
+  gear_fit?: GearFit | null;
 }
 
 interface FindWeekendResponse {
@@ -199,16 +209,24 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
     setOfflineCount(getOfflineTrips().length);
   };
 
+  const [targetWeekend, setTargetWeekend] = useState<"this_weekend" | "next_weekend">("this_weekend");
+
   const [lastRequest, setLastRequest] = useState<Record<string, unknown>>({
     prompt: presets[0].prompt,
     origin_lat: startLocation?.latitude ?? -33.8688,
     origin_lng: startLocation?.longitude ?? 151.2093,
-    max_drive_hours: 3.5
+    max_drive_hours: 3.5,
+    target_weekend: "this_weekend"
   });
 
-  const handleSearch = useCallback(async (searchPrompt?: string, overrideLocation?: StartLocation) => {
+  const handleSearch = useCallback(async (
+    searchPrompt?: string, 
+    overrideLocation?: StartLocation,
+    overrideWeekend?: "this_weekend" | "next_weekend"
+  ) => {
     const loc = overrideLocation || startLocation;
     const q = searchPrompt !== undefined ? searchPrompt : (userPrompt ?? presets[0].prompt);
+    const wk = overrideWeekend || targetWeekend;
     setLoading(true);
     setLimitingConstraint(null);
     setSuggestedAdjustments([]);
@@ -220,7 +238,8 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
       const payload = {
         prompt: q,
         origin_lat: originLat,
-        origin_lng: originLng
+        origin_lng: originLng,
+        target_weekend: wk
       };
       setLastRequest(payload);
 
@@ -242,7 +261,7 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
     } finally {
       setLoading(false);
     }
-  }, [startLocation, userPrompt, presets]);
+  }, [startLocation, userPrompt, presets, targetWeekend]);
 
   const handleWhatIfAdjust = async (instruction: string) => {
     if (!instruction) return;
@@ -309,55 +328,88 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
           Condition-aware trip cards matched to your group, your vehicle, and your gear. No 50,000 dots to guess from.
         </p>
 
-        {/* ORIGIN LOCATION BADGE */}
-        <div className="relative mb-4 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFFFFF] border border-[#E2DAC8] text-xs text-[#1E2A24] shadow-xs">
-            <MapPin size={14} className="text-[#C9822B]" />
-            <span>Departing from <strong className="text-[#1E2A24]">{city}, {state}</strong></span>
-            {startLocation?.isDetected && (
-              <span className="text-[10px] text-[#2F5D50] bg-[#EBF2EE] px-2 py-0.5 rounded-full font-bold border border-[#2F5D50]/20">
-                {startLocation.source === "gps" ? "GPS Location" : "IP Detected"}
-              </span>
+        {/* ORIGIN LOCATION & TARGET WEEKEND CONTROLS */}
+        <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
+          <div className="relative flex items-center justify-center">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFFFFF] border border-[#E2DAC8] text-xs text-[#1E2A24] shadow-xs">
+              <MapPin size={14} className="text-[#C9822B]" />
+              <span>Departing from <strong className="text-[#1E2A24]">{city}, {state}</strong></span>
+              {startLocation?.isDetected && (
+                <span className="text-[10px] text-[#2F5D50] bg-[#EBF2EE] px-2 py-0.5 rounded-full font-bold border border-[#2F5D50]/20">
+                  {startLocation.source === "gps" ? "GPS Location" : "IP Detected"}
+                </span>
+              )}
+              <button
+                onClick={() => setShowOriginDropdown(!showOriginDropdown)}
+                className="text-[11px] text-[#2F5D50] hover:underline ml-1 font-bold cursor-pointer"
+              >
+                {showOriginDropdown ? "Close" : "Change City"}
+              </button>
+            </div>
+
+            {/* QUICK ORIGIN SWITCHER DROPDOWN */}
+            {showOriginDropdown && (
+              <div className="absolute top-10 z-30 bg-[#FFFFFF] border border-[#E2DAC8] rounded-xl p-2.5 shadow-2xl grid grid-cols-2 sm:grid-cols-4 gap-1.5 min-w-[320px]">
+                {MAJOR_AU_ORIGINS.map(origin => (
+                  <button
+                    key={origin.city}
+                    onClick={() => {
+                      setShowOriginDropdown(false);
+                      const newLoc: StartLocation = {
+                        latitude: origin.latitude,
+                        longitude: origin.longitude,
+                        city: origin.city,
+                        state: origin.state,
+                        isDetected: false,
+                        source: "default"
+                      };
+                      if (onUpdateStartLocation) {
+                        onUpdateStartLocation(newLoc);
+                      }
+                    }}
+                    className={`text-xs px-3 py-2 rounded-lg text-left font-semibold transition-all cursor-pointer ${
+                      city === origin.city
+                        ? "bg-[#2F5D50] text-white shadow-xs"
+                        : "text-[#536259] hover:bg-[#FAF6EF] hover:text-[#1E2A24]"
+                    }`}
+                  >
+                    {origin.city}, {origin.state}
+                  </button>
+                ))}
+              </div>
             )}
-            <button
-              onClick={() => setShowOriginDropdown(!showOriginDropdown)}
-              className="text-[11px] text-[#2F5D50] hover:underline ml-1 font-bold cursor-pointer"
-            >
-              {showOriginDropdown ? "Close" : "Change City"}
-            </button>
           </div>
 
-          {/* QUICK ORIGIN SWITCHER DROPDOWN */}
-          {showOriginDropdown && (
-            <div className="absolute top-10 z-30 bg-[#FFFFFF] border border-[#E2DAC8] rounded-xl p-2.5 shadow-2xl grid grid-cols-2 sm:grid-cols-4 gap-1.5 min-w-[320px]">
-              {MAJOR_AU_ORIGINS.map(origin => (
-                <button
-                  key={origin.city}
-                  onClick={() => {
-                    setShowOriginDropdown(false);
-                    const newLoc: StartLocation = {
-                      latitude: origin.latitude,
-                      longitude: origin.longitude,
-                      city: origin.city,
-                      state: origin.state,
-                      isDetected: false,
-                      source: "default"
-                    };
-                    if (onUpdateStartLocation) {
-                      onUpdateStartLocation(newLoc);
-                    }
-                  }}
-                  className={`text-xs px-3 py-2 rounded-lg text-left font-semibold transition-all cursor-pointer ${
-                    city === origin.city
-                      ? "bg-[#2F5D50] text-white shadow-xs"
-                      : "text-[#536259] hover:bg-[#FAF6EF] hover:text-[#1E2A24]"
-                  }`}
-                >
-                  {origin.city}, {origin.state}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* TARGET WEEKEND SELECTOR */}
+          <div className="inline-flex items-center p-1 rounded-full bg-[#FFFFFF] border border-[#E2DAC8] text-xs shadow-xs">
+            <Calendar size={13} className="text-[#2F5D50] ml-2 mr-1" />
+            <button
+              onClick={() => {
+                setTargetWeekend("this_weekend");
+                handleSearch(undefined, undefined, "this_weekend");
+              }}
+              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer text-xs ${
+                targetWeekend === "this_weekend"
+                  ? "bg-[#2F5D50] text-white shadow-xs"
+                  : "text-[#536259] hover:text-[#1E2A24]"
+              }`}
+            >
+              This Weekend
+            </button>
+            <button
+              onClick={() => {
+                setTargetWeekend("next_weekend");
+                handleSearch(undefined, undefined, "next_weekend");
+              }}
+              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer text-xs ${
+                targetWeekend === "next_weekend"
+                  ? "bg-[#2F5D50] text-white shadow-xs"
+                  : "text-[#536259] hover:text-[#1E2A24]"
+              }`}
+            >
+              Next Weekend
+            </button>
+          </div>
         </div>
 
         {/* INPUT FORM */}
@@ -599,7 +651,11 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                       </div>
                     ) : cardViewMode[card.id] === "weather" ? (
                       <div className="py-1">
-                        <WeekendWeatherRibbon campsiteName={card.name} isForecastWindow={true} />
+                        <WeekendWeatherRibbon 
+                          campsiteName={card.name} 
+                          isForecastWindow={true} 
+                          days={card.weather_days || undefined} 
+                        />
                       </div>
                     ) : (
                       <>
@@ -728,9 +784,12 @@ export default function FindWeekendPlanner({ onSelectSiteOnMap, onOpenSaveModal,
                     <div className="bg-[#FAF6EF] border border-[#E2DAC8] px-3 py-2 rounded-xl text-xs flex items-center justify-between text-[#1E2A24]">
                       <span className="font-medium text-[11px] flex items-center gap-1.5">
                         <Backpack size={13} className="text-[#2F5D50]" />
-                        <strong className="text-[#1E2A24]">Gear Fit:</strong> 15°C Summer Quilt / Light Bag <Check size={12} className="inline text-[#2F5D50]" />
+                        <strong className="text-[#1E2A24]">Gear Fit:</strong> {card.gear_fit?.sleeping_bag_rating || "15°C Summer Quilt / Light Bag"} <Check size={12} className="inline text-[#2F5D50]" />
                       </span>
-                      <span className="text-[10px] text-[#536259] font-bold">Overnight ~14°C</span>
+                      <span className="text-[10px] text-[#536259] font-bold">
+                        Overnight ~{card.gear_fit ? `${card.gear_fit.overnight_min_temp}°C` : "14°C"}
+                        {card.gear_fit?.recommended_mat_r_value ? ` • R-${card.gear_fit.recommended_mat_r_value} Mat` : ""}
+                      </span>
                     </div>
 
                     {/* LIVE COMMUNITY GROUND REPORT & 10S CHECK-IN */}

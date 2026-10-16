@@ -165,7 +165,7 @@ def find_plan_b_alternatives(db, trip: SavedTrip, original_campsite: Optional[Ca
 
         # Always measurable, and it preserves the geography of the trip being
         # replaced even when no origin was saved.
-        _, site_mins = RecommendationEngine.get_driving_stats(
+        site_km, site_mins = RecommendationEngine.get_driving_stats(
             original_campsite.latitude,
             original_campsite.longitude,
             site.latitude,
@@ -181,13 +181,39 @@ def find_plan_b_alternatives(db, trip: SavedTrip, original_campsite: Optional[Ca
             if max_hours and (origin_mins / 60.0) > max_hours:
                 continue
 
-        scored.append((site, site_mins, origin_mins))
+        scored.append((site, site_mins, origin_mins, site_km))
 
     scored.sort(key=lambda item: item[2] if item[2] is not None else item[1])
 
-    # Bound the forecast lookups so a synchronous endpoint stays responsive.
+    # Sample candidates with corridor diversity:
+    # Evaluating only immediate neighbors traps the camper in the same local storm.
+    # We sample the closest candidate plus regional escape candidates (>=35km and >=65km away).
+    candidates_to_check = []
+    seen_ids = set()
+
+    if scored:
+        candidates_to_check.append(scored[0])
+        seen_ids.add(scored[0][0].id)
+
+    escape_35 = next((item for item in scored if item[0].id not in seen_ids and item[3] >= 35), None)
+    if escape_35:
+        candidates_to_check.append(escape_35)
+        seen_ids.add(escape_35[0].id)
+
+    escape_65 = next((item for item in scored if item[0].id not in seen_ids and item[3] >= 65), None)
+    if escape_65:
+        candidates_to_check.append(escape_65)
+        seen_ids.add(escape_65[0].id)
+
+    for item in scored:
+        if len(candidates_to_check) >= 5:
+            break
+        if item[0].id not in seen_ids:
+            candidates_to_check.append(item)
+            seen_ids.add(item[0].id)
+
     alternatives = []
-    for site, site_mins, origin_mins in scored[: max(limit + 1, 3)]:
+    for site, site_mins, origin_mins, site_km in candidates_to_check:
         forecast = fetch_window_forecast(site.latitude, site.longitude, trip.start_date, trip.end_date)
         drive_mins = origin_mins if origin_mins is not None else None
         alternatives.append({

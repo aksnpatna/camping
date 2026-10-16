@@ -1,4 +1,5 @@
 import math
+import time
 import logging
 from datetime import date
 from typing import Optional, List, Dict
@@ -9,6 +10,8 @@ from app.schemas.weather import MicroclimateResponse, PhaseTelemetry
 logger = logging.getLogger(__name__)
 
 class MicroclimateEngine:
+    _raw_cache: Dict[str, tuple[float, dict]] = {}
+
     """
     Microclimate Physics & Climatology Engine for Australian Campgrounds.
     Combines:
@@ -357,15 +360,25 @@ class MicroclimateEngine:
         # 1. Check if within 16-day numerical weather prediction window
         if 0 <= diff_days <= 15:
             try:
-                url = (
-                    f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}"
-                    f"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
-                    f"precipitation_sum,windspeed_10m_max,uv_index_max&forecast_days=16&timezone=auto"
-                )
-                with httpx.Client(timeout=timeout) as client:
-                    resp = client.get(url)
-                if resp.status_code == 200:
-                    resp_json = resp.json()
+                cache_key = f"{round(latitude, 3)}:{round(longitude, 3)}"
+                now_ts = time.time()
+                cached = cls._raw_cache.get(cache_key)
+                resp_json = None
+                if cached and (now_ts - cached[0]) < 1800:
+                    resp_json = cached[1]
+                else:
+                    url = (
+                        f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}"
+                        f"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
+                        f"precipitation_sum,windspeed_10m_max,uv_index_max&forecast_days=16&timezone=auto"
+                    )
+                    with httpx.Client(timeout=timeout) as client:
+                        resp = client.get(url)
+                    if resp.status_code == 200:
+                        resp_json = resp.json()
+                        cls._raw_cache[cache_key] = (now_ts, resp_json)
+
+                if resp_json:
                     if elevation_m is None and resp_json.get("elevation") is not None:
                         elev = float(resp_json.get("elevation"))
                     data = resp_json.get("daily", {})

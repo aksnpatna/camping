@@ -1,7 +1,7 @@
 import React from "react";
 import { Sun, CloudRain, Wind, Sparkles, Radio, Droplets, Backpack } from "lucide-react";
 
-interface WeatherDay {
+export interface WeatherDay {
   dayName: string;
   dateStr: string;
   minTemp: number;
