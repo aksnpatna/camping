@@ -18,7 +18,9 @@ import {
   CloudRain,
   Wind,
   Droplets,
-  Moon
+  Moon,
+  Calendar,
+  Clock
 } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
@@ -359,12 +361,50 @@ export default function TripCard({
           title="Conditions & Climate"
           badge={
             <span className="t-data text-[10px] text-eucalypt font-medium flex items-center gap-1">
-              <Radio size={10} className="text-eucalypt animate-pulse" />
-              {microclimate?.forecast_type === "numerical_ensemble" ? "Live Synoptic Forecast" : "Typical for this date"}
+              {microclimate?.forecast_type === "numerical_ensemble" ? (
+                <>
+                  <Radio size={10} className="text-eucalypt animate-pulse" />
+                  Live Synoptic Forecast (≤15d)
+                </>
+              ) : (
+                <>
+                  <Compass size={10} className="text-ochre" />
+                  Typical for this date (Climatology Model)
+                </>
+              )}
             </span>
           }
         >
           <div className="flex flex-col gap-2.5 pt-0.5">
+            {/* Target Date Quick Selector */}
+            <div className="flex items-center justify-between gap-2 p-1.5 bg-paper-sunk/60 rounded-xs border border-paper-rule text-xs">
+              <span className="t-label text-[10px] font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1">
+                <Calendar size={11} className="text-eucalypt" /> Forecast Date
+              </span>
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-paper-card border border-paper-rule rounded-xs px-2 py-0.5 text-xs text-ink t-data focus:outline-none focus:ring-1 focus:ring-eucalypt cursor-pointer shadow-2xs"
+                title="Select a departure date. Dates within 15 days use live numerical forecasts; dates beyond 15 days use our downscaled climatology model."
+              />
+            </div>
+
+            {/* Climatology Explainer Callout (when > 15 days out) */}
+            {microclimate?.forecast_type === "climatological_physics" && (
+              <div className="p-2 bg-ochre-tint/70 border border-ochre/30 rounded-xs text-[11px] text-ink leading-relaxed flex items-start gap-2">
+                <Compass size={14} className="text-ochre shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold text-ochre text-[11px]">
+                    Climatology Model Active (&gt;15 Days Out)
+                  </span>
+                  <p className="text-ink-muted text-[10.5px] leading-snug">
+                    Live numerical forecasts only extend 15 days. For this future date, our engine calculates 30-year historical weather normals, downscaled for elevation lapse rates (-6.5°C/1,000m) and valley nocturnal cold-air pooling.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {!microclimate ? (
               <div className="p-3 bg-paper-sunk rounded-xs border border-paper-rule text-center text-xs t-data text-ink-faint animate-pulse">
                 Calculating terrain lapse rates & microclimate...
@@ -463,13 +503,21 @@ export default function TripCard({
                   </div>
                 </div>
 
-                {/* 4 Diurnal Camping Phases */}
+                {/* 24-Hour Camp Cycle (Dawn, Midday, Dusk, Night) */}
                 {microclimate.phases && (
-                  <div className="flex flex-col gap-1 pt-1">
-                    <span className="t-label text-[10px] uppercase font-bold text-ink-muted tracking-wider">
-                      Diurnal Phase Forecast
-                    </span>
-                    <div className="grid grid-cols-2 gap-1.5">
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="t-label text-[10px] uppercase font-bold text-ink-muted tracking-wider flex items-center gap-1">
+                        <Clock size={11} className="text-eucalypt" /> 24-Hour Camp Cycle (Diurnal)
+                      </span>
+                      <span className="t-micro text-[9.5px] text-ink-faint">
+                        Dawn · Midday · Dusk · Night
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-ink-muted leading-tight">
+                      How conditions shift through the day: morning dew, solar max, twilight transition, and nocturnal chill.
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                       {Object.entries(microclimate.phases).map(([phaseKey, phase]) => (
                         <div key={phaseKey} className="p-1.5 bg-paper-card border border-paper-rule/70 rounded-xs text-xs">
                           <div className="flex items-center justify-between pb-0.5 border-b border-paper-rule/40">
