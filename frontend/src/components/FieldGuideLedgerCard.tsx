@@ -9,7 +9,13 @@ import {
   ClipboardList, 
   ExternalLink,
   Flame,
-  MapPin
+  MapPin,
+  Sun,
+  CloudRain,
+  Wind,
+  Droplets,
+  Moon,
+  Radio
 } from "lucide-react";
 import type { TripCardData, StartLocation } from "./FindWeekendPlanner";
 import type { Fact } from "@/types/facts";
@@ -215,31 +221,103 @@ export function FieldGuideLedgerCard({
           </Section>
         )}
 
-        {/* CONDITIONS (WEATHER & FIRE) */}
+        {/* CONDITIONS & CAMP CLIMATE */}
         <Section 
-          title="Conditions"
+          title="Conditions & Climate"
           badge={
-            <span className="t-data text-[10px] text-ink-faint">
+            <span className="t-data text-[10px] text-eucalypt font-medium flex items-center gap-1">
+              <Radio size={10} className="text-eucalypt animate-pulse" />
               {forecastLabel}
             </span>
           }
         >
-          <div className="flex flex-col gap-1.5 pt-0.5">
-            {/* Forecast Row */}
+          <div className="flex flex-col gap-2 pt-0.5">
+            {/* 4-Day Microclimate Tiles */}
             {card.weather_days && card.weather_days.length > 0 ? (
-              <div className="grid grid-cols-4 gap-1 p-1.5 bg-paper-sunk rounded-xs border border-paper-rule">
-                {card.weather_days.map((day, i) => (
-                  <div key={i} className="text-center">
-                    <span className="t-micro text-[10px] text-ink-faint block">{day.dayName}</span>
-                    <span className="t-data text-xs text-ink font-semibold block">{day.minTemp}°/{day.maxTemp}°</span>
-                    <span className="t-data text-[10px] text-ink-muted block">{day.rainProb}% rain</span>
-                  </div>
-                ))}
+              <div className="grid grid-cols-4 gap-1.5">
+                {card.weather_days.map((day, i) => {
+                  const isRainy = day.conditionIcon === "rain" || day.rainProb >= 40;
+                  const isWindy = day.conditionIcon === "wind";
+                  return (
+                    <div 
+                      key={i} 
+                      className="bg-paper-card border border-paper-rule rounded-xs p-1.5 text-center flex flex-col items-center justify-between shadow-2xs hover:border-eucalypt/40 transition-colors"
+                    >
+                      <div className="w-full flex items-center justify-between text-[10px] pb-1 border-b border-paper-rule/40">
+                        <span className="t-label font-bold text-ink">{day.dayName}</span>
+                        <span className="t-data text-ink-faint text-[9px]">{day.dateStr}</span>
+                      </div>
+
+                      <div className="my-1 flex items-center justify-center">
+                        {isRainy ? (
+                          <CloudRain size={18} className="text-trust-official" />
+                        ) : isWindy ? (
+                          <Wind size={18} className="text-eucalypt" />
+                        ) : (
+                          <Sun size={18} className="text-ochre" />
+                        )}
+                      </div>
+
+                      <div className="t-data text-xs font-bold text-ink leading-none">
+                        {day.maxTemp}° <span className="text-ink-faint font-normal text-[10.5px]">/ {day.minTemp}°</span>
+                      </div>
+
+                      <div className="w-full pt-1.5 mt-1 border-t border-paper-rule/40 flex items-center justify-between text-[10px] t-data">
+                        <span className="text-trust-official font-medium flex items-center gap-0.5" title="Precipitation Probability">
+                          <Droplets size={8.5} /> {day.rainProb}%
+                        </span>
+                        <span className="text-eucalypt font-medium flex items-center gap-0.5" title="Sleeping bag rating recommendation">
+                          <Moon size={8.5} /> {day.gearRecommendation}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <p className="t-data text-xs text-ink-faint italic py-1">
-                Forecast not available for these dates
+              <p className="t-data text-xs text-ink-faint italic py-1 bg-paper-sunk/30 px-2 rounded-xs border border-paper-rule">
+                Forecast coordinates not resolved for this location
               </p>
+            )}
+
+            {/* Gear-Fit Bush Telemetry */}
+            {card.gear_fit && (
+              <div className="bg-paper-sunk/60 border border-paper-rule rounded-xs p-2.5 flex flex-col gap-1.5 text-xs font-sans">
+                <div className="flex items-center justify-between border-b border-paper-rule/60 pb-1">
+                  <span className="t-label text-[10px] font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <Moon size={11} className="text-eucalypt" /> Sleep System Rating
+                  </span>
+                  <span className="t-data text-[11px] font-semibold text-eucalypt">
+                    Min {card.gear_fit.overnight_min_temp}°C Overnight
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-ink-muted font-medium">Bag:</span>
+                    <span className="t-data text-ink font-semibold truncate" title={card.gear_fit.sleeping_bag_rating}>
+                      {card.gear_fit.sleeping_bag_rating}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-ink-muted font-medium">Mat:</span>
+                    <span className="t-data text-ink font-semibold">
+                      R-Value {card.gear_fit.recommended_mat_r_value}+ Ground
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-1 border-t border-paper-rule/40 flex flex-col gap-0.5 text-[10.5px] text-ink-muted t-data">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-ochre shrink-0"></span>
+                    <span className="truncate">{card.gear_fit.campfire_wind_risk}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-trust-official shrink-0"></span>
+                    <span className="truncate">{card.gear_fit.dew_frost_index}</span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Fire row */}

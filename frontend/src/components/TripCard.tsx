@@ -13,7 +13,12 @@ import {
   Car,
   Fuel,
   Bookmark,
-  Check
+  Check,
+  Sun,
+  CloudRain,
+  Wind,
+  Droplets,
+  Moon
 } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
@@ -40,6 +45,38 @@ interface CampsiteInsights {
   top_activities: string[];
   observations: CamperObservation[];
   retrieved_at: string;
+}
+
+interface PhaseTelemetry {
+  temperature: number;
+  feels_like: number;
+  wind_speed: number;
+  humidity_or_dew: string;
+  condition_description: string;
+  camper_tip: string;
+}
+
+interface MicroclimateData {
+  latitude: number;
+  longitude: number;
+  date: string;
+  elevation_m: number;
+  forecast_type: string;
+  temp_max: number;
+  temp_min: number;
+  rain_probability: number;
+  expected_rainfall_mm: number;
+  wind_max_kmh: number;
+  uv_index_max: number;
+  phases: Record<string, PhaseTelemetry>;
+  sleeping_bag_rating: string;
+  recommended_mat_r_value: number;
+  dew_frost_index: string;
+  campfire_wind_risk: string;
+  peg_strain_factor: string;
+  valley_inversion_active: boolean;
+  terrain_notes: string[];
+  ai_condition_summary?: string | null;
 }
 
 export interface FullCampsiteDetails extends Campsite {
@@ -119,6 +156,28 @@ export default function TripCard({
       active = false;
     };
   }, [campsite]);
+
+  // Weather & Microclimate state
+  const [microclimate, setMicroclimate] = useState<MicroclimateData | null>(null);
+
+  // Fetch microclimate telemetry for campsite and trip date
+  useEffect(() => {
+    if (!campsite) return;
+    let active = true;
+
+    fetch(`${getApiUrl()}/weather/microclimate?campsite_id=${campsite.id}&date=${startDate}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (active && data) {
+          setMicroclimate(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [campsite, startDate]);
 
   const cardData: TripCardData = useMemo(() => {
     return {
@@ -295,27 +354,160 @@ export default function TripCard({
           </div>
         )}
 
-        {/* CONDITIONS */}
-        <Section title="Conditions">
-          <div className="flex items-center justify-between py-1.5 px-2 bg-ochre-tint/70 border border-ochre/25 rounded-xs text-xs">
-            <span className="t-data text-[11px] text-ink flex items-center gap-1.5">
-              <Flame size={12} className="text-ochre" />
-              Fire: {fullDetails?.fire_district || "District unmapped"} ({campsite.state})
+        {/* CONDITIONS & CAMP CLIMATE */}
+        <Section 
+          title="Conditions & Climate"
+          badge={
+            <span className="t-data text-[10px] text-eucalypt font-medium flex items-center gap-1">
+              <Radio size={10} className="text-eucalypt animate-pulse" />
+              {microclimate?.forecast_type === "numerical_ensemble" ? "Live Synoptic Forecast" : "Typical for this date"}
             </span>
-            <a
-              href={
-                campsite.state === "NSW"
-                  ? "https://www.rfs.nsw.gov.au/fire-information/fdr-and-tobans"
-                  : campsite.state === "VIC"
-                  ? "https://www.cfa.vic.gov.au/warnings-restrictions/total-fire-bans-fire-danger-ratings"
-                  : "https://www.bom.gov.au"
-              }
-              target="_blank"
-              rel="noreferrer"
-              className="t-data text-[10px] text-ochre hover:underline flex items-center gap-0.5"
-            >
-              Agency feed <ExternalLink size={9} />
-            </a>
+          }
+        >
+          <div className="flex flex-col gap-2.5 pt-0.5">
+            {!microclimate ? (
+              <div className="p-3 bg-paper-sunk rounded-xs border border-paper-rule text-center text-xs t-data text-ink-faint animate-pulse">
+                Calculating terrain lapse rates & microclimate...
+              </div>
+            ) : (
+              <>
+                {/* 4 Primary Weather Metrics */}
+                <div className="grid grid-cols-4 gap-1.5 text-center">
+                  <div className="p-2 bg-paper-card border border-paper-rule rounded-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-ink-faint t-micro mb-0.5">
+                      <Sun size={11} className="text-ochre" /> Day Max
+                    </div>
+                    <span className="t-data text-sm font-bold text-ink">{microclimate.temp_max}°C</span>
+                  </div>
+
+                  <div className="p-2 bg-paper-card border border-paper-rule rounded-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-ink-faint t-micro mb-0.5">
+                      <Moon size={11} className="text-eucalypt" /> Night Min
+                    </div>
+                    <span className="t-data text-sm font-bold text-ink">{microclimate.temp_min}°C</span>
+                  </div>
+
+                  <div className="p-2 bg-paper-card border border-paper-rule rounded-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-ink-faint t-micro mb-0.5">
+                      {microclimate.rain_probability >= 40 || microclimate.expected_rainfall_mm >= 2.0 ? (
+                        <CloudRain size={11} className="text-trust-official" />
+                      ) : (
+                        <Droplets size={11} className="text-trust-official" />
+                      )}
+                      Rain
+                    </div>
+                    <span className="t-data text-xs font-bold text-trust-official">{microclimate.rain_probability}%</span>
+                    <span className="text-[9px] text-ink-faint block">{microclimate.expected_rainfall_mm}mm</span>
+                  </div>
+
+                  <div className="p-2 bg-paper-card border border-paper-rule rounded-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-ink-faint t-micro mb-0.5">
+                      <Wind size={11} className="text-eucalypt" /> Wind
+                    </div>
+                    <span className="t-data text-xs font-bold text-ink">{microclimate.wind_max_kmh} <span className="text-[9px] font-normal text-ink-muted">km/h</span></span>
+                    <span className="text-[9px] text-ochre block font-medium">UV {microclimate.uv_index_max}</span>
+                  </div>
+                </div>
+
+                {/* AI Camp Condition Synthesis Briefing */}
+                {microclimate.ai_condition_summary && (
+                  <div className="p-2.5 bg-paper-sunk/70 border-l-2 border-eucalypt rounded-xs text-[11px] text-ink leading-relaxed">
+                    <span className="t-label text-[9.5px] uppercase font-bold text-eucalypt block tracking-wide mb-0.5">
+                      Field Condition Briefing
+                    </span>
+                    <p className="italic text-ink-muted">{microclimate.ai_condition_summary}</p>
+                  </div>
+                )}
+
+                {/* Sleep System & Bush Telemetry */}
+                <div className="bg-paper-sunk/60 border border-paper-rule rounded-xs p-2.5 flex flex-col gap-1.5 text-xs font-sans">
+                  <div className="flex items-center justify-between border-b border-paper-rule/60 pb-1">
+                    <span className="t-label text-[10px] font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
+                      <Moon size={11} className="text-eucalypt" /> Sleep System Rating
+                    </span>
+                    <span className="t-data text-[11px] font-semibold text-eucalypt">
+                      Min {microclimate.temp_min}°C Overnight
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-ink-muted font-medium">Bag:</span>
+                      <span className="t-data text-ink font-semibold truncate" title={microclimate.sleeping_bag_rating}>
+                        {microclimate.sleeping_bag_rating}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-ink-muted font-medium">Mat:</span>
+                      <span className="t-data text-ink font-semibold">
+                        R-Value {microclimate.recommended_mat_r_value}+ Ground
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 border-t border-paper-rule/40 flex flex-col gap-1 text-[10.5px] text-ink-muted t-data">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="w-1.5 h-1.5 rounded-full bg-ochre shrink-0"></span>
+                      <span className="truncate">{microclimate.campfire_wind_risk}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="w-1.5 h-1.5 rounded-full bg-trust-official shrink-0"></span>
+                      <span className="truncate">{microclimate.dew_frost_index}</span>
+                    </div>
+                    {microclimate.valley_inversion_active && (
+                      <div className="flex items-center gap-1.5 text-ochre font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-ochre shrink-0"></span>
+                        <span>Valley Cold-Air Pooling Active (+2.5°C nocturnal chill)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4 Diurnal Camping Phases */}
+                {microclimate.phases && (
+                  <div className="flex flex-col gap-1 pt-1">
+                    <span className="t-label text-[10px] uppercase font-bold text-ink-muted tracking-wider">
+                      Diurnal Phase Forecast
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {Object.entries(microclimate.phases).map(([phaseKey, phase]) => (
+                        <div key={phaseKey} className="p-1.5 bg-paper-card border border-paper-rule/70 rounded-xs text-xs">
+                          <div className="flex items-center justify-between pb-0.5 border-b border-paper-rule/40">
+                            <span className="t-label capitalize font-bold text-ink text-[10.5px]">{phaseKey}</span>
+                            <span className="t-data text-ink font-semibold text-[10.5px]">{phase.temperature}°C</span>
+                          </div>
+                          <p className="text-[10px] text-ink-muted leading-tight pt-1 truncate" title={phase.camper_tip}>
+                            {phase.camper_tip}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Fire row */}
+            <div className="flex items-center justify-between py-1.5 px-2 bg-ochre-tint/70 border border-ochre/25 rounded-xs text-xs">
+              <span className="t-data text-[11px] text-ink flex items-center gap-1.5">
+                <Flame size={12} className="text-ochre" />
+                Fire: {fullDetails?.fire_district || "District unmapped"} ({campsite.state})
+              </span>
+              <a
+                href={
+                  campsite.state === "NSW"
+                    ? "https://www.rfs.nsw.gov.au/fire-information/fdr-and-tobans"
+                    : campsite.state === "VIC"
+                    ? "https://www.cfa.vic.gov.au/warnings-restrictions/total-fire-bans-fire-danger-ratings"
+                    : "https://www.bom.gov.au"
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="t-data text-[10px] text-ochre hover:underline flex items-center gap-0.5"
+              >
+                Agency feed <ExternalLink size={9} />
+              </a>
+            </div>
           </div>
         </Section>
 

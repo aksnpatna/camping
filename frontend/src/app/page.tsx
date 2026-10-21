@@ -348,27 +348,31 @@ export default function Home() {
       </header>
 
       {/* MAIN VIEW CONTAINER */}
-      <div className="relative flex-1 w-full h-[calc(100vh-61px)] overflow-hidden">
+      <div className="relative flex-1 min-h-0 w-full overflow-hidden">
         {viewMode === "planner" ? (
-          <div className="w-full h-full overflow-y-auto">
-            <FindWeekendPlanner 
-              startLocation={startLocation}
-              onUpdateStartLocation={(loc) => setStartLocation(loc)}
-              onSelectSiteOnMap={(campsiteId) => {
-                const s = campsites.find(c => c.id === campsiteId);
-                if (s) {
-                  setSelectedSite(s);
-                  setViewMode("map");
-                }
-              }}
-              onOpenSaveModal={(campsiteId) => {
-                const s = campsites.find(c => c.id === campsiteId);
-                if (s) {
-                  setSelectedSite(s);
-                  setViewMode("map");
-                }
-              }}
-            />
+          <div className="w-full h-full overflow-y-auto flex flex-col">
+            <div className="flex-1">
+              <FindWeekendPlanner 
+                startLocation={startLocation}
+                onUpdateStartLocation={(loc) => setStartLocation(loc)}
+                onSelectSiteOnMap={(campsiteId) => {
+                  const s = campsites.find(c => c.id === campsiteId);
+                  if (s) {
+                    setSelectedSite(s);
+                    setViewMode("map");
+                  }
+                }}
+                onOpenSaveModal={(campsiteId) => {
+                  const s = campsites.find(c => c.id === campsiteId);
+                  if (s) {
+                    setSelectedSite(s);
+                    setViewMode("map");
+                  }
+                }}
+              />
+            </div>
+            {/* FOOTER ONLY SCROLLS AT THE BOTTOM OF THE PLANNER */}
+            <Footer onOpenFeedback={() => setShowFeedback(true)} />
           </div>
         ) : (
           <div className="relative w-full h-full">
@@ -729,9 +733,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* FOOTER WITH LEGAL LINKS & EMERGENCY DIRECTORY */}
-      <Footer onOpenFeedback={() => setShowFeedback(true)} />
 
       {/* BETA FEEDBACK DRAWER & FLOATING TRIGGER */}
       <BetaFeedbackModal 
