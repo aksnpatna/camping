@@ -3,6 +3,7 @@ import httpx
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.saved_trip import SavedTrip
 from app.models.campsite import Campsite
@@ -220,7 +221,9 @@ def find_plan_b_alternatives(db, trip: SavedTrip, original_campsite: Optional[Ca
             "id": site.id,
             "name": site.name,
             "state": site.state,
-            "management_type": site.management_type or "Verified",
+            # A null manager is unknown, not verified. `conditions_verified` is
+            # the real flag for "we have checked this one".
+            "management_type": site.management_type,
             "dog_friendly": site.dog_friendly,
             "driving_time_minutes": drive_mins,
             "conditions_verified": forecast is not None,
@@ -240,12 +243,15 @@ def dispatch_alert_email(db, trip: SavedTrip, campsite_name: str, details: str, 
     try:
         token = issue_magic_token(db, trip.user_email)
         switch_url = build_magic_link(trip.user_email.strip().lower(), token)
+        base = (settings.FRONTEND_URL or "").rstrip("/")
+        unsub_url = f"{base}/api/v1/saved-trips/{trip.id}/unsubscribe?token={token}"
         return email_service.send_plan_b_alert(
             recipient_email=trip.user_email,
             trip_name=campsite_name,
             reason=details,
             switch_url=switch_url,
             alternatives=alts,
+            unsubscribe_url=unsub_url,
         )
     except Exception as err:
         logger.error("Failed to send Plan B alert email to %s: %s", trip.user_email, err)

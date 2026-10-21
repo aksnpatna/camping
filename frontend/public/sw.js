@@ -4,9 +4,8 @@ const DATA_CACHE_NAME = 'campsmart-data-v1';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
-  '/globe.svg',
-  '/maplibre/maplibre-gl-worker.mjs',
-  '/maplibre/maplibre-gl-shared.mjs'
+  '/icon.svg',
+  '/maplibre/maplibre-gl-worker.mjs'
 ];
 
 self.addEventListener('install', (event) => {

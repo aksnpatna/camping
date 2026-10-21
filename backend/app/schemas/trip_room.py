@@ -1,32 +1,39 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
 from typing import List, Dict, Any, Optional
 from datetime import date, datetime
 
 class TripRoomCreate(BaseModel):
-    trip_name: str = "Weekend Camping Trip"
+    trip_name: str = Field(default="Weekend Camping Trip", min_length=1, max_length=100)
     created_by_email: EmailStr
     start_date: date
     end_date: date
-    shortlist_campsite_ids: List[int] = []
+    shortlist_campsite_ids: List[int] = Field(default=[], max_length=30)
 
 class VoteRequest(BaseModel):
     campsite_id: int
-    vote_type: str  # "primary" or "backup"
-    voter_name: str
+    vote_type: str = Field(max_length=10)  # "primary" or "backup"
+    voter_name: str = Field(min_length=1, max_length=50)
+
+    @field_validator("vote_type")
+    @classmethod
+    def _valid_vote_type(cls, value: str) -> str:
+        if value.lower() not in ("primary", "backup"):
+            raise ValueError("vote_type must be 'primary' or 'backup'")
+        return value
 
 class ClaimGearRequest(BaseModel):
-    item_name: str
-    claimer_name: str
+    item_name: str = Field(min_length=1, max_length=100)
+    claimer_name: str = Field(max_length=50)
 
 class TaskRequest(BaseModel):
-    id: Optional[str] = None
-    title: str
-    assigned_to: Optional[str] = None
+    id: Optional[str] = Field(default=None, max_length=40)
+    title: str = Field(min_length=1, max_length=200)
+    assigned_to: Optional[str] = Field(default=None, max_length=50)
     completed: Optional[bool] = False
 
 class PreferenceRequest(BaseModel):
-    member_name: str
-    preference: str
+    member_name: str = Field(min_length=1, max_length=50)
+    preference: str = Field(min_length=1, max_length=300)
 
 class ShortlistCampsiteSummary(BaseModel):
     id: int

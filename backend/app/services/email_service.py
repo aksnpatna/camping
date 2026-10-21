@@ -56,7 +56,8 @@ class EmailService:
         trip_name: str,
         reason: str,
         switch_url: str,
-        alternatives: List[Dict[str, Any]]
+        alternatives: List[Dict[str, Any]],
+        unsubscribe_url: Optional[str] = None
     ) -> str:
         subject = f"⚠️ Plan B Alert: Important condition shift for {trip_name}"
         alts_items = ""
@@ -70,6 +71,8 @@ class EmailService:
               <p style="color: #cbd5e1; font-size: 13px; margin: 6px 0 0 0;">{reason_text}</p>
             </li>
             """
+
+        unsub_link = unsubscribe_url or f"{switch_url}&action=unsubscribe"
 
         html = f"""
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #071714; color: #ffffff; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid rgba(239, 68, 68, 0.4);">
@@ -89,8 +92,12 @@ class EmailService:
               ⚡ Review & Switch Trip in 1-Click →
             </a>
           </div>
-          <p style="color: #64748b; font-size: 12px; margin-top: 24px; line-height: 1.5; border-top: 1px solid rgba(255, 255, 255, 0.1); pt-4;">
-            Camp Smart continuous monitoring remains active for your weekend until departure.
+          <p style="color: #64748b; font-size: 11px; margin-top: 24px; line-height: 1.6; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 16px;">
+            Camp Smart continuous condition monitoring is active for this trip until departure.
+            <br />
+            You received this alert because you saved this camping trip on Camp Smart Australia.
+            <br />
+            Don't want condition alerts for this trip? <a href="{unsub_link}" style="color: #94a3b8; text-decoration: underline;">Unsubscribe from alerts for this trip</a> or manage all trips in your <a href="{switch_url}" style="color: #94a3b8; text-decoration: underline;">Camper Dashboard</a>.
           </p>
         </div>
         """

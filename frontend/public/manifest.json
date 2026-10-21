@@ -1,22 +1,16 @@
 {
   "name": "Camp Smart Australia",
-  "short_name": "CampSmart AU",
-  "description": "Answer-First condition-aware trip finder and offline survival pack for Australian campers.",
+  "short_name": "Camp Smart AU",
+  "description": "Campground finder for Australian campers. Live fire ratings, forecasts, and where every answer came from.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#051c14",
-  "theme_color": "#00ff88",
+  "background_color": "#F4F0E6",
+  "theme_color": "#2F5D50",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/globe.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/globe.svg",
-      "sizes": "512x512",
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }

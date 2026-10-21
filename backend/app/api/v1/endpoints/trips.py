@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.security import rate_limit
 from app.schemas.trip_recommendation import (
     FindWeekendRequest,
     FindWeekendResponse,
@@ -12,7 +13,7 @@ from app.services.recommendation_engine import RecommendationEngine
 
 router = APIRouter()
 
-@router.post("/find-weekend", response_model=FindWeekendResponse)
+@router.post("/find-weekend", response_model=FindWeekendResponse, dependencies=[Depends(rate_limit("find-weekend", 15, 60))])
 async def find_weekend_trips(request: FindWeekendRequest, db: Session = Depends(get_db)):
     """
     'Find My Weekend' Answer-First Trip Finder:
@@ -48,7 +49,7 @@ async def find_weekend_trips(request: FindWeekendRequest, db: Session = Depends(
         }
     return response
 
-@router.post("/adjust", response_model=AdjustTripResponse)
+@router.post("/adjust", response_model=AdjustTripResponse, dependencies=[Depends(rate_limit("trip-adjust", 20, 60))])
 async def adjust_trip_parameters(request: AdjustTripRequest, db: Session = Depends(get_db)):
     """
     'What-If' Conversational Adjustments:
@@ -87,7 +88,7 @@ from app.schemas.trip_room import (
 )
 from app.crud import trip_room as crud_trip_room
 
-@router.post("/checklist/generate", response_model=ChecklistResponse)
+@router.post("/checklist/generate", response_model=ChecklistResponse, dependencies=[Depends(rate_limit("checklist", 20, 60))])
 def generate_trip_checklist(request: ChecklistGenerateRequest, db: Session = Depends(get_db)):
     """
     Generate dynamic, condition-aware packing checklist with calculated reasons,
@@ -95,7 +96,7 @@ def generate_trip_checklist(request: ChecklistGenerateRequest, db: Session = Dep
     """
     return ChecklistService.generate_checklist(db=db, request=request)
 
-@router.post("/rooms", response_model=TripRoomResponse)
+@router.post("/rooms", response_model=TripRoomResponse, dependencies=[Depends(rate_limit("room-create", 10, 3600))])
 def create_room(room_in: TripRoomCreate, db: Session = Depends(get_db)):
     """
     Create a shareable Trip Room for a group to coordinate shortlists, vote on campsites,

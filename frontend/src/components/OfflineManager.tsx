@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useEffect } from "react";
+import { Radio, Check } from "lucide-react";
 
 let isOfflineState = typeof navigator !== "undefined" ? !navigator.onLine : false;
 let showOnlineToast = false;
@@ -72,17 +73,17 @@ export default function OfflineManager() {
       <div 
         role="status"
         aria-live="polite"
-        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 bg-amber-950/95 border border-amber-500/40 text-amber-200 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-xs"
+        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 bg-paper-card border border-ochre text-ink px-4 py-3 rounded-sm shadow-xl backdrop-blur-md flex items-center justify-between gap-3 text-xs font-sans"
       >
         <div className="flex items-center gap-2.5">
-          <span className="text-base animate-pulse">📡</span>
+          <Radio size={16} className="text-ochre shrink-0" />
           <div>
-            <div className="font-bold text-amber-100">Bush Offline Mode Active</div>
-            <div className="text-[11px] text-amber-300/80">Using cached maps, checklists & saved trip details.</div>
+            <div className="font-semibold text-ink">Offline</div>
+            <div className="text-[11px] text-ink-muted">Using cached maps, checklists & saved trip details.</div>
           </div>
         </div>
-        <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/30 whitespace-nowrap">
-          OFFLINE
+        <span className="bg-ochre-tint text-ochre text-[10px] font-semibold px-2 py-0.5 rounded-xs border border-ochre/30 whitespace-nowrap uppercase tracking-wider">
+          Offline
         </span>
       </div>
     );
@@ -93,12 +94,12 @@ export default function OfflineManager() {
       <div 
         role="status"
         aria-live="polite"
-        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 bg-emerald-950/95 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs"
+        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 bg-paper-card border border-eucalypt text-ink px-4 py-2.5 rounded-sm shadow-xl backdrop-blur-md flex items-center gap-2.5 text-xs font-sans"
       >
-        <span className="text-emerald-400 font-bold">✓</span>
+        <Check size={14} className="text-eucalypt shrink-0" />
         <div>
-          <span className="font-bold text-emerald-100">Back Online</span>
-          <span className="text-emerald-300/80 ml-1.5">— Syncing live condition monitors.</span>
+          <span className="font-semibold text-ink">Back online</span>
+          <span className="text-ink-muted ml-1.5">— Syncing live condition monitors.</span>
         </div>
       </div>
     );

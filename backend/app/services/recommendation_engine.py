@@ -33,13 +33,14 @@ class RecommendationEngine:
         return max(road_km, 10), max(minutes, 15)
 
     @classmethod
-    def generate_weekend_weather_and_gear(cls, site: Campsite, start_date: date) -> tuple[List[WeatherDaySummary], GearFitSummary]:
+    def generate_weekend_weather_and_gear(cls, site: Campsite, start_date: date) -> tuple[List[WeatherDaySummary], GearFitSummary, str]:
         weather_days: List[WeatherDaySummary] = []
         min_overnight = 99.0
         sleeping_bag = "15°C Summer Quilt / Light Bag"
         mat_r = 1.5
         dew_frost = "Low Condensation"
         fire_wind = "Low Wind Risk"
+        forecast_types: List[str] = []
 
         for i in range(4):
             target_d = start_date + timedelta(days=i)
@@ -52,6 +53,7 @@ class RecommendationEngine:
                 campsite_id=site.id,
                 timeout=1.5
             )
+            forecast_types.append(fc.forecast_type)
             if fc.temp_min < min_overnight:
                 min_overnight = fc.temp_min
                 sleeping_bag = fc.sleeping_bag_rating
@@ -86,7 +88,22 @@ class RecommendationEngine:
             campfire_wind_risk=fire_wind
         )
 
-        return weather_days, gear_fit
+        return weather_days, gear_fit, cls.derive_forecast_source(forecast_types)
+
+    @staticmethod
+    def derive_forecast_source(forecast_types: List[str]) -> str:
+        """
+        Collapse the per-day forecast types into one honest label.
+
+        "numerical_ensemble" is a live numerical forecast; "climatological_physics"
+        is a model analog for a date too far out to forecast.
+        """
+        live = [t for t in forecast_types if t == "numerical_ensemble"]
+        if live and len(live) == len(forecast_types):
+            return "live"
+        if not live:
+            return "climatology"
+        return "mixed"
 
     @classmethod
     def find_weekend(cls, db: Session, request: FindWeekendRequest, assumed_origin: Optional[str] = None) -> FindWeekendResponse:
@@ -285,8 +302,11 @@ class RecommendationEngine:
             # Calculated "why it fits"
             fits: List[str] = [
                 f"Under {max_hours:.1f}h driving ({drive_mins // 60}h {drive_mins % 60}m from origin)",
-                f"Accessible for {', '.join(site.rig_access or ['TENT'])}",
             ]
+            if site.rig_access:
+                fits.append(f"Accessible for {', '.join(site.rig_access)}")
+            else:
+                fits.append("Rig access not recorded")
             if site.dog_friendly is True:
                 fits.append("Verified dog friendly (pets allowed)")
             elif site.dog_friendly is False:
@@ -361,7 +381,13 @@ class RecommendationEngine:
             # Visual graphical badges based on verified facts only
             is_4wd = site.rig_access and "4WD_ONLY" in site.rig_access
             has_2wd = site.rig_access and any(r in site.rig_access for r in ["CAR", "2WD", "TENT", "CAMPER_TRAILER", "CARAVAN"]) and not is_4wd
-            clearance_badge = "4WD High Clearance" if is_4wd else ("2WD Accessible" if has_2wd else "Clearance Unverified")
+            if is_4wd:
+                clearance_badge = "4WD High Clearance"
+            elif has_2wd:
+                clearance_badge = "2WD Accessible"
+            else:
+                # No rig_access recorded: the clearance is unknown, not 2WD.
+                clearance_badge = "Clearance not recorded"
 
             # Campfire: truthful tri-state
             if fac.get("campfires") is True:
@@ -396,15 +422,15 @@ class RecommendationEngine:
                 "campfire": fire_badge,
                 "toilets": toilet_badge,
                 "water": water_badge,
-                "shade": "Shaded Forest" if "forest" in name_lower or "pines" in name_lower else "Bushland Clearing"
             }
 
             # Community ground check-in signals
             from app.models.check_in import CampsiteCheckIn
             check_ins = db.query(CampsiteCheckIn).filter(CampsiteCheckIn.campsite_id == site.id).order_by(CampsiteCheckIn.created_at.desc()).limit(5).all()
             if check_ins:
+                # Only the most recent report is presented as fact. A count of
+                # the rows we happened to load is not a total of check-ins.
                 comm_signals = {
-                    "total_checkins": len(check_ins),
                     "water": next((c.water_status for c in check_ins if c.water_status), None),
                     "toilets": next((c.toilets_status for c in check_ins if c.toilets_status), None),
                     "road": next((c.road_status for c in check_ins if c.road_status), None),
@@ -425,7 +451,15 @@ class RecommendationEngine:
             )
 
             # Generate real downscaled 4-day weekend weather & gear fit telemetry
-            weather_days, gear_fit = cls.generate_weekend_weather_and_gear(site, target_friday)
+            weather_days, gear_fit, forecast_source = cls.generate_weekend_weather_and_gear(site, target_friday)
+
+            # Clearance is only asserted when rig_access was actually recorded.
+            if is_4wd:
+                vehicle_clearance = "4WD_ONLY"
+            elif has_2wd:
+                vehicle_clearance = "2WD"
+            else:
+                vehicle_clearance = "UNVERIFIED"
 
             cards.append(TripRecommendationCard(
                 id=site.id,
@@ -435,7 +469,7 @@ class RecommendationEngine:
                 longitude=site.longitude,
                 dog_friendly=site.dog_friendly,
                 rig_access=site.rig_access,
-                vehicle_clearance="4WD_ONLY" if is_4wd else "2WD",
+                vehicle_clearance=vehicle_clearance,
                 driving_distance_km=dist_km,
                 driving_time_minutes=drive_mins,
                 highlight_badge=badge,
@@ -459,7 +493,8 @@ class RecommendationEngine:
                 is_illustrative_photo=True,
                 facts=facts,
                 weather_days=weather_days,
-                gear_fit=gear_fit
+                gear_fit=gear_fit,
+                forecast_source=forecast_source
             ))
 
         return FindWeekendResponse(cards=cards, assumed_origin=assumed_origin)

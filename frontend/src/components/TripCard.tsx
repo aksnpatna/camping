@@ -1,38 +1,32 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { 
-  MapPin, 
   X, 
-  Dog, 
-  Car, 
   ExternalLink, 
   Navigation, 
   Compass,
-  Shuffle,
+  Shuffle, 
   Flame,
-  Droplets,
-  Layers,
-  Wifi,
+  Radio,
+  Car,
   Fuel,
-  Backpack,
+  Bookmark,
   Check
 } from "lucide-react";
 import type { Campsite } from "./Map";
 import { getApiUrl } from "@/config";
-import FuturisticWeatherHUD, { type WeatherHUDData } from "./FuturisticWeatherHUD";
 import GroundCheckInModal from "./GroundCheckInModal";
 import ConfidenceMeter from "./trust/ConfidenceMeter";
-import FactChip from "./trust/FactChip";
-import FireStrip from "./trust/FireStrip";
 import SourceSheet from "./trust/SourceSheet";
-import WhyItFitsRadar from "./graphics/WhyItFitsRadar";
-import WeekendWeatherRibbon from "./graphics/WeekendWeatherRibbon";
 import PlanBModal from "./trust/PlanBModal";
 import { CampsiteFacts, Fact } from "@/types/facts";
-import { TripCardData } from "./FindWeekendPlanner";
-
-type WeatherData = WeatherHUDData;
+import type { TripCardData, StartLocation } from "./FindWeekendPlanner";
+import Contour from "./ui/Contour";
+import FactRow from "./ui/FactRow";
+import Section from "./ui/Section";
+import Button from "./ui/Button";
 
 interface CamperObservation {
   category: string;
@@ -40,309 +34,129 @@ interface CamperObservation {
   source_attribution: string;
 }
 
-interface InsightsData {
-  sentiment_score?: number | null;
+interface CampsiteInsights {
   nearest_fuel: string;
   nearest_grocery: string;
   top_activities: string[];
-  observations?: CamperObservation[];
-  retrieved_at?: string;
+  observations: CamperObservation[];
+  retrieved_at: string;
 }
 
-interface FullCampsiteResponse {
-  id: number;
-  name: string;
-  state: string;
-  latitude: number;
-  longitude: number;
-  dog_friendly: boolean | null;
-  rig_access: string[] | null;
-  facilities: Record<string, unknown> | null;
-  fees: string | null;
-  booking_url: string | null;
-  fire_district: string | null;
-  data_status: string | null;
-  facts?: CampsiteFacts | null;
+export interface FullCampsiteDetails extends Campsite {
+  fee_standard?: string;
+  fire_district?: string;
+  data_status?: string;
+  facts?: CampsiteFacts;
+}
+
+interface TripCardProps {
+  campsite: Campsite;
+  onClose: () => void;
+  routeDistance?: number | null;
+  startLocation?: StartLocation | null;
 }
 
 export default function TripCard({ 
   campsite, 
-  onClose, 
+  onClose,
   routeDistance,
-  startLocation 
-}: { 
-  campsite: Campsite | null; 
-  onClose: () => void; 
-  routeDistance?: number | null;
-  startLocation?: { latitude?: number; longitude?: number; city?: string; state?: string } | null;
-}) {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [loadingWeather, setLoadingWeather] = useState(false);
-  
-  // Plan B form state
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [email, setEmail] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  const [futureWeather, setFutureWeather] = useState<WeatherData | null>(null);
-  const [loadingFutureWeather, setLoadingFutureWeather] = useState(false);
-
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  
-  const [insights, setInsights] = useState<InsightsData | null>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-  const [showCheckInModal, setShowCheckInModal] = useState(false);
-
-  // Phase 1-4 Trust Lens & Visual States
-  const [fullDetails, setFullDetails] = useState<FullCampsiteResponse | null>(null);
-  const [perspective, setPerspective] = useState<"glance" | "radar" | "weather" | "telemetry">("glance");
-  const [showPlanBModal, setShowPlanBModal] = useState(false);
+  startLocation
+}: TripCardProps) {
+  const [fullDetails, setFullDetails] = useState<FullCampsiteDetails | null>(null);
   const [inspectFact, setInspectFact] = useState<{ fact: Fact; label: string; campsiteName: string } | null>(null);
+  const [showCheckInModal, setShowCheckInModal] = useState<boolean>(false);
+  const [showPlanBModal, setShowPlanBModal] = useState<boolean>(false);
 
-  // Fetch verified provenance facts
+  // Insights & AI summary
+  const [insights, setInsights] = useState<CampsiteInsights | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+
+  // Save Trip state
+  const [isSaving, setIsSaving] = useState(false);
+  const [email, setEmail] = useState("");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + ((5 + 7 - d.getDay()) % 7 || 7));
+    return d.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + ((5 + 7 - d.getDay()) % 7 || 7) + 2);
+    return d.toISOString().split("T")[0];
+  });
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Fetch full details including provenance facts
   useEffect(() => {
     if (!campsite) return;
-    let isMounted = true;
+    let active = true;
+
     fetch(`${getApiUrl()}/campsites/${campsite.id}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (isMounted && data) {
-          setFullDetails(data);
-        }
+        if (active && data) setFullDetails(data);
       })
       .catch(() => {});
 
-    return () => { isMounted = false; };
+    // Fetch AI summary
+    fetch(`${getApiUrl()}/campsites/${campsite.id}/ai-summary`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (active && data?.summary) setAiSummary(data.summary);
+      })
+      .catch(() => {});
+
+    // Fetch insights
+    fetch(`${getApiUrl()}/campsites/${campsite.id}/insights`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (active && data) setInsights(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
   }, [campsite]);
 
-  // Construct structured TripCardData for radar and comparison
   const cardData: TripCardData = useMemo(() => {
-    if (!campsite) {
-      return {
-        id: 0,
-        name: "",
-        state: "NSW",
-        latitude: -33.8,
-        longitude: 151.2,
-        dog_friendly: null,
-        rig_access: null,
-        vehicle_clearance: "2WD",
-        driving_distance_km: 100,
-        driving_time_minutes: 80,
-        highlight_badge: "Site Overview",
-        why_it_fits: [],
-        main_compromise: "Check local fire rules",
-        estimated_cost: "Check fees",
-        booking_status: "FIRST_COME_FIRST_SERVED",
-        booking_url: null,
-        management_type: null
-      };
-    }
-
-    const driveKm = routeDistance ? Math.round(routeDistance / 1000) : 120;
-    const driveMins = routeDistance ? Math.round((routeDistance / 1000) / 75 * 60) : 90;
-
     return {
       id: campsite.id,
       name: campsite.name,
       state: campsite.state,
       latitude: campsite.latitude,
       longitude: campsite.longitude,
-      dog_friendly: fullDetails?.dog_friendly ?? campsite.dog_friendly ?? null,
-      rig_access: fullDetails?.rig_access ?? campsite.rig_access ?? null,
-      vehicle_clearance: (campsite.rig_access?.includes("4WD_ONLY") || fullDetails?.rig_access?.includes("4WD_ONLY")) ? "4WD_ONLY" : "2WD",
-      driving_distance_km: driveKm,
-      driving_time_minutes: driveMins,
-      highlight_badge: "Interactive Map Pick",
-      why_it_fits: ["Verified Location"],
-      main_compromise: fullDetails?.fees ? `Camping fee: ${fullDetails.fees}` : "Check current fire regulations and weather before traveling",
-      estimated_cost: fullDetails?.fees || campsite.fees || "Free / Unspecified",
-      booking_status: campsite.booking_url ? "ONLINE_BOOKING_REQUIRED" : "FIRST_COME_FIRST_SERVED",
+      dog_friendly: campsite.dog_friendly ?? null,
+      rig_access: campsite.rig_access || null,
+      vehicle_clearance: campsite.rig_access?.includes("4WD_ONLY") ? "4WD_ONLY" : (campsite.rig_access && campsite.rig_access.length > 0 ? "2WD" : "UNVERIFIED"),
+      driving_distance_km: routeDistance ? Math.round(routeDistance / 1000) : 100,
+      driving_time_minutes: routeDistance ? Math.round((routeDistance / 1000) * 0.9) : 90,
+      highlight_badge: "Map Selection",
+      why_it_fits: [
+        campsite.dog_friendly ? "Dog friendly" : "Dogs not allowed",
+        campsite.management_type || "Authority not recorded"
+      ],
+      main_compromise: (fullDetails?.facilities as Record<string, unknown> | undefined)?.toilets ? "Basic amenities" : "Hygiene facilities unverified",
+      estimated_cost: fullDetails?.fee_standard || campsite.fees || "Free / Fee Unverified",
+      booking_status: campsite.booking_url ? "Book Ahead" : "No Booking Required",
       booking_url: campsite.booking_url || null,
-      management_type: campsite.management_type || "Public Reserve",
-      facilities: fullDetails?.facilities || campsite.facilities,
-      fees: fullDetails?.fees || campsite.fees,
-      fire_district: fullDetails?.fire_district,
-      data_status: fullDetails?.data_status,
-      facts: fullDetails?.facts,
+      management_type: campsite.management_type || null,
+      facilities: fullDetails?.facilities || campsite.facilities || null,
+      fees: fullDetails?.fee_standard || campsite.fees || null,
+      fire_district: fullDetails?.fire_district || null,
+      data_status: fullDetails?.data_status || null,
+      source_url: campsite.source_url || null,
+      facts: fullDetails?.facts || null
     };
   }, [campsite, fullDetails, routeDistance]);
 
-  useEffect(() => {
-    if (!campsite) return;
-    
-    let isMounted = true;
-    const fetchWeather = async () => {
-      setLoadingWeather(true);
-      try {
-        const todayStr = new Date().toISOString().split('T')[0];
-        try {
-          const microRes = await fetch(`${getApiUrl()}/weather/microclimate?campsite_id=${campsite.id}&date=${todayStr}&latitude=${campsite.latitude}&longitude=${campsite.longitude}`);
-          if (microRes.ok) {
-            const data = await microRes.json();
-            if (isMounted) {
-              setWeather({
-                tempMax: Math.round(data.temp_max),
-                tempMin: Math.round(data.temp_min),
-                precipProb: data.rain_probability,
-                windSpeed: Math.round(data.wind_max_kmh),
-                uvIndex: data.uv_index_max,
-                description: "Live Radar Sync",
-                sleepingBagRating: data.sleeping_bag_rating,
-                matRValue: data.recommended_mat_r_value,
-                dewFrostIndex: data.dew_frost_index,
-                campfireWindRisk: data.campfire_wind_risk,
-                pegStrainFactor: data.peg_strain_factor,
-                valleyInversionActive: data.valley_inversion_active,
-                terrainNotes: data.terrain_notes,
-                forecastType: data.forecast_type,
-                aiConditionSummary: data.ai_condition_summary,
-              });
-              return;
-            }
-          }
-        } catch {
-          // Graceful fallback
-        }
-
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${campsite.latitude}&longitude=${campsite.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max&timezone=auto`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.daily) {
-            const code = data.daily.weathercode[0];
-            let desc = "Clear";
-            if (code > 3) desc = "Overcast";
-            if (code >= 51) desc = "Rain / Showers";
-            if (code >= 95) desc = "Thunderstorm";
-
-            setWeather({
-              tempMax: Math.round(data.daily.temperature_2m_max[0]),
-              tempMin: Math.round(data.daily.temperature_2m_min[0]),
-              precipProb: data.daily.precipitation_probability_max[0] || 0,
-              windSpeed: Math.round(data.daily.windspeed_10m_max[0]),
-              uvIndex: Math.round(data.daily.uv_index_max[0] || 5),
-              description: desc
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch live weather", err);
-      } finally {
-        if (isMounted) setLoadingWeather(false);
-      }
-    };
-
-    const fetchAiSummary = async () => {
-      try {
-        const res = await fetch(`${getApiUrl()}/campsites/${campsite.id}/ai-summary`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) setAiSummary(data.summary);
-        }
-      } catch {
-        // AI Pitch optional
-      }
-    };
-
-    const fetchInsights = async () => {
-      setLoadingInsights(true);
-      try {
-        const res = await fetch(`${getApiUrl()}/campsites/${campsite.id}/insights`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) setInsights(data);
-        }
-      } catch {
-        // Insights optional
-      } finally {
-        if (isMounted) setLoadingInsights(false);
-      }
-    };
-
-    fetchWeather();
-    fetchAiSummary();
-    fetchInsights();
-
-    return () => { isMounted = false; };
-  }, [campsite]);
-
-  // Climatology future weather
-  useEffect(() => {
-    if (!campsite || !startDate) {
-      return;
-    }
-
-    let isMounted = true;
-    const fetchFutureWeather = async () => {
-      setLoadingFutureWeather(true);
-      try {
-        try {
-          const microRes = await fetch(`${getApiUrl()}/weather/microclimate?campsite_id=${campsite.id}&date=${startDate}&latitude=${campsite.latitude}&longitude=${campsite.longitude}`);
-          if (microRes.ok) {
-            const data = await microRes.json();
-            if (isMounted) {
-              setFutureWeather({
-                tempMax: Math.round(data.temp_max),
-                tempMin: Math.round(data.temp_min),
-                precipProb: data.rain_probability,
-                windSpeed: Math.round(data.wind_max_kmh),
-                uvIndex: data.uv_index_max,
-                description: data.forecast_type === "climatology_analog" ? "P10-P90 Climatology Analog" : "Numerical Synoptic Model",
-                sleepingBagRating: data.sleeping_bag_rating,
-                matRValue: data.recommended_mat_r_value,
-                dewFrostIndex: data.dew_frost_index,
-                campfireWindRisk: data.campfire_wind_risk,
-                pegStrainFactor: data.peg_strain_factor,
-                valleyInversionActive: data.valley_inversion_active,
-                terrainNotes: data.terrain_notes,
-                forecastType: data.forecast_type,
-                aiConditionSummary: data.ai_condition_summary,
-              });
-              return;
-            }
-          }
-        } catch {
-          // Fallback
-        }
-
-        const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${campsite.latitude}&longitude=${campsite.longitude}&start_date=2023-${startDate.substring(5)}&end_date=2023-${startDate.substring(5)}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=auto`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.daily) {
-            const avgTempMax = data.daily.temperature_2m_max[0] || 22;
-            const avgTempMin = data.daily.temperature_2m_min[0] || 12;
-            const totalPrecip = data.daily.precipitation_sum[0] || 0;
-
-            setFutureWeather({
-              tempMax: Math.round(avgTempMax),
-              tempMin: Math.round(avgTempMin),
-              precipProb: totalPrecip > 5 ? 70 : totalPrecip > 0 ? 30 : 10,
-              windSpeed: Math.round(data.daily.windspeed_10m_max[0] || 15),
-              uvIndex: 6,
-              description: `Climatology Model (${Math.round(totalPrecip)}mm baseline)`
-            });
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch future weather", e);
-      } finally {
-        if (isMounted) setLoadingFutureWeather(false);
-      }
-    };
-
-    fetchFutureWeather();
-    return () => { isMounted = false; };
-  }, [campsite, startDate, endDate]);
-
   const handleSaveTrip = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!campsite) return;
+    if (!email || !startDate || !endDate) return;
+
     setIsSaving(true);
-    setSaveError("");
-    setSaveSuccess(false);
+    setSaveError(null);
 
     try {
       const res = await fetch(`${getApiUrl()}/saved-trips`, {
@@ -351,20 +165,14 @@ export default function TripCard({
         body: JSON.stringify({
           user_email: email,
           campsite_id: campsite.id,
-          start_date: startDate || new Date().toISOString().split("T")[0],
-          end_date: endDate || new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
-          origin_lat: startLocation?.latitude ?? null,
-          origin_lng: startLocation?.longitude ?? null,
-          max_drive_hours: null,
-          has_dog: campsite.dog_friendly ?? null,
-          rig_access: campsite.rig_access ? campsite.rig_access[0] : null,
-          plan_b_alert_active: true
-        })
+          start_date: startDate,
+          end_date: endDate
+        }),
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Failed to save trip");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to save trip");
       }
 
       setSaveSuccess(true);
@@ -375,457 +183,425 @@ export default function TripCard({
     }
   };
 
-  if (!campsite) return null;
+  // Direct GPS navigation links
+  const originParam = startLocation?.latitude && startLocation?.longitude 
+    ? `&origin=${startLocation.latitude},${startLocation.longitude}` 
+    : "";
+  const googleMapsUrl = originParam 
+    ? `https://www.google.com/maps/dir/?api=1${originParam}&destination=${campsite.latitude},${campsite.longitude}&travelmode=driving`
+    : `https://www.google.com/maps/search/?api=1&query=${campsite.latitude},${campsite.longitude}`;
+  const appleMapsUrl = startLocation?.latitude && startLocation?.longitude 
+    ? `https://maps.apple.com/?saddr=${startLocation.latitude},${startLocation.longitude}&daddr=${campsite.latitude},${campsite.longitude}&dirflg=d`
+    : `https://maps.apple.com/?daddr=${campsite.latitude},${campsite.longitude}`;
+
+  const clearanceValue =
+    campsite.rig_access && campsite.rig_access.includes("4WD_ONLY")
+      ? "4WD Only"
+      : campsite.rig_access && campsite.rig_access.length > 0
+      ? "2WD Access"
+      : null;
+
+  const dogValue =
+    campsite.dog_friendly === true
+      ? "Permitted"
+      : campsite.dog_friendly === false
+      ? "Not allowed"
+      : null;
+
+  const campfireValue =
+    fullDetails?.facts?.campfires?.value !== undefined && fullDetails?.facts?.campfires?.value !== null
+      ? (fullDetails.facts.campfires.value ? "Permitted" : "Prohibited")
+      : campsite.facilities?.campfires !== undefined
+      ? (campsite.facilities.campfires ? "Permitted" : "Prohibited")
+      : null;
+
+  const waterValue =
+    fullDetails?.facts?.water?.value
+      ? String(fullDetails.facts.water.value)
+      : campsite.facilities?.drinking_water !== undefined
+      ? (campsite.facilities.drinking_water ? "Drinking water" : "None")
+      : null;
+
+  const toiletValue =
+    fullDetails?.facts?.toilets?.value
+      ? String(fullDetails.facts.toilets.value)
+      : campsite.facilities?.toilets
+      ? String(campsite.facilities.toilets)
+      : null;
+
+  const telcoValue =
+    fullDetails?.facts?.telco?.value
+      ? String(fullDetails.facts.telco.value)
+      : null;
+
+  const inspect = (label: string, fallbackFact: Fact) => {
+    const fact = fullDetails?.facts ? (fullDetails.facts as unknown as Record<string, Fact>)[label.toLowerCase()] || fallbackFact : fallbackFact;
+    setInspectFact({ fact, label, campsiteName: campsite.name });
+  };
 
   return (
-    <div className="absolute top-4 left-4 md:top-6 md:left-6 w-96 max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100%-2rem)] md:max-h-[calc(100%-3rem)] bg-[#FFFFFF] rounded-2xl z-20 animate-fade-in flex flex-col text-[#1E2A24] shadow-2xl overscroll-contain overflow-hidden border border-[#E2DAC8]">
-      {/* Sticky Header with Title and Close Button */}
-      <div className="sticky top-0 z-10 bg-[#FFFFFF] px-5 pt-4 pb-3 border-b border-[#E2DAC8] flex flex-col gap-2 shrink-0">
-        <div className="flex justify-between items-start">
-          <div className="pr-4">
-            <div className="flex items-center gap-1.5 text-[#2F5D50] text-xs font-bold mb-0.5 uppercase tracking-wider">
-              <MapPin size={13} className="text-[#2F5D50]" />
-              {campsite.state} • {campsite.management_type || "Public Reserve"}
-            </div>
-            <h2 className="text-xl md:text-2xl font-black leading-tight text-[#1E2A24]">{campsite.name}</h2>
-          </div>
-          <button 
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-[#F6F1E7] text-[#536259] hover:text-[#1E2A24] transition-colors cursor-pointer shrink-0"
-            aria-label="Close campsite details"
-          >
-            <X size={18} />
-          </button>
+    <div className="absolute top-4 left-4 md:top-6 md:left-6 w-96 max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100%-2rem)] md:max-h-[calc(100%-3rem)] bg-paper-card rounded-md z-20 animate-fade-in flex flex-col text-ink shadow-overlay overscroll-contain overflow-hidden border border-paper-rule">
+      {/* Top Header Motif & Close */}
+      <div className="relative border-b border-paper-rule bg-paper-sunk/30">
+        <Contour latitude={campsite.latitude} longitude={campsite.longitude} height={52} />
+        <button 
+          onClick={onClose}
+          className="absolute top-2.5 right-2.5 p-1 rounded-xs bg-paper-card/90 border border-paper-rule text-ink-muted hover:text-ink transition-colors cursor-pointer"
+          aria-label="Close campsite details"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Sticky Header with Title and Facts Count */}
+      <div className="p-4 pb-3 border-b border-paper-rule bg-paper-card flex flex-col gap-1.5 shrink-0">
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="t-title text-xl font-semibold leading-tight text-ink">
+            {campsite.name}
+          </h2>
+          <span className="t-data text-xs text-ink-muted px-1.5 py-0.5 bg-paper-sunk rounded-xs shrink-0 border border-paper-rule">
+            {campsite.state}
+          </span>
         </div>
 
-        {/* SITE CONFIDENCE METER (D2) */}
-        <ConfidenceMeter 
-          knownCount={fullDetails?.facts?.known_facts_count ?? (campsite.facilities ? 6 : 4)}
-          totalCount={fullDetails?.facts?.total_facts_count ?? 9}
-          officialCount={fullDetails?.facts?.official_or_verified_count ?? (fullDetails?.data_status === "verified" ? 4 : 2)}
-        />
+        <p className="t-data text-xs text-ink-muted">
+          {campsite.management_type || "Authority not recorded"}
+        </p>
+
+        {fullDetails?.facts && (
+          <div className="pt-1">
+            <ConfidenceMeter 
+              knownCount={fullDetails.facts.known_facts_count ?? 0}
+              totalCount={fullDetails.facts.total_facts_count ?? 9}
+              officialCount={fullDetails.facts.official_or_verified_count}
+            />
+          </div>
+        )}
       </div>
 
       {/* Scrollable Body */}
-      <div className="flex-1 min-h-0 p-5 pt-3 overflow-y-auto overflow-x-hidden flex flex-col gap-3.5 custom-scrollbar">
+      <div className="flex-1 min-h-0 p-4 overflow-y-auto overflow-x-hidden flex flex-col gap-4 custom-scrollbar text-ink">
+        {/* Route & Fuel info */}
         {routeDistance !== undefined && routeDistance !== null && (
-          <div className="flex gap-4 text-xs font-semibold text-[#2F5D50] bg-[#FAF6EF] p-2.5 rounded-xl border border-[#E2DAC8] shrink-0">
-            <div className="flex items-center gap-1.5">
-              <Car size={14} className="text-[#2F5D50]" /> 
+          <div className="flex items-center justify-between text-xs t-data bg-paper-sunk p-2.5 rounded-sm border border-paper-rule shrink-0">
+            <span className="flex items-center gap-1.5 text-eucalypt font-semibold">
+              <Car size={13} className="text-eucalypt" /> 
               {Math.round(routeDistance / 1000)} km from Start
-            </div>
-            <div className="flex items-center gap-1.5 text-[#536259]">
-              <Fuel size={14} className="text-[#C9822B]" /> Est. Fuel: ${( (routeDistance / 1000) * 0.24 ).toFixed(2)} (4WD)
-            </div>
-          </div>
-        )}
-
-        {/* PERSPECTIVE SELECTOR (Glance / 5-Axis Radar / Weather Ribbon / Telemetry) */}
-        <div className="flex items-center justify-between bg-[#F6F1E7] p-1 rounded-xl border border-[#E2DAC8] text-[11px] shrink-0">
-          <button
-            onClick={() => setPerspective("glance")}
-            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
-              perspective === "glance"
-                ? "bg-[#FFFFFF] text-[#1E2A24] shadow-xs border border-[#E2DAC8]"
-                : "text-[#536259] hover:text-[#1E2A24]"
-            }`}
-          >
-            Glance
-          </button>
-          <button
-            onClick={() => setPerspective("radar")}
-            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
-              perspective === "radar"
-                ? "bg-[#2F5D50] text-white shadow-xs"
-                : "text-[#536259] hover:text-[#1E2A24]"
-            }`}
-          >
-            5-Axis Radar
-          </button>
-          <button
-            onClick={() => setPerspective("weather")}
-            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
-              perspective === "weather"
-                ? "bg-[#1F6FB2] text-white shadow-xs"
-                : "text-[#536259] hover:text-[#1E2A24]"
-            }`}
-          >
-            Weather Ribbon
-          </button>
-          <button
-            onClick={() => setPerspective("telemetry")}
-            className={`flex-1 py-1 px-1.5 rounded-lg font-bold transition-all cursor-pointer text-center ${
-              perspective === "telemetry"
-                ? "bg-[#C9822B] text-white shadow-xs"
-                : "text-[#536259] hover:text-[#1E2A24]"
-            }`}
-          >
-            Diurnal
-          </button>
-        </div>
-
-        {/* PERSPECTIVE CONTENT */}
-        {perspective === "radar" ? (
-          <div className="py-1 shrink-0">
-            <WhyItFitsRadar card={cardData} size={200} />
-          </div>
-        ) : perspective === "weather" ? (
-          <div className="py-1 shrink-0">
-            <WeekendWeatherRibbon campsiteName={campsite.name} isForecastWindow={true} />
-          </div>
-        ) : perspective === "telemetry" ? (
-          <div className="shrink-0 w-full">
-            <FuturisticWeatherHUD 
-              liveWeather={weather}
-              futureWeather={futureWeather}
-              loadingLive={loadingWeather}
-              loadingFuture={loadingFutureWeather}
-              selectedStartDate={startDate}
-              selectedEndDate={endDate}
-              campsiteName={campsite.name}
-              onDateChange={(date) => setStartDate(date)}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2.5 shrink-0">
-            {/* 6-PILL TRUST LENS HUD */}
-            <div className="grid grid-cols-3 gap-1.5">
-              <FactChip
-                label="Access"
-                icon={<Car size={11} className="text-[#536259]" />}
-                displayValue={campsite.rig_access?.includes("4WD_ONLY") ? "4WD Only" : "2WD Easy"}
-                fact={fullDetails?.facts?.vehicle_access}
-                onInspect={() => {
-                  const fact: Fact = fullDetails?.facts?.vehicle_access || {
-                    value: campsite.rig_access?.includes("4WD_ONLY") ? "4WD_ONLY" : "2WD",
-                    basis: "official",
-                    confidence: 2,
-                    source: campsite.source_url || "Park Dataset",
-                    note: campsite.rig_access?.includes("4WD_ONLY") ? "High clearance 4WD required" : "Accessible by standard 2WD vehicles"
-                  };
-                  setInspectFact({ fact, label: "Vehicle Access", campsiteName: campsite.name });
-                }}
-              />
-
-              <FactChip
-                label="Telco"
-                icon={<Wifi size={11} className="text-[#536259]" />}
-                displayValue={fullDetails?.facts?.telco?.value ? String(fullDetails.facts.telco.value) : "Unspecified"}
-                fact={fullDetails?.facts?.telco}
-                onInspect={() => {
-                  const fact: Fact = fullDetails?.facts?.telco || {
-                    value: null,
-                    basis: "unknown",
-                    confidence: 0,
-                    note: "Mobile signal unverified — download offline maps before travel"
-                  };
-                  setInspectFact({ fact, label: "Mobile Reception", campsiteName: campsite.name });
-                }}
-              />
-
-              <FactChip
-                label="Campfire"
-                icon={<Flame size={11} className="text-[#536259]" />}
-                displayValue={fullDetails?.facts?.campfires?.value === true ? "Permitted" : fullDetails?.facts?.campfires?.value === false ? "Prohibited" : "Check Rules"}
-                fact={fullDetails?.facts?.campfires}
-                onInspect={() => {
-                  const fact: Fact = fullDetails?.facts?.campfires || {
-                    value: null,
-                    basis: "unknown",
-                    confidence: 0,
-                    note: "Campfire regulations unverified — verify current fire danger ratings and park signs"
-                  };
-                  setInspectFact({ fact, label: "Campfires", campsiteName: campsite.name });
-                }}
-              />
-
-              <FactChip
-                label="Water"
-                icon={<Droplets size={11} className="text-[#536259]" />}
-                displayValue={fullDetails?.facts?.water?.value ? "Available" : "Carry In"}
-                fact={fullDetails?.facts?.water}
-                onInspect={() => {
-                  const fact: Fact = fullDetails?.facts?.water || {
-                    value: null,
-                    basis: "unknown",
-                    confidence: 0,
-                    note: "Water availability unverified — carry all drinking water"
-                  };
-                  setInspectFact({ fact, label: "Water", campsiteName: campsite.name });
-                }}
-              />
-
-              <FactChip
-                label="Toilets"
-                icon={<Layers size={11} className="text-[#536259]" />}
-                displayValue={fullDetails?.facts?.toilets?.value ? String(fullDetails.facts.toilets.value) : "Unverified"}
-                fact={fullDetails?.facts?.toilets}
-                onInspect={() => {
-                  const fact: Fact = fullDetails?.facts?.toilets || {
-                    value: null,
-                    basis: "unknown",
-                    confidence: 0,
-                    note: "Toilet facilities unverified — carry necessary hygiene supplies"
-                  };
-                  setInspectFact({ fact, label: "Toilets", campsiteName: campsite.name });
-                }}
-              />
-
-              <FactChip
-                label="Pets"
-                icon={<Dog size={11} className="text-[#536259]" />}
-                displayValue={campsite.dog_friendly === true ? "Dogs OK" : campsite.dog_friendly === false ? "No Pets" : "Check Rules"}
-                fact={fullDetails?.facts?.dog_friendly}
-                onInspect={() => {
-                  const fact: Fact = fullDetails?.facts?.dog_friendly || {
-                    value: campsite.dog_friendly,
-                    basis: campsite.dog_friendly !== undefined ? "official" : "unknown",
-                    confidence: campsite.dog_friendly !== undefined ? 2 : 0,
-                    note: campsite.dog_friendly === true ? "Dogs allowed on leash" : "Check pet restrictions with local ranger"
-                  };
-                  setInspectFact({ fact, label: "Pet Policy", campsiteName: campsite.name });
-                }}
-              />
-            </div>
-
-            {/* LIVE FIRE AGENCY & DISTRICT STRIP */}
-            <FireStrip 
-              fireDistrict={fullDetails?.fire_district || ""} 
-              fireFact={fullDetails?.facts?.fire_status} 
-              state={campsite.state} 
-            />
-          </div>
-        )}
-
-        {/* CONDITION-AWARE GEAR-FIT BADGE (D9) */}
-        <div className="bg-[#FAF6EF] border border-[#E2DAC8] px-3 py-2 rounded-xl text-xs flex items-center justify-between text-[#1E2A24] shrink-0">
-          <span className="font-medium text-[11px] flex items-center gap-1.5">
-            <Backpack size={13} className="text-[#2F5D50]" />
-            <strong className="text-[#1E2A24]">Gear Fit:</strong> 15°C Summer Quilt / Light Bag <Check size={12} className="inline text-[#2F5D50]" />
-          </span>
-          <span className="text-[10px] text-[#536259] font-bold">Overnight ~14°C</span>
-        </div>
-
-        {/* ONE-TAP DIRECT GPS NAVIGATION & PLAN B ACTION BUTTONS */}
-        <div className="flex flex-col gap-2 shrink-0">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setShowPlanBModal(true)}
-              className="bg-[#FFF9EE] hover:bg-[#FFF3DC] text-[#8A5818] border border-[#F0D5A8] py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-              title="Inspect condition-aware Plan B alternatives for this campsite"
-            >
-              <Shuffle size={13} className="text-[#C9822B]" /> Plan B Alternatives
-            </button>
-            <button
-              onClick={() => setShowCheckInModal(true)}
-              className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#2F5D50] border border-[#2F5D50]/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-            >
-              📡 10s Ground Report
-            </button>
-          </div>
-
-          {(() => {
-            const originParam = startLocation?.latitude && startLocation?.longitude 
-              ? `&origin=${startLocation.latitude},${startLocation.longitude}` 
-              : "";
-            const googleMapsUrl = originParam 
-              ? `https://www.google.com/maps/dir/?api=1${originParam}&destination=${campsite.latitude},${campsite.longitude}&travelmode=driving`
-              : `https://www.google.com/maps/search/?api=1&query=${campsite.latitude},${campsite.longitude}`;
-            const appleMapsUrl = startLocation?.latitude && startLocation?.longitude 
-              ? `https://maps.apple.com/?saddr=${startLocation.latitude},${startLocation.longitude}&daddr=${campsite.latitude},${campsite.longitude}&dirflg=d`
-              : `https://maps.apple.com/?daddr=${campsite.latitude},${campsite.longitude}`;
-
-            return (
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  href={googleMapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-[#E2DAC8]"
-                >
-                  <Navigation size={13} className="text-[#1F6FB2]" /> Google Maps
-                </a>
-                <a
-                  href={appleMapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-[#E2DAC8]"
-                >
-                  <Compass size={13} className="text-[#2F5D50]" /> Apple Maps
-                </a>
-              </div>
-            );
-          })()}
-        </div>
-
-        {aiSummary && (
-          <p className="text-xs text-[#536259] leading-relaxed border-l-2 border-[#2F5D50] pl-3 shrink-0">
-            <span className="font-bold text-[#2F5D50] text-xs block mb-1">Field Summary</span>
-            {aiSummary}
-          </p>
-        )}
-
-        {/* Community Field Notes & Sourced Insights Section */}
-        <div className="bg-[#FAF6EF] rounded-xl p-3 flex flex-col gap-2 border border-[#E2DAC8] shrink-0">
-          <div className="flex justify-between items-center text-sm text-[#1E2A24]">
-            <span className="font-bold flex items-center gap-1.5">
-              <span>Town & Field Notes</span>
-              <span className="text-[10px] text-[#8A5818] bg-[#FFF9EE] px-1.5 py-0.5 rounded border border-[#F0D5A8] font-mono">AI Web Synthesis</span>
             </span>
-            {insights?.retrieved_at && (
-              <span className="text-[10px] text-[#536259]">
-                Checked {new Date(insights.retrieved_at).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
-              </span>
-            )}
+            <span className="flex items-center gap-1.5 text-ink-muted">
+              <Fuel size={13} className="text-ochre" /> 
+              Est. Fuel: ${( (routeDistance / 1000) * 0.24 ).toFixed(2)}
+            </span>
           </div>
-          
-          {loadingInsights ? (
-            <div className="text-xs text-[#536259] animate-pulse py-2">Scanning nearby town amenities & field reports...</div>
-          ) : insights ? (
-            <div className="space-y-2.5 text-xs text-[#1E2A24]">
+        )}
+
+        {/* CONDITIONS */}
+        <Section title="Conditions">
+          <div className="flex items-center justify-between py-1.5 px-2 bg-ochre-tint/70 border border-ochre/25 rounded-xs text-xs">
+            <span className="t-data text-[11px] text-ink flex items-center gap-1.5">
+              <Flame size={12} className="text-ochre" />
+              Fire: {fullDetails?.fire_district || "District unmapped"} ({campsite.state})
+            </span>
+            <a
+              href={
+                campsite.state === "NSW"
+                  ? "https://www.rfs.nsw.gov.au/fire-information/fdr-and-tobans"
+                  : campsite.state === "VIC"
+                  ? "https://www.cfa.vic.gov.au/warnings-restrictions/total-fire-bans-fire-danger-ratings"
+                  : "https://www.bom.gov.au"
+              }
+              target="_blank"
+              rel="noreferrer"
+              className="t-data text-[10px] text-ochre hover:underline flex items-center gap-0.5"
+            >
+              Agency feed <ExternalLink size={9} />
+            </a>
+          </div>
+        </Section>
+
+        {/* SITE FACTS */}
+        <Section title="Site facts">
+          <div className="flex flex-col border border-paper-rule rounded-xs bg-paper-sunk/30 divide-y divide-paper-rule/60">
+            <FactRow
+              label="Access"
+              value={clearanceValue}
+              fact={fullDetails?.facts?.vehicle_access}
+              onInspect={() =>
+                inspect("Vehicle Access", {
+                  value: clearanceValue,
+                  basis: clearanceValue ? "official" : "unknown",
+                  confidence: clearanceValue ? 2 : 0,
+                  note: clearanceValue ? `Clearance recorded: ${clearanceValue}` : "Clearance not recorded by park authority"
+                })
+              }
+            />
+
+            <FactRow
+              label="Water"
+              value={waterValue}
+              fact={fullDetails?.facts?.water}
+              onInspect={() =>
+                inspect("Water", {
+                  value: waterValue,
+                  basis: campsite.facilities?.drinking_water !== undefined ? "official" : "unknown",
+                  confidence: campsite.facilities?.drinking_water !== undefined ? 2 : 0,
+                  note: waterValue ? `Water status: ${waterValue}` : "Drinking water availability unrecorded — carry sufficient water"
+                })
+              }
+            />
+
+            <FactRow
+              label="Toilets"
+              value={toiletValue}
+              fact={fullDetails?.facts?.toilets}
+              onInspect={() =>
+                inspect("Toilets", {
+                  value: toiletValue,
+                  basis: campsite.facilities?.toilets ? "official" : "unknown",
+                  confidence: campsite.facilities?.toilets ? 2 : 0,
+                  note: toiletValue ? `Toilet type: ${toiletValue}` : "Toilet facilities unrecorded — carry hygiene supplies"
+                })
+              }
+            />
+
+            <FactRow
+              label="Campfires"
+              value={campfireValue}
+              fact={fullDetails?.facts?.campfires}
+              onInspect={() =>
+                inspect("Campfires", {
+                  value: campfireValue,
+                  basis: campsite.facilities?.campfires !== undefined ? "official" : "unknown",
+                  confidence: campsite.facilities?.campfires !== undefined ? 2 : 0,
+                  note: campfireValue ? `Campfires: ${campfireValue}` : "Campfire regulations unrecorded — observe total fire bans"
+                })
+              }
+            />
+
+            <FactRow
+              label="Dogs"
+              value={dogValue}
+              fact={fullDetails?.facts?.dog_friendly}
+              onInspect={() =>
+                inspect("Pet Policy", {
+                  value: campsite.dog_friendly,
+                  basis: campsite.dog_friendly !== undefined ? "rule" : "unknown",
+                  confidence: campsite.dog_friendly !== undefined ? 3 : 0,
+                  note: dogValue ? `Pet policy: ${dogValue}` : "Pet policy unrecorded — verify with local authority"
+                })
+              }
+            />
+
+            <FactRow
+              label="Telco"
+              value={telcoValue}
+              fact={fullDetails?.facts?.telco}
+              onInspect={() =>
+                inspect("Telco", {
+                  value: telcoValue,
+                  basis: telcoValue ? "community" : "unknown",
+                  confidence: telcoValue ? 2 : 0,
+                  note: telcoValue ? `Carrier signal: ${telcoValue}` : "Mobile coverage unrecorded — download offline maps before departure"
+                })
+              }
+            />
+          </div>
+        </Section>
+
+        {/* AI SUMMARY / FIELD NOTES */}
+        {aiSummary && (
+          <Section title="Field summary">
+            <p className="t-body text-xs text-ink-muted leading-relaxed">
+              {aiSummary}
+            </p>
+          </Section>
+        )}
+
+        {/* Town & Field Observations */}
+        {insights && (
+          <Section title="Nearby towns & amenities">
+            <div className="bg-paper-sunk p-2.5 rounded-xs border border-paper-rule flex flex-col gap-2 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-[#536259] block mb-0.5">Fuel</span>
-                  <span className="font-semibold text-[#1E2A24]">{insights.nearest_fuel}</span>
+                  <span className="t-micro text-ink-faint block">Nearest Fuel</span>
+                  <span className="t-data text-xs text-ink font-semibold">{insights.nearest_fuel}</span>
                 </div>
                 <div>
-                  <span className="text-[#536259] block mb-0.5">Groceries</span>
-                  <span className="font-semibold text-[#1E2A24]">{insights.nearest_grocery}</span>
+                  <span className="t-micro text-ink-faint block">Nearest Groceries</span>
+                  <span className="t-data text-xs text-ink font-semibold">{insights.nearest_grocery}</span>
                 </div>
               </div>
 
               {insights.observations && insights.observations.length > 0 && (
-                <div className="border-t border-[#E2DAC8] pt-2 space-y-1.5">
-                  <span className="text-[#536259] block text-[11px] font-bold uppercase tracking-wider">Ground Truth Observations</span>
+                <div className="border-t border-paper-rule pt-2 space-y-1">
+                  <span className="t-micro text-ink-faint block">Recent field observations</span>
                   {insights.observations.map((obs, i) => (
-                    <div key={i} className="bg-[#FFFFFF] p-2.5 rounded-lg border border-[#E2DAC8] space-y-0.5 shadow-xs">
+                    <div key={i} className="bg-paper-card p-2 rounded-xs border border-paper-rule space-y-0.5">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-[#2F5D50] font-bold uppercase">{obs.category}</span>
-                        <span className="text-[#536259] italic">via {obs.source_attribution}</span>
+                        <span className="text-eucalypt font-bold uppercase">{obs.category}</span>
+                        <span className="text-ink-faint italic">{obs.source_attribution}</span>
                       </div>
-                      <div className="text-[#1E2A24] text-xs">{obs.observation}</div>
+                      <div className="text-ink text-xs t-body">{obs.observation}</div>
                     </div>
                   ))}
                 </div>
               )}
-
-              <div className="border-t border-[#E2DAC8] pt-2">
-                <span className="text-[#536259] block mb-1">Top Activities</span>
-                <div className="flex flex-wrap gap-1">
-                  {insights.top_activities.map((act, i) => (
-                    <span key={i} className="bg-[#FFFFFF] border border-[#E2DAC8] px-2 py-0.5 rounded text-[#1E2A24] text-[11px]">{act}</span>
-                  ))}
-                </div>
-              </div>
             </div>
-          ) : (
-            <div className="text-xs text-[#536259]">Field notes currently unavailable</div>
-          )}
+          </Section>
+        )}
+
+        {/* Action Buttons: Direct GPS, Plan B, Ground Report */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-paper-rule">
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="py-1.5 px-2 bg-paper-card border border-paper-rule rounded-sm text-xs t-label text-ink hover:bg-paper-sunk flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Navigation size={12} className="text-trust-official" /> Google Maps
+            </a>
+            <a
+              href={appleMapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="py-1.5 px-2 bg-paper-card border border-paper-rule rounded-sm text-xs t-label text-ink hover:bg-paper-sunk flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Compass size={12} className="text-eucalypt" /> Apple Maps
+            </a>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowPlanBModal(true)}
+              title="Inspect Plan B alternatives"
+            >
+              <Shuffle size={13} className="text-ochre" /> Plan B
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowCheckInModal(true)}
+              title="Report conditions"
+            >
+              <Radio size={13} className="text-eucalypt" /> Report conditions
+            </Button>
+          </div>
         </div>
 
-        {/* Plan B Monitoring Form */}
-        <div className="mt-2 border-t border-[#E2DAC8] pt-4 shrink-0">
+        {/* Save Trip & Monitor Form */}
+        <div className="border-t border-paper-rule pt-3">
           {saveSuccess ? (
-            <div className="p-4 bg-[#EBF2EE] border border-[#2F5D50]/30 rounded-xl text-center flex flex-col gap-3">
-              <div className="text-[#2F5D50] font-bold">✨ Trip Saved & Plan B Monitor Armed!</div>
-              <p className="text-xs text-[#536259]">We will monitor rain, severe heat, and park closures for your weekend and alert you if conditions worsen.</p>
+            <div className="p-3 bg-eucalypt-tint border border-eucalypt/30 rounded-sm text-center flex flex-col gap-2">
+              <div className="text-eucalypt font-semibold text-xs flex items-center justify-center gap-1">
+                <Check size={14} /> Trip saved & condition monitor armed
+              </div>
+              <p className="t-lede text-xs">We monitor fire bans and weather shifts for your dates.</p>
               <button 
                 onClick={() => setSaveSuccess(false)}
-                className="text-xs text-[#2F5D50] underline font-semibold cursor-pointer"
+                className="t-data text-xs text-eucalypt underline cursor-pointer"
               >
                 Save another date
               </button>
             </div>
           ) : isSaving ? (
-            <form onSubmit={handleSaveTrip} className="flex flex-col gap-3 bg-[#FAF6EF] p-4 rounded-xl border border-[#E2DAC8]">
-              <span className="text-xs font-bold text-[#1E2A24]">Save Trip & Arm Plan B Monitor</span>
+            <form onSubmit={handleSaveTrip} className="flex flex-col gap-2.5 bg-paper-sunk p-3 rounded-sm border border-paper-rule">
+              <span className="t-label text-xs font-semibold text-ink">Save trip & monitor conditions</span>
               
               {saveError && (
-                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                <div className="text-xs text-safety-danger bg-safety-danger/10 p-2 rounded-xs border border-safety-danger/30">
                   {saveError}
                 </div>
               )}
 
               <div>
-                <label className="text-[10px] text-[#536259] block mb-1 font-medium">Your Email</label>
+                <label className="t-micro text-ink-muted block mb-0.5">Your email</label>
                 <input 
                   type="email" 
                   required
                   placeholder="camper@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-lg px-3 py-1.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
+                  className="w-full bg-paper-card border border-paper-rule rounded-sm px-2.5 py-1.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-eucalypt"
                 />
+                <p className="text-[10px] text-ink-faint mt-1 leading-normal">
+                  We use your email strictly for condition alerts. No marketing. View <Link href="/privacy" target="_blank" className="underline hover:text-eucalypt">Privacy Policy</Link>.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-[#536259] block mb-1 font-medium">Start Date</label>
+                  <label className="t-micro text-ink-muted block mb-0.5">Start date</label>
                   <input 
                     type="date" 
                     required
                     value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      if (!e.target.value) setFutureWeather(null);
-                    }}
-                    className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-lg px-2 py-1.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full bg-paper-card border border-paper-rule rounded-sm px-2 py-1 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-eucalypt"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-[#536259] block mb-1 font-medium">End Date</label>
+                  <label className="t-micro text-ink-muted block mb-0.5">End date</label>
                   <input 
                     type="date" 
                     required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-[#FFFFFF] border border-[#E2DAC8] rounded-lg px-2 py-1.5 text-xs text-[#1E2A24] focus:outline-none focus:border-[#2F5D50]"
+                    className="w-full bg-paper-card border border-paper-rule rounded-sm px-2 py-1 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-eucalypt"
                   />
                 </div>
               </div>
 
               <div className="flex gap-2 mt-1">
-                <button 
+                <Button 
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setIsSaving(false)}
-                  className="flex-1 py-2 bg-[#FFFFFF] hover:bg-[#F6F1E7] text-[#536259] text-xs font-bold rounded-lg border border-[#E2DAC8] transition-all cursor-pointer"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit"
-                  className="flex-1 py-2 bg-[#2F5D50] hover:bg-[#254A40] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-xs"
+                  variant="primary"
+                  size="sm"
+                  className="flex-1"
                 >
                   Confirm & Monitor
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
-            <div className="flex flex-col gap-2">
-              <button 
-                onClick={() => setIsSaving(true)}
-                className="w-full py-2.5 bg-[#2F5D50] hover:bg-[#254A40] text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer"
-              >
-                Save Trip & Monitor for Plan B
-              </button>
-            </div>
+            <Button 
+              variant="primary"
+              size="md"
+              onClick={() => setIsSaving(true)}
+              className="w-full"
+            >
+              <Bookmark size={13} /> Save Trip & Monitor Conditions
+            </Button>
           )}
         </div>
 
-        <div className="mt-2">
-          <a 
-            href={campsite.booking_url || campsite.source_url || `https://www.google.com/search?q=book+${encodeURIComponent(campsite.name)}+camping`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex justify-center items-center gap-1.5 w-full py-2 bg-[#FAF6EF] hover:bg-[#F6F1E7] text-[#1E2A24] font-bold rounded-xl transition-all text-xs border border-[#E2DAC8] cursor-pointer"
-          >
-            <span>View Booking / Permit Details</span>
-            <ExternalLink size={13} />
-          </a>
-        </div>
+        {campsite.booking_url && (
+          <div className="pt-1">
+            <a 
+              href={campsite.booking_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 w-full py-2 bg-paper-card hover:bg-paper-sunk text-ink text-xs t-label rounded-sm border border-paper-rule transition-colors"
+            >
+              <span>Booking & Permit Details</span>
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
       </div>
 
-      {/* 10-SECOND GROUND CHECK-IN MODAL */}
+      {/* 10-Second Ground Check-in Modal */}
       {showCheckInModal && (
         <GroundCheckInModal
           campsiteId={campsite.id}
@@ -837,7 +613,7 @@ export default function TripCard({
         />
       )}
 
-      {/* PLAN B ALTERNATIVES MODAL */}
+      {/* Plan B Alternatives Modal */}
       {showPlanBModal && (
         <PlanBModal
           originalCampsite={cardData}
@@ -850,7 +626,7 @@ export default function TripCard({
         />
       )}
 
-      {/* TRUST LENS SOURCE INSPECTION SHEET */}
+      {/* Source Inspection Sheet */}
       {inspectFact && (
         <SourceSheet
           fact={inspectFact.fact}

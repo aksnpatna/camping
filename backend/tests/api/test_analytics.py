@@ -1,7 +1,15 @@
+import pytest
 from fastapi.testclient import TestClient
+from app.core.config import settings
 from app.main import app
 
 client = TestClient(app)
+ADMIN = {"X-Admin-Key": "analytics-test-admin-key"}
+
+
+@pytest.fixture(autouse=True)
+def _admin_key(monkeypatch):
+    monkeypatch.setattr(settings, "ADMIN_KEY", "analytics-test-admin-key")
 
 def test_analytics_event_ingestion_and_summary():
     # 1. Post a page view event
@@ -32,7 +40,7 @@ def test_analytics_event_ingestion_and_summary():
     assert res2.status_code == 201
 
     # 3. Fetch analytics summary
-    summary_res = client.get("/api/v1/analytics/summary")
+    summary_res = client.get("/api/v1/analytics/summary", headers=ADMIN)
     assert summary_res.status_code == 200
     summary = summary_res.json()
     assert summary["total_events"] >= 2
@@ -40,7 +48,7 @@ def test_analytics_event_ingestion_and_summary():
     assert any(p["path"] == "/explore/sawpit-picnic-area" for p in summary["top_pages"])
 
     # 4. Fetch email leads list
-    leads_res = client.get("/api/v1/analytics/leads")
+    leads_res = client.get("/api/v1/analytics/leads", headers=ADMIN)
     assert leads_res.status_code == 200
     leads = leads_res.json()
     emails = [l["email"] for l in leads]
@@ -71,7 +79,7 @@ def test_beta_feedback_event_and_lead_capture():
     assert data["user_email"] == feedback_email
 
     # Verify that the email is captured as a lead
-    leads_res = client.get("/api/v1/analytics/leads")
+    leads_res = client.get("/api/v1/analytics/leads", headers=ADMIN)
     assert leads_res.status_code == 200
     emails = [l["email"] for l in leads_res.json()]
     assert feedback_email in emails

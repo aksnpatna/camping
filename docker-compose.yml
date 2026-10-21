@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   backend:
     build:
@@ -7,15 +5,40 @@ services:
       dockerfile: Dockerfile
     container_name: camping-backend
     restart: unless-stopped
-    ports:
-      - "8021:8021"
+    # No published ports: only the frontend container (Next.js /api rewrite) and
+    # the healthcheck reach the API, over the internal Docker network.
+    expose:
+      - "8021"
     environment:
-      - DATABASE_URL=postgresql+psycopg2://realestate_user:realestate_pass@realestate-db:5432/camping_db
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - ADMIN_KEY=${ADMIN_KEY:?ADMIN_KEY must be set in .env}
+      - FRONTEND_URL=${FRONTEND_URL:?FRONTEND_URL must be set in .env}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set in .env}
+      - PROXY_URL=${PROXY_URL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - EMAIL_TRANSPORT=${EMAIL_TRANSPORT:-none}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-alerts@campsmart.au}
       - LOCAL_LLM_URL=http://host.docker.internal:8002/v1
       - LOCAL_LLM_MODEL=qwen3:9b
-      - PROXY_URL=http://smart-kfoqvnzaqnhn_area-AU:ZDlM6kl6yLoNBcz2@proxy.smartproxy.net:3120
+      - RATE_LIMIT_ENABLED=true
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Container hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 256
     networks:
       - default
       - realestate_default
@@ -26,6 +49,41 @@ services:
       retries: 5
       start_period: 20s
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: camping-worker
+    restart: unless-stopped
+    command: ["python", "worker.py"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - FRONTEND_URL=${FRONTEND_URL:?FRONTEND_URL must be set in .env}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set in .env}
+      - PROXY_URL=${PROXY_URL:-}
+      - EMAIL_TRANSPORT=${EMAIL_TRANSPORT:-none}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-alerts@campsmart.au}
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 128
+    networks:
+      - default
+      - realestate_default
+
   frontend:
     build:
       context: ./frontend
@@ -35,16 +93,24 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    # Loopback only: the Cloudflare tunnel / reverse proxy on this host is the
+    # sole public entry point. Never expose 3021 on all interfaces.
     ports:
-      - "3021:3021"
+      - "127.0.0.1:3021:3021"
     environment:
       - NEXT_PUBLIC_API_URL=/api/v1
       - BACKEND_INTERNAL_URL=http://camping-backend:8021
       - API_URL=http://camping-backend:8021/api/v1
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 256
     networks:
       - default
+      # The tunnel container lives on this network and must reach the frontend.
       - asx-prediction_default
-      - realestate_default
 
 networks:
   default:

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { setWorkerUrl } from 'maplibre-gl';
 import Map, { NavigationControl, Marker, Popup, Source, Layer, MapRef } from 'react-map-gl/maplibre';
 import type { MapLayerMouseEvent } from 'react-map-gl/maplibre';
+import { Tent } from 'lucide-react';
 
 if (typeof window !== 'undefined') {
   setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
@@ -146,32 +147,13 @@ export default function CampingMap({
         onMouseLeave={handleMouseLeave}
         style={{ width: "100%", height: "100%" }}
         onMove={evt => setViewState(evt.viewState)}
-        mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
       >
         <NavigationControl position="bottom-right" />
 
         {/* High-Performance WebGL GeoJSON Layer for all ~3000 Campsites */}
         <Source id="campsites-source" type="geojson" data={campsitesGeoJson}>
-          {/* Subtle Halo / Glow Layer */}
-          <Layer
-            id="campsites-glow"
-            type="circle"
-            paint={{
-              "circle-radius": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                3, hasSelectedSite ? 2.5 : 5,
-                8, hasSelectedSite ? 4 : 8,
-                14, hasSelectedSite ? 6 : 12
-              ],
-              "circle-color": hasSelectedSite ? "rgba(16, 185, 129, 0.08)" : "rgba(34, 197, 94, 0.28)",
-              "circle-blur": 0.75,
-              "circle-opacity": hasSelectedSite ? 0.3 : 0.85
-            }}
-          />
-
-          {/* Primary Crisp Campsite Circle Layer */}
+          {/* Primary Crisp Campsite Circle Layer - Printed Field Guide Styling */}
           <Layer
             id="campsites-circles"
             type="circle"
@@ -180,20 +162,19 @@ export default function CampingMap({
                 "interpolate",
                 ["linear"],
                 ["zoom"],
-                3, hasSelectedSite ? 2 : 3.8,
-                8, hasSelectedSite ? 3 : 5.5,
-                14, hasSelectedSite ? 5 : 8.5
+                3, hasSelectedSite ? 2 : 3.5,
+                8, hasSelectedSite ? 3 : 5,
+                14, hasSelectedSite ? 5 : 8
               ],
-              // Dimmed to muted translucent emerald when another campsite is selected
-              "circle-color": hasSelectedSite ? "rgba(16, 185, 129, 0.38)" : "#22c55e",
-              "circle-stroke-color": hasSelectedSite ? "rgba(52, 211, 153, 0.25)" : "#022c22",
-              "circle-stroke-width": hasSelectedSite ? 0.75 : 1.5,
+              "circle-color": hasSelectedSite ? "rgba(47, 93, 80, 0.35)" : "#2F5D50",
+              "circle-stroke-color": hasSelectedSite ? "rgba(244, 240, 230, 0.4)" : "#F4F0E6",
+              "circle-stroke-width": hasSelectedSite ? 0.75 : 1.25,
               "circle-opacity": hasSelectedSite ? 0.35 : 0.95
             }}
           />
         </Source>
 
-        {/* Selected Campsite: Prominent Animated 3D Pin */}
+        {/* Selected Campsite: Printed-Map Crosshair Target Marker */}
         {selectedCampsite && (
           <Marker 
             longitude={selectedCampsite.longitude} 
@@ -205,13 +186,16 @@ export default function CampingMap({
             }}
           >
             <div 
-              className="relative flex items-center justify-center cursor-pointer scale-110"
+              className="relative flex items-center justify-center cursor-pointer group"
               title={`${selectedCampsite.name} (Selected)`}
               aria-label={`${selectedCampsite.name} (Selected)`}
             >
-              <div className="absolute w-9 h-9 rounded-full bg-red-500/40 animate-ping"></div>
-              <div className="w-7 h-7 bg-red-600 rounded-full shadow-[0_0_22px_rgba(239,68,68,0.95)] border-2 border-white flex items-center justify-center text-xs text-white font-black z-10 transition-transform">
-                ⛺
+              {/* Printed crosshair ticks */}
+              <span className="absolute w-7 h-[1px] bg-ink/70 pointer-events-none" />
+              <span className="absolute h-7 w-[1px] bg-ink/70 pointer-events-none" />
+              {/* 10px eucalypt ring, 2px paper stroke with Tent icon */}
+              <div className="relative w-7 h-7 rounded-full bg-eucalypt text-paper border-2 border-paper shadow-md flex items-center justify-center transition-transform group-hover:scale-105">
+                <Tent className="w-3.5 h-3.5 text-paper stroke-[2.2]" />
               </div>
             </div>
           </Marker>
@@ -227,9 +211,9 @@ export default function CampingMap({
             offset={14}
             className="z-30 pointer-events-none"
           >
-            <div className="bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg border border-emerald-500/40 backdrop-blur-md shadow-2xl flex items-center gap-1.5 font-medium">
-              <span>{hoveredSite.name}</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 py-0.2 rounded border border-emerald-500/30 uppercase font-mono">
+            <div className="bg-paper-card text-ink text-xs px-2.5 py-1.5 rounded-sm border border-paper-rule shadow-md flex items-center gap-1.5 font-sans">
+              <span className="font-medium text-ink">{hoveredSite.name}</span>
+              <span className="text-[10px] bg-eucalypt-tint text-eucalypt px-1 py-0.5 rounded-sm border border-eucalypt/30 uppercase font-mono tracking-wider">
                 {hoveredSite.state}
               </span>
             </div>
@@ -238,13 +222,13 @@ export default function CampingMap({
 
         {startLocation && (
           <Marker longitude={startLocation.longitude} latitude={startLocation.latitude}>
-            <div className="w-4 h-4 bg-white rounded-full shadow-lg border-2 border-[var(--color-forest-900)]"></div>
+            <div className="w-3.5 h-3.5 bg-paper rounded-full shadow-md border-2 border-ink" />
           </Marker>
         )}
 
         {routeGeoJson && (
           <Source id="route" type="geojson" data={routeGeoJson}>
-            {/* Outer red casing for contrast on dark map */}
+            {/* Ink casing line */}
             <Layer 
               id="route-line-casing" 
               type="line" 
@@ -253,12 +237,12 @@ export default function CampingMap({
                 "line-cap": "round"
               }}
               paint={{
-                "line-color": "#7f1d1d",
-                "line-width": 7,
-                "line-opacity": 0.6
+                "line-color": "#1A231E",
+                "line-width": 6,
+                "line-opacity": 0.35
               }}
             />
-            {/* Distinct Red Route Trace */}
+            {/* Clay route line */}
             <Layer 
               id="route-line" 
               type="line" 
@@ -267,8 +251,8 @@ export default function CampingMap({
                 "line-cap": "round"
               }}
               paint={{
-                "line-color": "#ef4444",
-                "line-width": 4.5,
+                "line-color": "#A65640",
+                "line-width": 3,
                 "line-opacity": 0.95
               }}
             />

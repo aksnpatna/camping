@@ -1,172 +1,160 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { 
-  Shuffle, 
-  AlertTriangle, 
-  CloudSun, 
-  ShieldCheck, 
-  X, 
-  MapPin, 
-  Check, 
-  Dog
-} from "lucide-react";
+import { X, Shuffle, AlertTriangle, ShieldCheck, Dog, MapPin, CloudSun, Check, Clock } from "lucide-react";
 import { getApiUrl } from "@/config";
-import { TripCardData } from "../FindWeekendPlanner";
+import { Fact } from "@/types/facts";
 import TrustRing from "./TrustRing";
-import { CampsiteFacts } from "@/types/facts";
+import { Badge } from "@/components/ui/Badge";
 
-export interface PlanBAlternative {
+export interface AlternativeCampsite {
   id: number;
   name: string;
   state: string;
-  management_type: string | null;
-  dog_friendly: boolean | null;
-  driving_time_minutes: number | null;
-  conditions_verified: boolean;
+  latitude?: number;
+  longitude?: number;
+  driving_distance_km: number;
+  driving_time_minutes?: number;
   reason: string;
-  latitude: number | null;
-  longitude: number | null;
-  facts: CampsiteFacts | null;
+  conditions_verified?: boolean;
+  dog_friendly?: boolean;
+  facts?: {
+    campfires: Fact<boolean>;
+    toilets: Fact<string>;
+    water: Fact<string>;
+  };
+  management_type?: string;
 }
 
-interface PlanBResponse {
-  original_campsite_id: number;
-  alternatives: PlanBAlternative[];
-}
+export type PlanBAlternative = AlternativeCampsite;
 
-interface PlanBModalProps {
-  originalCampsite: TripCardData;
+export interface PlanBModalProps {
+  isOpen?: boolean;
+  onClose: () => void;
+  originalCampsite: {
+    id: number;
+    name: string;
+    state: string;
+    driving_distance_km: number;
+    main_compromise: string;
+  };
+  onSwapWithAlternative: (alternative?: AlternativeCampsite) => void;
+  onSaveAlternative?: (campsiteId: number, campsiteName: string) => void;
   originLat?: number;
   originLng?: number;
-  onClose: () => void;
-  onSwapWithAlternative: (alternative: PlanBAlternative) => void;
-  onSaveAlternative?: (id: number, name: string) => void;
 }
 
 export default function PlanBModal({
-  originalCampsite,
-  originLat,
-  originLng,
+  isOpen = true,
   onClose,
+  originalCampsite,
   onSwapWithAlternative,
-  onSaveAlternative,
+  onSaveAlternative
 }: PlanBModalProps) {
-  const [loading, setLoading] = useState(true);
-  const [alternatives, setAlternatives] = useState<PlanBAlternative[]>([]);
+  const [alternatives, setAlternatives] = useState<AlternativeCampsite[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [swappedId, setSwappedId] = useState<number | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-    async function fetchPlanB() {
+    if (!isOpen) return;
+
+    let isCancelled = false;
+    const fetchAlternatives = async () => {
       setLoading(true);
       setError(null);
-      try {
-        const params = new URLSearchParams();
-        if (originalCampsite.dog_friendly !== null && originalCampsite.dog_friendly !== undefined) {
-          params.set("has_dog", String(originalCampsite.dog_friendly));
-        }
-        if (originalCampsite.vehicle_clearance) {
-          params.set("rig_access", originalCampsite.vehicle_clearance);
-        }
-        if (originLat !== undefined && originLng !== undefined) {
-          params.set("origin_lat", String(originLat));
-          params.set("origin_lng", String(originLng));
-        }
-        params.set("limit", "3");
 
-        const res = await fetch(`${getApiUrl()}/campsites/${originalCampsite.id}/plan-b?${params.toString()}`);
+      try {
+        const apiUrl = getApiUrl();
+        const res = await fetch(`${apiUrl}/plan-b/alternatives/${originalCampsite.id}`);
         if (!res.ok) {
-          throw new Error(`Failed to load Plan B options: HTTP ${res.status}`);
+          throw new Error("Unable to fetch alternative campsites right now.");
         }
-        const data: PlanBResponse = await res.json();
-        if (isMounted) {
+        const data = await res.json();
+        if (!isCancelled) {
           setAlternatives(data.alternatives || []);
         }
-      } catch (err: unknown) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Unable to load Plan B alternatives.");
+      } catch (err) {
+        if (!isCancelled) {
+          console.error("Failed to fetch Plan B alternatives:", err);
+          setError("Failed to load alternatives. Please try again.");
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (!isCancelled) setLoading(false);
       }
-    }
-
-    fetchPlanB();
-    return () => {
-      isMounted = false;
     };
-  }, [originalCampsite, originLat, originLng]);
+
+    fetchAlternatives();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, originalCampsite.id]);
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl shadow-2xl p-6 text-[#1E2A24] overflow-hidden max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-xs animate-fade-in font-sans">
+      <div className="relative w-full max-w-2xl bg-paper-card border border-paper-rule rounded-sm shadow-2xl p-6 text-ink flex flex-col max-h-[90vh]">
         {/* CLOSE BUTTON */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-[#8B9891] hover:text-[#1E2A24] rounded-full bg-[#FAF6EF] hover:bg-[#EFE9DD] transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 text-ink-muted hover:text-ink rounded-xs bg-paper-tint hover:bg-paper-sunk transition-colors cursor-pointer"
           aria-label="Close Plan B Modal"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
 
         {/* HEADER */}
         <div className="flex items-start gap-3 mb-5 pr-8">
-          <div className="w-10 h-10 rounded-xl bg-[#FAF2E6] border border-[#E8CFA9] flex items-center justify-center text-[#C9822B] shrink-0">
-            <Shuffle size={20} />
+          <div className="w-9 h-9 rounded-xs bg-ochre-tint border border-ochre/30 flex items-center justify-center text-ochre shrink-0">
+            <Shuffle size={18} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-[#FAF2E6] text-[#9A5C0E] px-2 py-0.5 rounded border border-[#E8CFA9]">
-                Plan B Engine
-              </span>
-              <span className="text-xs text-[#536259]">Condition-Aware Alternatives</span>
+              <Badge tone="warn" size="sm">Alternative sites</Badge>
             </div>
-            <h3 className="text-xl font-black text-[#1E2A24] mt-0.5">
+            <h3 className="font-serif text-lg font-semibold text-ink mt-1">
               Alternatives for {originalCampsite.name}
             </h3>
-            <p className="text-xs text-[#536259] mt-1">
+            <p className="text-xs text-ink-muted mt-0.5">
               If rain, extreme fire danger, or road washouts threaten your primary site, these nearby sites preserve your weekend.
             </p>
           </div>
         </div>
 
         {/* ORIGINAL SITE RECAP */}
-        <div className="bg-[#FAF6EF] border border-[#E2DAC8] rounded-xl p-3 mb-5 flex items-center justify-between text-xs text-[#1E2A24]">
+        <div className="bg-paper border border-paper-rule rounded-sm p-3 mb-4 flex items-center justify-between text-xs text-ink">
           <div>
-            <span className="text-[10px] text-[#536259] uppercase block font-bold">Current Primary Choice:</span>
-            <span className="font-bold text-[#1E2A24] text-sm">{originalCampsite.name}</span>
-            <span className="text-[#536259] ml-2">({originalCampsite.state} • {originalCampsite.driving_distance_km} km)</span>
+            <span className="t-micro text-ink-muted block">Current Choice:</span>
+            <span className="font-semibold text-ink text-sm">{originalCampsite.name}</span>
+            <span className="text-ink-muted ml-2">({originalCampsite.state} • {originalCampsite.driving_distance_km} km)</span>
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-[#9A5C0E] block uppercase font-bold">The Catch:</span>
-            <span className="text-[#C9822B] text-xs font-semibold max-w-[220px] truncate block">
+            <span className="t-micro text-ochre block">Watch for:</span>
+            <span className="text-ink-muted text-xs max-w-[220px] truncate block">
               {originalCampsite.main_compromise}
             </span>
           </div>
         </div>
 
         {/* CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
           {loading && (
-            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
-              <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-gray-400">Scanning proximity, weather radar, and dog/vehicle clearance...</p>
+            <div className="py-12 flex flex-col items-center justify-center text-center gap-2.5">
+              <div className="w-7 h-7 border-2 border-eucalypt border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-ink-muted">Finding alternative sites…</p>
             </div>
           )}
 
           {error && !loading && (
-            <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-red-200 text-xs flex items-center gap-2">
-              <AlertTriangle size={16} className="text-red-400 shrink-0" />
+            <div className="p-3.5 rounded-sm bg-clay-tint border border-clay/30 text-clay text-xs flex items-center gap-2">
+              <AlertTriangle size={15} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {!loading && !error && alternatives.length === 0 && (
-            <div className="p-8 text-center text-gray-400 text-xs bg-white/5 rounded-xl border border-white/10">
+            <div className="p-8 text-center text-ink-muted text-xs bg-paper rounded-sm border border-paper-rule">
               No matching alternative campgrounds found within your drive window.
             </div>
           )}
@@ -179,34 +167,35 @@ export default function PlanBModal({
             return (
               <div
                 key={alt.id}
-                className={`p-4 rounded-xl border transition-all ${
+                className={`p-4 rounded-sm border transition-colors ${
                   isSwapped
-                    ? "bg-[#EBF2EE] border-[#2F5D50] shadow-xs"
-                    : "bg-[#FAF6EF] border-[#E2DAC8] hover:border-[#2F5D50]/40 shadow-2xs"
+                    ? "bg-eucalypt-tint border-eucalypt shadow-xs"
+                    : "bg-paper border-paper-rule hover:border-paper-rule-bold shadow-xs"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-[#9A5C0E]">
+                      <span className="t-micro text-ochre font-bold">
                         Option #{idx + 1}
                       </span>
                       {alt.conditions_verified && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-[#2F5D50] bg-[#EBF2EE] border border-[#2F5D50]/30 px-1.5 py-0.2 rounded font-bold">
-                          <ShieldCheck size={11} /> Forecast Checked
+                        <span className="inline-flex items-center gap-1 t-micro text-eucalypt bg-eucalypt-tint border border-eucalypt/30 px-1.5 py-0.2 rounded-xs">
+                          <ShieldCheck size={10} /> Forecast Checked
                         </span>
                       )}
                     </div>
-                    <h4 className="text-base font-black text-[#1E2A24] mt-1">
+                    <h4 className="font-serif text-base font-semibold text-ink mt-0.5">
                       {alt.name}
                     </h4>
-                    <p className="text-[11px] text-[#536259] mt-0.5 flex items-center gap-2">
+                    <p className="text-[11px] text-ink-muted mt-0.5 flex items-center gap-2">
                       <span className="flex items-center gap-1">
-                        <MapPin size={11} className="text-[#8B9891]" /> {alt.state} • {alt.management_type || "Public Reserve"}
+                        <MapPin size={11} className="text-eucalypt" /> {alt.state} • {alt.management_type || "Public Reserve"}
                       </span>
                       {alt.driving_time_minutes && (
-                        <span className="text-[#2F5D50] font-semibold">
-                          ⏱️ {driveHours ? `${driveHours}h ` : ""}{driveMins}m drive
+                        <span className="text-ink font-medium flex items-center gap-1">
+                          <Clock size={10} className="text-ink-faint" />
+                          <span>{driveHours ? `${driveHours}h ` : ""}{driveMins}m drive</span>
                         </span>
                       )}
                     </p>
@@ -214,25 +203,25 @@ export default function PlanBModal({
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     {alt.dog_friendly && (
-                      <span className="text-[10px] bg-[#FFFFFF] text-[#2F5D50] px-2 py-0.5 rounded-full border border-[#E2DAC8] font-bold flex items-center gap-1" title="Dog friendly">
-                        <Dog size={11} /> Dogs OK
-                      </span>
+                      <Badge tone="ok" size="sm" className="flex items-center gap-1">
+                        <Dog size={10} /> Dogs OK
+                      </Badge>
                     )}
                   </div>
                 </div>
 
                 {/* WHY IT MAKES A GREAT PLAN B */}
-                <div className="mt-3 p-2.5 rounded-lg bg-[#FAF2E6] border border-[#E8CFA9] text-xs text-[#9A5C0E] flex items-start gap-2">
-                  <CloudSun size={15} className="text-[#C9822B] shrink-0 mt-0.5" />
+                <div className="mt-3 p-2.5 rounded-xs bg-ochre-tint border border-ochre/25 text-xs text-ink flex items-start gap-2">
+                  <CloudSun size={14} className="text-ochre shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-[10px] uppercase font-black text-[#9A5C0E] mr-1.5">Why Swap:</span>
-                    <span className="text-[11px] leading-relaxed text-[#7A4506]">{alt.reason}</span>
+                    <span className="t-micro text-ochre font-bold mr-1.5">Why swap:</span>
+                    <span className="text-[11px] leading-relaxed text-ink">{alt.reason}</span>
                   </div>
                 </div>
 
                 {/* TRUST FACTS STRIP */}
                 {alt.facts && (
-                  <div className="mt-3 pt-2.5 border-t border-[#E2DAC8] flex flex-wrap items-center gap-3 text-[11px] text-[#536259]">
+                  <div className="mt-3 pt-2.5 border-t border-paper-rule flex flex-wrap items-center gap-3 text-[11px] text-ink-muted">
                     <div className="flex items-center gap-1">
                       <TrustRing basis={alt.facts.campfires.basis} confidence={alt.facts.campfires.confidence} size="sm" />
                       <span>Fires: {alt.facts.campfires.value === true ? "Permitted" : alt.facts.campfires.value === false ? "Prohibited" : "Unverified"}</span>
@@ -243,14 +232,14 @@ export default function PlanBModal({
                     </div>
                     <div className="flex items-center gap-1">
                       <TrustRing basis={alt.facts.water.basis} confidence={alt.facts.water.confidence} size="sm" />
-                      <span>Water: {alt.facts.water.value ? "Available" : "Carry In"}</span>
+                      <span>Water: {alt.facts.water.value ? "Available" : "Carry in"}</span>
                     </div>
                   </div>
                 )}
 
                 {/* ACTION CONTROLS */}
-                <div className="mt-3 pt-2.5 border-t border-[#E2DAC8] flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-[#8B9891]">
+                <div className="mt-3 pt-2.5 border-t border-paper-rule flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-ink-faint">
                     Preserves your group intent & departure schedule
                   </span>
 
@@ -258,7 +247,7 @@ export default function PlanBModal({
                     {onSaveAlternative && (
                       <button
                         onClick={() => onSaveAlternative(alt.id, alt.name)}
-                        className="bg-[#FFFFFF] hover:bg-[#FAF6EF] text-[#1E2A24] border border-[#E2DAC8] text-xs px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer shadow-2xs"
+                        className="bg-paper hover:bg-paper-tint text-ink border border-paper-rule text-xs px-2.5 py-1 rounded-xs font-medium transition-colors cursor-pointer"
                       >
                         Save
                       </button>
@@ -268,15 +257,15 @@ export default function PlanBModal({
                         setSwappedId(alt.id);
                         onSwapWithAlternative(alt);
                       }}
-                      className="bg-[#2F5D50] hover:bg-[#24493F] text-white text-xs px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="bg-eucalypt hover:bg-eucalypt/90 text-paper text-xs px-3 py-1 rounded-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
                     >
                       {isSwapped ? (
                         <>
-                          <Check size={13} /> Swapped!
+                          <Check size={12} /> Swapped!
                         </>
                       ) : (
                         <>
-                          <Shuffle size={13} /> Swap into Trip
+                          <Shuffle size={12} /> Swap into Trip
                         </>
                       )}
                     </button>
@@ -288,11 +277,11 @@ export default function PlanBModal({
         </div>
 
         {/* FOOTER */}
-        <div className="mt-4 pt-3 border-t border-[#E2DAC8] flex items-center justify-between text-xs text-[#536259]">
-          <span>Active condition monitoring auto-alerts 24h before bad weather shifts.</span>
+        <div className="mt-4 pt-3 border-t border-paper-rule flex items-center justify-between text-xs text-ink-muted">
+          <span>Active condition monitoring alerts 24h before bad weather shifts.</span>
           <button
             onClick={onClose}
-            className="text-[#1E2A24] hover:text-[#2F5D50] font-bold cursor-pointer"
+            className="text-ink hover:text-eucalypt font-semibold cursor-pointer"
           >
             Done
           </button>

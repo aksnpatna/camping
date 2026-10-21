@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 import os
+from app.core.config import settings
 from app.main import app
 
 client = TestClient(app)
@@ -18,14 +19,15 @@ def test_create_campsite_unauthorized():
             "rig_access": ["TENT", "4WD_ONLY"]
         }
     )
-    assert response.status_code in [403, 422]
+    assert response.status_code in [401, 403, 422]
 
 def test_create_campsite_authorized(monkeypatch):
     test_key = "secret-admin-pass-123"
-    monkeypatch.setenv("ADMIN_KEY", test_key)
+    monkeypatch.setattr(settings, "ADMIN_KEY", test_key)
     
     response = client.post(
-        f"/api/v1/campsites?admin_key={test_key}",
+        "/api/v1/campsites",
+        headers={"X-Admin-Key": test_key},
         json={
             "name": "TDD Test Campsite",
             "state": "NSW",
@@ -60,10 +62,11 @@ def test_get_campsites():
 
 def test_campsite_facilities_and_fees_fields(monkeypatch):
     test_key = "secret-admin-pass-123"
-    monkeypatch.setenv("ADMIN_KEY", test_key)
+    monkeypatch.setattr(settings, "ADMIN_KEY", test_key)
 
     response = client.post(
-        f"/api/v1/campsites?admin_key={test_key}",
+        "/api/v1/campsites",
+        headers={"X-Admin-Key": test_key},
         json={
             "name": "Verified Amenities Camp",
             "state": "NSW",
@@ -183,5 +186,21 @@ def test_campsite_ai_summary_grounded_and_anti_cliche():
     repeat_res = client.get(f"/api/v1/campsites/{campsite_id}/ai-summary")
     assert repeat_res.status_code == 200
     assert repeat_res.json()["summary"] == sum_res.json()["summary"]
+
+
+def test_get_campsite_counts():
+    """Ensure /api/v1/campsites/counts returns live totals and breakdown by state."""
+    res = client.get("/api/v1/campsites/counts")
+    assert res.status_code == 200
+    data = res.json()
+    assert "total" in data
+    assert "by_state" in data
+    assert isinstance(data["by_state"], dict)
+    assert data["total"] > 0
+    assert sum(data["by_state"].values()) == data["total"]
+    # Check that major states are present
+    assert "NSW" in data["by_state"]
+    assert "VIC" in data["by_state"]
+
 
 

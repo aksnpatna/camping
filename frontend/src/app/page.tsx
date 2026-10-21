@@ -10,8 +10,9 @@ import TripCard from '@/components/TripCard';
 import SearchFilter, { FilterParams } from '@/components/SearchFilter';
 import FindWeekendPlanner from '@/components/FindWeekendPlanner';
 import BetaFeedbackModal from '@/components/BetaFeedbackModal';
+import Footer from '@/components/Footer';
 import { getApiUrl } from '@/config';
-import { Compass, Map, Bookmark, MessageSquarePlus } from "lucide-react";
+import { Compass, Map, Bookmark, MessageSquarePlus, X, AlertTriangle } from "lucide-react";
 
 interface PlanBAlertAlternative {
   id: number;
@@ -85,6 +86,7 @@ export default function Home() {
   // Plan B Action States
   const [switchingTripId, setSwitchingTripId] = useState<number | null>(null);
   const [simulatingTripId, setSimulatingTripId] = useState<number | null>(null);
+  const [togglingPlanBId, setTogglingPlanBId] = useState<number | null>(null);
   const [actionMessage, setActionMessage] = useState<string>("");
 
   const router = useRouter();
@@ -253,7 +255,6 @@ export default function Home() {
         const res = await fetch(`${apiUrl}/campsites?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
-          console.log("FETCHED CAMPSITES COUNT:", data.length);
           setCampsites(data);
         } else {
           console.error("Backend returned error:", res.status);
@@ -267,9 +268,9 @@ export default function Home() {
   }, [filters]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-[#F6F1E7] text-[#1E2A24] flex flex-col">
+    <main className="relative w-screen h-screen overflow-hidden bg-paper text-ink flex flex-col font-sans selection:bg-eucalypt selection:text-paper">
       {/* TOP NAVIGATION BAR */}
-      <header className="w-full bg-[#FFFFFF] border-b border-[#E2DAC8] px-4 md:px-6 py-3 flex items-center justify-between z-30 shadow-xs shrink-0">
+      <header className="w-full bg-paper-tint border-b border-paper-rule px-4 md:px-6 py-3 flex items-center justify-between z-30 shadow-xs shrink-0">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
@@ -278,19 +279,19 @@ export default function Home() {
               setRouteGeoJson(null);
               setRouteDistance(null);
             }} 
-            className="text-xl md:text-2xl font-black text-[#1E2A24] tracking-tight flex items-center gap-1.5 cursor-pointer text-left"
+            className="font-serif text-xl md:text-2xl font-bold text-ink tracking-tight flex items-center gap-1.5 cursor-pointer text-left"
           >
             <span>CAMP SMART</span>
-            <span className="text-[#2F5D50] bg-[#EBF2EE] border border-[#2F5D50]/20 text-xs px-2 py-0.5 rounded-md font-black tracking-widest uppercase">AU</span>
+            <span className="t-micro text-ink-muted font-mono">AU</span>
           </button>
-          <span className="hidden lg:inline-flex items-center gap-1.5 text-[11px] bg-[#FAF6EF] text-[#536259] border border-[#E2DAC8] px-2.5 py-1 rounded-full font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#2F5D50]"></span>
-            Field Guide • Condition-Aware Trip Engine
+          <span className="hidden lg:inline-flex items-center gap-1.5 t-micro bg-paper text-ink-muted border border-paper-rule px-2.5 py-1 rounded-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-eucalypt"></span>
+            Field Guide
           </span>
         </div>
 
         {/* VIEW MODE TOGGLE */}
-        <div className="bg-[#EFE9DD] border border-[#E2DAC8] p-1 rounded-xl flex items-center gap-1">
+        <div className="bg-paper-sunk border border-paper-rule p-1 rounded-xs flex items-center gap-1">
           <button
             onClick={() => {
               setViewMode("planner");
@@ -298,24 +299,24 @@ export default function Home() {
               setRouteGeoJson(null);
               setRouteDistance(null);
             }}
-            className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 md:px-4 py-1.5 rounded-xs text-xs md:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer t-label ${
               viewMode === "planner"
-                ? "bg-[#2F5D50] text-white shadow-xs"
-                : "text-[#536259] hover:text-[#1E2A24]"
+                ? "bg-eucalypt text-paper-card shadow-xs"
+                : "text-ink-muted hover:text-ink"
             }`}
           >
-            <Compass size={14} className={viewMode === "planner" ? "text-[#C9822B]" : ""} /> 
+            <Compass size={14} className={viewMode === "planner" ? "text-ochre" : ""} /> 
             <span>3 Best Trips</span>
           </button>
           <button
             onClick={() => setViewMode("map")}
-            className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 md:px-4 py-1.5 rounded-xs text-xs md:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer t-label ${
               viewMode === "map"
-                ? "bg-[#2F5D50] text-white shadow-xs"
-                : "text-[#536259] hover:text-[#1E2A24]"
+                ? "bg-eucalypt text-paper-card shadow-xs"
+                : "text-ink-muted hover:text-ink"
             }`}
           >
-            <Map size={14} className={viewMode === "map" ? "text-[#C9822B]" : ""} /> 
+            <Map size={14} className={viewMode === "map" ? "text-ochre" : ""} /> 
             <span>Interactive Map</span>
           </button>
         </div>
@@ -324,22 +325,22 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowDashboard(true)}
-            className="bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3.5 py-1.5 rounded-xl font-bold text-[#1E2A24] text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="bg-paper-tint hover:bg-paper-sunk border border-paper-rule px-3.5 py-1.5 rounded-xs font-semibold text-ink text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs t-label"
           >
-            <Bookmark size={14} className="text-[#2F5D50]" /> 
+            <Bookmark size={14} className="text-eucalypt" /> 
             <span>My Trips</span>
           </button>
           <button
             onClick={() => setShowFeedback(true)}
-            className="bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3 py-1.5 rounded-xl font-bold text-[#1E2A24] text-xs md:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="bg-paper-tint hover:bg-paper-sunk border border-paper-rule px-3 py-1.5 rounded-xs font-semibold text-ink text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs t-label"
             title="Share beta feedback or report an issue"
           >
-            <MessageSquarePlus size={14} className="text-[#C9822B]" />
+            <MessageSquarePlus size={14} className="text-ochre" />
             <span className="hidden sm:inline">Feedback</span>
           </button>
           <Link
             href="/explore/nsw"
-            className="hidden sm:inline-flex bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3 py-1.5 rounded-xl font-semibold text-[#536259] text-xs transition-all shadow-xs"
+            className="hidden sm:inline-flex bg-paper-tint hover:bg-paper-sunk border border-paper-rule px-3 py-1.5 rounded-xs font-semibold text-ink-muted text-xs transition-all shadow-xs t-label"
           >
             Fire Rules
           </Link>
@@ -406,17 +407,17 @@ export default function Home() {
 
       {/* My Trips Dashboard Modal */}
       {showDashboard && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[#FFFFFF] border border-[#E2DAC8] p-6 rounded-2xl w-full max-w-lg text-[#1E2A24] shadow-2xl">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-paper-card border border-paper-rule p-6 rounded-sm w-full max-w-lg text-ink shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-xl font-black text-[#1E2A24] flex items-center gap-2">
-                  <Bookmark className="text-[#2F5D50]" size={20} />
-                  <span>My Saved Trips & Condition Monitor</span>
+                <h2 className="font-serif text-lg font-semibold text-ink flex items-center gap-2">
+                  <Bookmark className="text-eucalypt" size={18} />
+                  <span>My Saved Trips</span>
                 </h2>
-                <p className="text-xs text-[#536259]">Track weather shifts, group shortlists, and 1-click Plan B backups</p>
+                <p className="text-xs text-ink-muted">Track weather shifts, group shortlists, and alternative sites</p>
               </div>
-              <button onClick={() => setShowDashboard(false)} className="text-[#536259] hover:text-[#1E2A24] p-2 text-lg">✕</button>
+              <button onClick={() => setShowDashboard(false)} className="text-ink-muted hover:text-ink p-1 rounded-xs hover:bg-paper-sunk cursor-pointer"><X size={16} /></button>
             </div>
             
             <div className="flex flex-col gap-2.5 mb-6">
@@ -430,7 +431,7 @@ export default function Home() {
                     setDashError("");
                     setMagicLinkFeedback("");
                   }}
-                  className="flex-1 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg px-3 py-2 text-sm text-[#1E2A24] outline-none focus:border-[#2F5D50]"
+                  className="flex-1 bg-paper border border-paper-rule rounded-xs px-3 py-1.5 text-xs text-ink outline-none focus:border-eucalypt"
                 />
                 <button
                   type="button"
@@ -450,20 +451,10 @@ export default function Home() {
                         body: JSON.stringify({ email: dashEmail })
                       });
                       if (res.ok) {
-                        const data = await res.json();
-                        setMagicLinkFeedback("✨ Magic sign-in link dispatched! Auto-filling session token...");
-                        if (data.token) {
-                          setDashToken(data.token);
-                          // Auto load trips immediately
-                          setLoadingTrips(true);
-                          const dashRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(data.token)}`);
-                          if (dashRes.ok) {
-                            setMyTrips(await dashRes.json());
-                          }
-                          setLoadingTrips(false);
-                        }
+                        await res.json();
+                        setMagicLinkFeedback("If that address has saved trips, a secure sign-in link is on its way. Check your inbox.");
                       } else {
-                        setDashError("Failed to dispatch magic link. Please check email address.");
+                        setDashError(res.status === 429 ? "Too many requests. Please wait a few minutes and try again." : "Failed to dispatch magic link. Please check email address.");
                       }
                     } catch {
                       setDashError("Network error requesting magic link.");
@@ -471,9 +462,9 @@ export default function Home() {
                       setRequestingMagicLink(false);
                     }
                   }}
-                  className="bg-[#FAF6EF] hover:bg-[#EFE9DD] border border-[#E2DAC8] px-3 py-2 rounded-lg font-bold text-xs text-[#1E2A24] transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer shadow-xs"
+                  className="bg-paper-tint hover:bg-paper-sunk border border-paper-rule px-3 py-1.5 rounded-xs font-medium text-xs text-ink transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer shadow-xs"
                 >
-                  {requestingMagicLink ? "Sending..." : "Send Magic Link 📧"}
+                  {requestingMagicLink ? "Sending…" : "Send magic link"}
                 </button>
               </div>
 
@@ -483,7 +474,7 @@ export default function Home() {
                   placeholder="Access Token (from email)" 
                   value={dashToken}
                   onChange={e => setDashToken(e.target.value)}
-                  className="flex-1 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg px-3 py-2 text-sm text-[#1E2A24] outline-none focus:border-[#2F5D50] font-mono text-xs"
+                  className="flex-1 bg-paper border border-paper-rule rounded-xs px-3 py-1.5 text-xs text-ink outline-none focus:border-eucalypt font-mono"
                 />
                 <button 
                   onClick={async () => {
@@ -506,38 +497,38 @@ export default function Home() {
                     }
                     setLoadingTrips(false);
                   }}
-                  className="bg-[#2F5D50] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#24493F] cursor-pointer shrink-0 shadow-xs"
+                  className="bg-eucalypt text-paper px-4 py-1.5 rounded-xs font-semibold text-xs hover:bg-eucalypt/90 cursor-pointer shrink-0 shadow-xs"
                 >
                   Load
                 </button>
               </div>
               {magicLinkFeedback && (
-                <div className="bg-[#EBF2EE] border border-[#2F5D50]/30 text-[#2F5D50] text-xs p-2 rounded-lg text-center font-medium">
+                <div className="bg-eucalypt-tint border border-eucalypt/30 text-eucalypt text-xs p-2 rounded-xs text-center font-medium">
                   {magicLinkFeedback}
                 </div>
               )}
-              {dashError && <div className="text-[#B3261E] text-xs text-center mt-1">{dashError}</div>}
+              {dashError && <div className="text-clay text-xs text-center mt-1">{dashError}</div>}
               {actionMessage && (
-                <div className="bg-[#EBF2EE] border border-[#2F5D50]/30 text-[#2F5D50] text-xs p-2.5 rounded-lg text-center font-bold">
+                <div className="bg-eucalypt-tint border border-eucalypt/30 text-eucalypt text-xs p-2.5 rounded-xs text-center font-semibold">
                   {actionMessage}
                 </div>
               )}
             </div>
 
             {loadingTrips ? (
-              <div className="text-center text-sm text-[#536259] py-6 animate-pulse">Loading your trips and condition monitors...</div>
+              <div className="text-center text-xs text-ink-muted py-6 animate-pulse">Loading your trips…</div>
             ) : myTrips ? (
               myTrips.length === 0 ? (
-                <div className="text-center text-sm text-[#536259] py-6">No trips found for this email.</div>
+                <div className="text-center text-xs text-ink-muted py-6">No trips found for this email.</div>
               ) : (
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                   {myTrips.map(trip => (
-                    <div key={trip.id} className="bg-[#FAF6EF] border border-[#E2DAC8] p-4 rounded-xl flex flex-col justify-between shadow-xs">
+                    <div key={trip.id} className="bg-paper-card border border-paper-rule p-4 rounded-sm flex flex-col justify-between shadow-xs">
                       <div>
                         <div className="flex justify-between items-start gap-2 mb-2">
                           <div>
-                            <h3 className="font-bold text-[#1E2A24] text-base">{trip.campsite_name}</h3>
-                            <div className="text-xs text-[#536259] mt-0.5">
+                            <h3 className="font-bold font-serif text-ink text-base">{trip.campsite_name}</h3>
+                            <div className="text-xs text-ink-muted mt-0.5 t-data">
                               {trip.state} • {trip.start_date} to {trip.end_date}
                             </div>
                           </div>
@@ -546,7 +537,7 @@ export default function Home() {
                               <Link 
                                 href={`/trip/${trip.room_token}`}
                                 target="_blank"
-                                className="text-xs bg-[#EBF2EE] text-[#2F5D50] border border-[#2F5D50]/30 px-2.5 py-1 rounded-lg font-bold hover:bg-[#DFEBE5] transition-all flex items-center gap-1"
+                                className="text-xs bg-paper-tint text-eucalypt border border-eucalypt/30 px-2.5 py-1 rounded-xs font-semibold hover:bg-paper-sunk transition-all flex items-center gap-1 t-label"
                               >
                                 Room ↗
                               </Link>
@@ -555,22 +546,56 @@ export default function Home() {
                               href={`/pack/${trip.campsite_id}`} 
                               target="_blank" 
                               rel="noreferrer" 
-                              className="text-xs bg-[#FFFFFF] text-[#1E2A24] border border-[#E2DAC8] px-2.5 py-1 rounded-lg font-bold hover:bg-[#FAF6EF] transition-all shadow-xs"
+                              className="text-xs bg-paper-card text-ink border border-paper-rule px-2.5 py-1 rounded-xs font-semibold hover:bg-paper-sunk transition-all shadow-xs t-label"
                             >
                               Pack List
                             </a>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs py-2 border-y border-[#E2DAC8]/60 my-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs py-2 border-y border-paper-rule my-2">
                           <div className="flex items-center gap-2">
-                            {trip.plan_b_active ? (
-                              <span className="text-[#2E7D32] flex items-center gap-1 font-bold">
-                                🟢 Plan B Active
+                            {/* 1-CLICK PLAN B MONITORING TOGGLE */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!dashToken) return;
+                                setTogglingPlanBId(trip.id);
+                                setActionMessage("");
+                                try {
+                                  const res = await fetch(`${getApiUrl()}/saved-trips/${trip.id}/toggle-plan-b?token=${encodeURIComponent(dashToken)}`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ active: !trip.plan_b_active })
+                                  });
+                                  if (res.ok) {
+                                    const dRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
+                                    if (dRes.ok) setMyTrips(await dRes.json());
+                                    setActionMessage(trip.plan_b_active ? "Plan B monitoring paused for this trip." : "Plan B monitoring armed for this trip.");
+                                  } else {
+                                    setActionMessage("Failed to update Plan B monitoring.");
+                                  }
+                                } catch (e) {
+                                  console.error(e);
+                                  setActionMessage("Network error updating monitoring status.");
+                                } finally {
+                                  setTogglingPlanBId(null);
+                                }
+                              }}
+                              disabled={togglingPlanBId === trip.id}
+                              className={`text-[11px] px-2.5 py-1 rounded-lg font-bold border transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                                trip.plan_b_active 
+                                  ? "bg-[#EBF7EE] text-[#2E7D32] border-[#C8E6C9] hover:bg-[#D4EDDA]" 
+                                  : "bg-[#F5F5F5] text-[#616161] border-[#E0E0E0] hover:bg-[#EEEEEE]"
+                              }`}
+                              title={trip.plan_b_active ? "Click to pause automated condition alerts" : "Click to arm automated condition alerts"}
+                            >
+                              <span>{togglingPlanBId === trip.id ? "Updating..." : (trip.plan_b_active ? "Alerts Armed" : "Alerts Paused")}</span>
+                              <span className="text-[9px] underline opacity-80">
+                                {trip.plan_b_active ? "(Turn Off)" : "(Turn On)"}
                               </span>
-                            ) : (
-                              <span className="text-[#8B9891]">⚪ Monitor Inactive</span>
-                            )}
+                            </button>
+
                             {trip.is_shortlist && (
                               <span className="bg-[#FAF2E6] text-[#9A5C0E] border border-[#E8CFA9] text-[10px] px-2 py-0.5 rounded font-bold">
                                 Shortlist
@@ -597,44 +622,49 @@ export default function Home() {
                                   // Refresh dashboard
                                   const dRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
                                   if (dRes.ok) setMyTrips(await dRes.json());
-                                  setActionMessage("🚨 Weather shift simulated! Plan B alternatives generated.");
+                                  setActionMessage("Weather shift simulated. Plan B alternatives generated.");
+                                } else if (res.status === 403) {
+                                  setActionMessage("Alert simulation is disabled in production environments.");
+                                } else {
+                                  setActionMessage("Failed to simulate alert.");
                                 }
                               } catch (e) {
                                 console.error(e);
+                                setActionMessage("Network error during simulation.");
                               } finally {
                                 setSimulatingTripId(null);
                               }
                             }}
                             disabled={simulatingTripId === trip.id}
                             className="text-[11px] bg-[#FAF2E6] hover:bg-[#F3E5D0] text-[#9A5C0E] border border-[#E8CFA9] px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            title="Simulate severe condition shift to test Plan B alternatives"
+                            title="Test Plan B alert generation (development only)"
                           >
-                            <span>⚡ {simulatingTripId === trip.id ? "Simulating..." : "Test Condition Shift"}</span>
+                            <span>{simulatingTripId === trip.id ? "Simulating..." : "Test Condition Shift"}</span>
                           </button>
                         </div>
 
                         {/* PLAN B ALERT BANNER WITH 1-CLICK ALTERNATIVE SWITCHING */}
                         {trip.alerts && trip.alerts.length > 0 && (
-                          <div className="mt-3 bg-[#FDF2F2] border border-[#F5C2C2] p-3.5 rounded-xl text-xs space-y-2.5 shadow-xs">
-                            <div className="flex items-center gap-2 text-[#B3261E] font-bold">
-                              <span className="text-base">⚠️</span>
+                          <div className="mt-3 bg-paper-tint border border-clay/30 p-3.5 rounded-sm text-xs space-y-2.5 shadow-xs">
+                            <div className="flex items-center gap-2 text-clay font-semibold">
+                              <AlertTriangle size={14} className="text-clay shrink-0" />
                               <span>{trip.alerts[0].details}</span>
                             </div>
 
                             {trip.alerts[0].suggested_alternatives && trip.alerts[0].suggested_alternatives.length > 0 && (
-                              <div className="space-y-2 pt-2 border-t border-[#F5C2C2]">
-                                <span className="text-[11px] text-[#536259] font-bold block uppercase tracking-wider">
+                              <div className="space-y-2 pt-2 border-t border-clay/20">
+                                <span className="text-xs text-ink-muted font-semibold block uppercase tracking-wider t-label">
                                   Safe Alternative Campsites:
                                 </span>
                                 <div className="grid grid-cols-1 gap-2">
                                   {trip.alerts[0].suggested_alternatives.map((alt) => (
-                                    <div key={alt.id} className="bg-[#FFFFFF] p-3 rounded-xl border border-[#E2DAC8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                                    <div key={alt.id} className="bg-paper-card p-3 rounded-xs border border-paper-rule flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
                                       <div>
-                                        <div className="font-bold text-[#1E2A24] text-xs flex items-center gap-1.5">
+                                        <div className="font-bold font-serif text-ink text-xs flex items-center gap-1.5">
                                           <span>{alt.name}</span>
-                                          <span className="text-[10px] text-[#2F5D50] bg-[#EBF2EE] px-1.5 py-0.2 rounded border border-[#2F5D50]/20 uppercase font-mono">{alt.state}</span>
+                                          <span className="text-[10px] text-eucalypt bg-paper-tint px-1.5 py-0.2 rounded-xs border border-eucalypt/30 uppercase font-mono t-data">{alt.state}</span>
                                         </div>
-                                        <div className="text-[11px] text-[#536259] mt-0.5">{alt.reason}</div>
+                                        <div className="text-xs text-ink-muted mt-0.5">{alt.reason}</div>
                                       </div>
 
                                       <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
@@ -667,7 +697,7 @@ export default function Home() {
                                               if (res.ok) {
                                                 const dRes = await fetch(`${getApiUrl()}/saved-trips/dashboard/${encodeURIComponent(dashEmail)}?token=${encodeURIComponent(dashToken)}`);
                                                 if (dRes.ok) setMyTrips(await dRes.json());
-                                                setActionMessage(`✓ Successfully switched trip to ${alt.name}!`);
+                                                setActionMessage(`Switched trip to ${alt.name}.`);
                                               }
                                             } catch (e) {
                                               console.error(e);
@@ -678,7 +708,7 @@ export default function Home() {
                                           disabled={switchingTripId === trip.id}
                                           className="flex-1 sm:flex-none text-[11px] bg-[#2F5D50] text-white hover:bg-[#24493F] px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer disabled:opacity-50 shadow-xs"
                                         >
-                                          {switchingTripId === trip.id ? "Switching..." : "⚡ Switch Here"}
+                                          {switchingTripId === trip.id ? "Switching..." : "Switch Here"}
                                         </button>
                                       </div>
                                     </div>
@@ -699,6 +729,10 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* FOOTER WITH LEGAL LINKS & EMERGENCY DIRECTORY */}
+      <Footer onOpenFeedback={() => setShowFeedback(true)} />
+
       {/* BETA FEEDBACK DRAWER & FLOATING TRIGGER */}
       <BetaFeedbackModal 
         isOpen={showFeedback} 

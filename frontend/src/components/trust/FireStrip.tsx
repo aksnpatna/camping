@@ -37,17 +37,17 @@ export default function FireStrip({ fireDistrict, fireFact, state }: FireStripPr
   const agency = getStateFireAgency(state);
 
   return (
-    <div className="bg-[#FAF2E6] border border-[#E8CFA9] rounded-xl px-3 py-2 flex items-center justify-between text-xs gap-2 text-[#1E2A24] shadow-xs">
-      <div className="flex items-center gap-2 overflow-hidden">
-        <Flame size={14} className="text-[#C9822B] shrink-0" />
+    <div className="bg-ochre-tint border border-ochre/30 rounded-sm px-2.5 py-1.5 flex items-center justify-between text-xs gap-2 text-ink">
+      <div className="flex items-center gap-1.5 overflow-hidden">
+        <Flame size={13} className="text-ochre shrink-0" />
         <div className="truncate">
-          <span className="font-semibold text-[#536259] text-[11px]">Fire Status: </span>
+          <span className="t-label text-ink-muted text-xs">Fire District: </span>
           {districtName ? (
-            <span className="text-[#1E2A24] text-[11px] font-bold">
+            <span className="t-data text-xs text-ink font-semibold">
               {districtName} ({state})
             </span>
           ) : (
-            <span className="text-[#9A5C0E] text-[11px] font-medium">
+            <span className="t-body text-xs text-ochre font-medium">
               District Unmapped
             </span>
           )}
@@ -58,7 +58,7 @@ export default function FireStrip({ fireDistrict, fireFact, state }: FireStripPr
         href={agency.url}
         target="_blank"
         rel="noreferrer"
-        className="shrink-0 text-[10px] text-[#9A5C0E] hover:text-[#7A4506] bg-[#FFFFFF] border border-[#E8CFA9] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 transition-all shadow-2xs"
+        className="shrink-0 text-[11px] text-ochre hover:text-ink bg-paper-card border border-paper-rule px-2 py-0.5 rounded-xs font-medium flex items-center gap-1 transition-colors"
         title={`Check live Fire Danger Rating on official ${agency.name}`}
       >
         <span>{agency.name}</span>

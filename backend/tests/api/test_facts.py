@@ -176,3 +176,13 @@ def test_campsite_facts_confidence_meter():
     # dog_friendly (rule), campfires (official), driving_time (estimate) are known; water/toilets/telco/fees unknown
     assert facts.known_facts_count >= 3
     assert facts.total_facts_count == 9
+
+    # Verify Pydantic v2 computed_fields serialize in dictionary/JSON
+    dumped = facts.model_dump()
+    assert "known_facts_count" in dumped
+    assert "total_facts_count" in dumped
+    assert "official_or_verified_count" in dumped
+    assert dumped["known_facts_count"] == facts.known_facts_count
+    assert dumped["total_facts_count"] == facts.total_facts_count
+    assert dumped["official_or_verified_count"] == facts.official_or_verified_count
+

@@ -49,6 +49,15 @@ def test_recommendation_cards_include_weather_days_and_gear_fit():
         assert "overnight_min_temp" in card["gear_fit"]
         assert "sleeping_bag_rating" in card["gear_fit"]
 
+        # Check forecast_source presence and honest values
+        assert "forecast_source" in card, "Card must include forecast_source"
+        assert card["forecast_source"] in ("live", "climatology", "mixed")
+
+        # Verify no fabricated shade key in visual_badges
+        if card.get("visual_badges"):
+            assert "shade" not in card["visual_badges"], "shade badge must not be fabricated"
+
+
 def test_recommendation_three_distinct_archetypes():
     payload = {
         "origin_lat": -33.8688,

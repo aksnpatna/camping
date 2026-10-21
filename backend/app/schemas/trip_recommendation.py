@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any
 from app.schemas.facts import CampsiteFacts
 
@@ -19,7 +19,7 @@ class GearFitSummary(BaseModel):
     campfire_wind_risk: str
 
 class FindWeekendRequest(BaseModel):
-    prompt: Optional[str] = None
+    prompt: Optional[str] = Field(default=None, max_length=500)
     origin_lat: Optional[float] = -33.8688 # Sydney CBD default
     origin_lng: Optional[float] = 151.2093
     max_drive_hours: Optional[float] = 4.0
@@ -66,6 +66,9 @@ class TripRecommendationCard(BaseModel):
     facts: Optional[CampsiteFacts] = None
     weather_days: Optional[List[WeatherDaySummary]] = None
     gear_fit: Optional[GearFitSummary] = None
+    # "live" (numerical ensemble), "climatology" (model analog) or "mixed".
+    # Lets the UI label the conditions row honestly instead of guessing.
+    forecast_source: Optional[str] = None
 
 class FindWeekendResponse(BaseModel):
     cards: List[TripRecommendationCard]
@@ -76,7 +79,7 @@ class FindWeekendResponse(BaseModel):
 
 class AdjustTripRequest(BaseModel):
     current_request: FindWeekendRequest
-    instruction: str
+    instruction: str = Field(max_length=500)
 
 class AdjustTripResponse(BaseModel):
     updated_request: FindWeekendRequest

@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
@@ -14,8 +15,16 @@ from app.schemas.trip_room import (
     ShortlistCampsiteSummary
 )
 
+MAX_ROOM_ITEMS = 200  # per list (votes/gear/tasks/preferences) so a shared link cannot bloat a row
+
+
+def _ensure_capacity(items: list, label: str) -> None:
+    if len(items) >= MAX_ROOM_ITEMS:
+        raise HTTPException(status_code=400, detail=f"This trip room has reached its {label} limit")
+
+
 def create_trip_room(db: Session, data: TripRoomCreate) -> TripRoomResponse:
-    token = uuid.uuid4().hex[:12]
+    token = secrets.token_urlsafe(16)
     room = TripRoom(
         room_token=token,
         trip_name=data.trip_name,
@@ -55,6 +64,7 @@ def vote_campsite(db: Session, token: str, vote: VoteRequest) -> TripRoomRespons
     else:
         # Replace existing or add new
         votes = [v for v in votes if not (v.get("voter_name") == vote.voter_name and v.get("campsite_id") == vote.campsite_id)]
+        _ensure_capacity(votes, "vote")
         votes.append({
             "campsite_id": vote.campsite_id,
             "voter_name": vote.voter_name,
@@ -79,6 +89,7 @@ def claim_gear(db: Session, token: str, claim: ClaimGearRequest) -> TripRoomResp
         if existing:
             existing["claimed_by"] = claim.claimer_name.strip()
         else:
+            _ensure_capacity(claimed, "gear")
             claimed.append({
                 "item_name": claim.item_name,
                 "claimed_by": claim.claimer_name.strip()
@@ -103,6 +114,7 @@ def add_or_update_task(db: Session, token: str, task: TaskRequest) -> TripRoomRe
             if task.completed is not None:
                 existing["completed"] = task.completed
     else:
+        _ensure_capacity(tasks, "task")
         tasks.append({
             "id": str(uuid.uuid4())[:8],
             "title": task.title,
@@ -120,6 +132,7 @@ def add_preference(db: Session, token: str, pref: PreferenceRequest) -> TripRoom
         raise HTTPException(status_code=404, detail="Trip room not found")
 
     preferences = list(room.preferences or [])
+    _ensure_capacity(preferences, "preference")
     preferences.append({
         "member_name": pref.member_name,
         "preference": pref.preference

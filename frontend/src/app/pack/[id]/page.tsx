@@ -47,18 +47,18 @@ export default async function OfflinePackPage({ params }: { params: Promise<{ id
         <PrintButton />
       </div>
 
-      <div className="border-4 border-black p-8 rounded-xl print:border-none print:p-0">
+      <div className="border-2 border-black p-8 rounded-xs print:border-none print:p-0">
         <div className="text-center border-b-2 border-black pb-6 mb-6">
-          <h1 className="text-5xl font-black uppercase tracking-tight mb-2">{campsite.name}</h1>
-          <div className="flex items-center justify-center gap-2 text-xl font-medium text-gray-700">
-            <MapPin size={24} /> {campsite.state} • {campsite.management_type || "Public Campground"}
+          <h1 className="font-serif text-4xl sm:text-5xl font-bold uppercase tracking-tight mb-2">{campsite.name}</h1>
+          <div className="flex items-center justify-center gap-2 text-lg font-medium text-gray-700">
+            <MapPin size={20} /> {campsite.state} • {campsite.management_type || "Public Campground"}
           </div>
         </div>
 
-        <div className="mb-8 bg-gray-100 p-4 rounded-lg border border-gray-300">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-1">GPS Coordinates</h2>
-          <p className="text-3xl font-mono">{campsite.latitude.toFixed(5)}, {campsite.longitude.toFixed(5)}</p>
-          <p className="text-sm mt-2">Enter these coordinates into your offline GPS/Maps before losing cell service.</p>
+        <div className="mb-8 bg-gray-100 p-4 rounded-xs border border-gray-300">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">GPS Coordinates</h2>
+          <p className="text-2xl sm:text-3xl font-mono">{campsite.latitude.toFixed(5)}, {campsite.longitude.toFixed(5)}</p>
+          <p className="text-xs mt-2 text-gray-700">Enter these coordinates into your offline GPS/Maps before losing cell service.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-8 mb-8">

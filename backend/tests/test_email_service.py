@@ -120,3 +120,4 @@ def test_send_plan_b_alert_outbox(monkeypatch):
     assert "Pebbly Beach" in last["body"]
     assert "Euroka Campground" in last["body"]
     assert "Severe bushfire warning" in last["body"]
+    assert "unsubscribe" in last["body"].lower()

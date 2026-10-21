@@ -1,5 +1,5 @@
 from typing import Optional, Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 BasisType = Literal[
     "official",   # Directly from government GIS dataset (NPWS, DEECA, QPWS, etc.)
@@ -35,36 +35,34 @@ class CampsiteFacts(BaseModel):
     fire_status: Fact
     driving_time: Fact
 
+    def _facts(self) -> list[Fact]:
+        """Every fact carried by this record, in declaration order."""
+        return [
+            self.dog_friendly,
+            self.campfires,
+            self.toilets,
+            self.water,
+            self.vehicle_access,
+            self.telco,
+            self.fees,
+            self.fire_status,
+            self.driving_time,
+        ]
+
+    @computed_field
     @property
     def known_facts_count(self) -> int:
-        facts = [
-            self.dog_friendly,
-            self.campfires,
-            self.toilets,
-            self.water,
-            self.vehicle_access,
-            self.telco,
-            self.fees,
-            self.fire_status,
-            self.driving_time,
-        ]
-        return sum(1 for f in facts if f.basis != "unknown")
+        """Facts whose basis is anything other than `unknown`."""
+        return sum(1 for f in self._facts() if f.basis != "unknown")
 
+    @computed_field
     @property
     def total_facts_count(self) -> int:
-        return 9
+        """Total number of tracked facts, derived from the fields themselves."""
+        return len(self._facts())
 
+    @computed_field
     @property
     def official_or_verified_count(self) -> int:
-        facts = [
-            self.dog_friendly,
-            self.campfires,
-            self.toilets,
-            self.water,
-            self.vehicle_access,
-            self.telco,
-            self.fees,
-            self.fire_status,
-            self.driving_time,
-        ]
-        return sum(1 for f in facts if f.basis in ("official", "verified"))
+        """Facts sourced from a government dataset or field-verified on site."""
+        return sum(1 for f in self._facts() if f.basis in ("official", "verified"))

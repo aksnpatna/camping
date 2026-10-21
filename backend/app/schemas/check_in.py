@@ -1,14 +1,14 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 
 class CheckInCreate(BaseModel):
-    water_status: Optional[str] = None     # "flowing" | "trickle" | "dry" | "not_applicable"
-    toilets_status: Optional[str] = None   # "clean" | "bring_tp" | "poor" | "no_toilets"
-    road_status: Optional[str] = None      # "2wd_clear" | "corrugated" | "4wd_only" | "muddy"
-    vibe_status: Optional[str] = None      # "plenty_space" | "filling_fast" | "full"
-    telco_status: Optional[str] = None     # "telstra_4g" | "optus_4g" | "no_service"
-    notes: Optional[str] = None
+    water_status: Optional[Literal["flowing", "trickle", "dry", "not_applicable"]] = None
+    toilets_status: Optional[Literal["clean", "bring_tp", "poor", "no_toilets"]] = None
+    road_status: Optional[Literal["2wd_clear", "corrugated", "4wd_only", "muddy"]] = None
+    vibe_status: Optional[Literal["plenty_space", "filling_fast", "full"]] = None
+    telco_status: Optional[Literal["telstra_4g", "optus_4g", "no_service"]] = None
+    notes: Optional[str] = Field(default=None, max_length=500)
 
 class CheckInResponse(BaseModel):
     id: int

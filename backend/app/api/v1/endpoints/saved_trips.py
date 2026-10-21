@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import client_ip as resolve_request_ip, rate_limit
 from app.crud import saved_trip as crud_saved_trip
 from app.crud import analytics as crud_analytics
 from app.schemas.analytics import AnalyticsEventCreate
@@ -15,6 +16,8 @@ from app.schemas.saved_trip import (
     SavedTripResponse,
     SimulateAlertRequest,
     SwitchCampsiteRequest,
+    TogglePlanBRequest,
+    UnsubscribeResponse,
 )
 from app.services.magic_link import verify_magic_token
 from app.worker.plan_b import dispatch_alert_email, find_plan_b_alternatives
@@ -22,8 +25,11 @@ from app.worker.plan_b import dispatch_alert_email, find_plan_b_alternatives
 router = APIRouter()
 
 
-@router.post("", response_model=SavedTripResponse)
-@router.post("/", response_model=SavedTripResponse, include_in_schema=False)
+_save_limit = Depends(rate_limit("save-trip", 20, 3600))
+
+
+@router.post("", response_model=SavedTripResponse, dependencies=[_save_limit])
+@router.post("/", response_model=SavedTripResponse, include_in_schema=False, dependencies=[_save_limit])
 def create_saved_trip(trip: SavedTripCreate, request: Request, db: Session = Depends(get_db)):
     email = trip.user_email.strip().lower()
     if "@" not in email or "." not in email.split("@")[-1] or len(email) < 5:
@@ -37,13 +43,7 @@ def create_saved_trip(trip: SavedTripCreate, request: Request, db: Session = Dep
     saved_trip_obj = crud_saved_trip.create_saved_trip(db=db, trip=trip)
 
     # Automatically capture lead for future communications and record event
-    client_ip = request.headers.get("x-forwarded-for")
-    if client_ip:
-        client_ip = client_ip.split(",")[0].strip()
-    elif request.client:
-        client_ip = request.client.host
-    else:
-        client_ip = None
+    client_ip = resolve_request_ip(request)
 
     crud_analytics.record_or_update_lead(
         db=db,
@@ -196,3 +196,56 @@ def simulate_plan_b_alert(trip_id: int, sim_data: SimulateAlertRequest, token: s
         "severity": alert.severity,
         "suggested_alternatives": alert.suggested_alternatives,
     }
+
+
+@router.post("/{trip_id}/toggle-plan-b", response_model=SavedTripResponse)
+def toggle_plan_b_monitoring(
+    trip_id: int,
+    toggle_data: Optional[TogglePlanBRequest] = None,
+    token: str = "",
+    db: Session = Depends(get_db),
+):
+    """
+    Toggle or explicitly set Plan B continuous monitoring for a saved trip.
+    """
+    trip = db.query(SavedTrip).filter(SavedTrip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Saved trip not found")
+
+    verify_magic_token(db, trip.user_email, token, status_code=401)
+
+    if toggle_data and toggle_data.active is not None:
+        trip.plan_b_alert_active = toggle_data.active
+    else:
+        trip.plan_b_alert_active = not bool(trip.plan_b_alert_active)
+
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+
+@router.get("/{trip_id}/unsubscribe", response_model=UnsubscribeResponse)
+def unsubscribe_trip_alerts(
+    trip_id: int,
+    token: str = "",
+    db: Session = Depends(get_db),
+):
+    """
+    1-Click unsubscribe endpoint for Plan B condition alerts (Spam Act 2003 compliance).
+    Validates the magic token and turns off automated alerts for this trip.
+    """
+    trip = db.query(SavedTrip).filter(SavedTrip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Saved trip not found")
+
+    verify_magic_token(db, trip.user_email, token, status_code=401)
+
+    trip.plan_b_alert_active = False
+    db.commit()
+
+    return UnsubscribeResponse(
+        trip_id=trip.id,
+        user_email=trip.user_email,
+        plan_b_alert_active=False,
+        message="Plan B alerts have been successfully turned off for this trip. You will not receive condition shift emails for this trip.",
+    )

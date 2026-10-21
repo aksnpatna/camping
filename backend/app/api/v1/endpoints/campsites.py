@@ -13,6 +13,7 @@ from app.schemas.campsite import (
 )
 from app.models.campsite import Campsite
 from app.crud import campsite as crud_campsite
+from app.core.security import rate_limit, require_admin
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -39,18 +40,14 @@ from datetime import datetime, timezone
 INSIGHTS_CACHE = {}
 CACHE_TTL = 600  # 10 minutes max cache (freshness first)
 
-@router.post("", response_model=CampsiteResponse, status_code=201)
-def create_campsite(campsite: CampsiteCreate, admin_key: str = Query(...), db: Session = Depends(get_db)):
-    import os
-    expected_key = os.environ.get("ADMIN_KEY")
-    if not expected_key or admin_key != expected_key:
-        raise HTTPException(status_code=403, detail="Invalid admin key")
+@router.post("", response_model=CampsiteResponse, status_code=201, dependencies=[Depends(require_admin)])
+def create_campsite(campsite: CampsiteCreate, db: Session = Depends(get_db)):
     return crud_campsite.create_campsite(db=db, campsite=campsite)
 
 from typing import List, Optional
 from fastapi import Query
 
-@router.get("", response_model=List[CampsiteResponse])
+@router.get("", response_model=List[CampsiteResponse], dependencies=[Depends(rate_limit("campsite-list", 20, 60))])
 def read_campsites(
     skip: int = 0, 
     limit: int = Query(5000, le=10000), 
@@ -68,9 +65,34 @@ def read_campsites(
         rig_access=rig_access
     )
 
+class CampsiteCountsResponse(BaseModel):
+    total: int
+    by_state: dict[str, int] = {}
+
+
+@router.get("/counts", response_model=CampsiteCountsResponse)
+def get_campsite_counts(db: Session = Depends(get_db)):
+    """
+    Live per-state campsite totals, straight from a GROUP BY on the table.
+
+    Declared before `/{campsite_id}` so FastAPI does not match the literal
+    segment "counts" as a campsite id.
+    """
+    from sqlalchemy import func
+
+    rows = (
+        db.query(Campsite.state, func.count(Campsite.id))
+        .group_by(Campsite.state)
+        .order_by(Campsite.state)
+        .all()
+    )
+    by_state = {str(state): int(count) for state, count in rows if state}
+    return CampsiteCountsResponse(total=sum(by_state.values()), by_state=by_state)
+
+
 from app.schemas.check_in import CheckInCreate, CheckInResponse, CheckInSummary, CampsiteCheckInsListResponse
 
-@router.post("/{campsite_id}/check-ins", response_model=CheckInResponse, status_code=201)
+@router.post("/{campsite_id}/check-ins", response_model=CheckInResponse, status_code=201, dependencies=[Depends(rate_limit("check-in", 10, 600))])
 def submit_check_in(campsite_id: int, check_in: CheckInCreate, db: Session = Depends(get_db)):
     campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
     if not campsite:
@@ -235,7 +257,7 @@ def get_campsite_plan_b(
 AI_SUMMARY_CACHE = {}
 AI_SUMMARY_CACHE_TTL = 86400  # 24 hours cache
 
-@router.get("/{campsite_id}/ai-summary", response_model=AISummaryResponse)
+@router.get("/{campsite_id}/ai-summary", response_model=AISummaryResponse, dependencies=[Depends(rate_limit("ai-summary", 12, 60))])
 async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
     campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
     if not campsite:
@@ -251,8 +273,12 @@ async def get_ai_summary(campsite_id: int, db: Session = Depends(get_db)):
     locality = TownLocatorService.find_nearest_locality(db, campsite.longitude, campsite.latitude)
     town_text = f"near {locality.locality} (~{locality.distance_km:.1f} km away)" if locality else f"in {campsite.state}"
 
-    mgmt_text = campsite.management_type or "Public park"
-    rig_text = f"accessible for {', '.join(campsite.rig_access)}" if campsite.rig_access else "standard vehicle and tent access"
+    mgmt_text = campsite.management_type or "managing authority not recorded"
+    rig_text = (
+        f"accessible for {', '.join(campsite.rig_access)}"
+        if campsite.rig_access
+        else "rig access not recorded"
+    )
 
     if campsite.dog_friendly is True:
         pet_text = "dog-friendly (pets permitted on leash)"
@@ -326,7 +352,7 @@ Strict Writing Rules:
     return {"summary": fallback}
 
 
-@router.get("/{campsite_id}/insights", response_model=CampsiteInsightsResponse)
+@router.get("/{campsite_id}/insights", response_model=CampsiteInsightsResponse, dependencies=[Depends(rate_limit("insights", 12, 60))])
 async def get_campsite_insights(campsite_id: int, db: Session = Depends(get_db)):
     campsite = db.query(Campsite).filter(Campsite.id == campsite_id).first()
     if not campsite:

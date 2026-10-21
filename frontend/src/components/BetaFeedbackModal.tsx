@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { MessageSquarePlus, X, CheckCircle2, AlertTriangle, Bug, Sparkles, MapPin, Send } from "lucide-react";
 import { getApiUrl } from "@/config";
 
@@ -160,7 +161,7 @@ export default function BetaFeedbackModal({
           onClick={handleClose}
         >
           <div
-            className="relative w-full max-w-lg bg-[#FFFFFF] border border-[#E2DAC8] rounded-2xl shadow-2xl p-6 text-[#1E2A24] max-h-[92vh] overflow-y-auto"
+            className="relative w-full max-w-lg bg-paper-card border border-paper-rule rounded-sm shadow-2xl p-6 text-ink max-h-[92vh] overflow-y-auto font-sans"
             role="dialog"
             aria-modal="true"
             aria-labelledby="feedback-title"
@@ -185,7 +186,7 @@ export default function BetaFeedbackModal({
                 <span className="text-xs text-[#536259]">Direct to Founders</span>
               </div>
               <h2 id="feedback-title" className="text-xl font-bold tracking-tight text-[#1E2A24]">
-                Help Shape Camp Smart AU
+                Tell us what to fix
               </h2>
               <p className="text-xs text-[#536259] mt-1 leading-relaxed">
                 Notice an outdated park fee, a closed road, or have a feature idea for your weekend setup? Tell us below.
@@ -221,10 +222,10 @@ export default function BetaFeedbackModal({
                         key={cat.id}
                         type="button"
                         onClick={() => setCategory(cat.id)}
-                        className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        className={`flex flex-col items-start p-2.5 rounded-xs border text-left transition-all cursor-pointer ${
                           category === cat.id
-                            ? "bg-[#EBF2EE] border-[#2F5D50] text-[#1E2A24] shadow-xs"
-                            : "bg-[#FAF6EF] border-[#E8E1D3] text-[#536259] hover:bg-[#F6F1E7]"
+                            ? "bg-paper-tint border-eucalypt text-ink shadow-xs"
+                            : "bg-paper-page border-paper-rule text-ink-muted hover:bg-paper-sunk"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 mb-1">
@@ -263,24 +264,24 @@ export default function BetaFeedbackModal({
                   </label>
                   <div className="flex items-center gap-1.5">
                     {[
-                      { val: 5, emoji: "😍", label: "Loved it" },
-                      { val: 4, emoji: "🙂", label: "Good" },
-                      { val: 3, emoji: "😐", label: "Okay" },
-                      { val: 2, emoji: "🙁", label: "Confusing" },
-                      { val: 1, emoji: "⚠️", label: "Issues" }
+                      { val: 5, score: "5", label: "Loved it" },
+                      { val: 4, score: "4", label: "Good" },
+                      { val: 3, score: "3", label: "Okay" },
+                      { val: 2, score: "2", label: "Confusing" },
+                      { val: 1, score: "1", label: "Issues" }
                     ].map((item) => (
                       <button
                         key={item.val}
                         type="button"
                         onClick={() => setRating(item.val)}
-                        className={`flex-1 py-1.5 px-1 rounded-lg border text-center transition-all cursor-pointer ${
+                        className={`flex-1 py-1.5 px-1 rounded-xs border text-center transition-all cursor-pointer ${
                           rating === item.val
-                            ? "bg-[#2F5D50] text-white border-[#2F5D50] shadow-xs font-bold"
-                            : "bg-[#FAF6EF] border-[#E2DAC8] text-[#536259] hover:bg-[#F6F1E7]"
+                            ? "bg-eucalypt text-paper-card border-eucalypt shadow-xs font-bold"
+                            : "bg-paper-tint border-paper-rule text-ink-muted hover:bg-paper-sunk"
                         }`}
                       >
-                        <div className="text-sm">{item.emoji}</div>
-                        <div className="text-[9.5px] mt-0.5">{item.label}</div>
+                        <div className="text-sm font-serif font-bold">{item.score}</div>
+                        <div className="text-xs mt-0.5 t-micro">{item.label}</div>
                       </button>
                     ))}
                   </div>
@@ -295,6 +296,7 @@ export default function BetaFeedbackModal({
                     rows={3}
                     required
                     value={message}
+                    maxLength={1000}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder={
                       category === "data_issue"
@@ -323,7 +325,10 @@ export default function BetaFeedbackModal({
                     className="w-full text-xs px-3 py-2 bg-[#FAF6EF] border border-[#E2DAC8] rounded-lg focus:outline-none focus:border-[#2F5D50] text-[#1E2A24]"
                   />
                   <p className="text-[10px] text-[#8B9891] mt-1">
-                    We will only reach out if you request follow-up or when your feature ships.
+                    We will only reach out if you request follow-up on this note. See our{" "}
+                    <Link href="/privacy" target="_blank" className="underline hover:text-[#2F5D50]">
+                      Privacy Policy
+                    </Link>.
                   </p>
                 </div>
 

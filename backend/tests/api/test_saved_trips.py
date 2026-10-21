@@ -128,3 +128,67 @@ def test_create_saved_trip_campsite_not_found():
     assert "campsite not found" in res.json()["detail"].lower()
 
 
+def test_toggle_plan_b_monitoring(magic_token_for):
+    campsites_res = client.get("/api/v1/campsites")
+    campsite_id = campsites_res.json()[0]["id"]
+    email = f"toggle_{uuid.uuid4().hex[:8]}@example.com"
+    token = magic_token_for(client, email)
+
+    # 1. Create a trip with plan_b_alert_active=True
+    create_res = client.post("/api/v1/saved-trips", json={
+        "campsite_id": campsite_id,
+        "user_email": email,
+        "start_date": "2026-11-20",
+        "end_date": "2026-11-22",
+        "plan_b_alert_active": True,
+    })
+    trip_id = create_res.json()["id"]
+
+    # 2. Toggle Plan B off
+    toggle_res = client.post(
+        f"/api/v1/saved-trips/{trip_id}/toggle-plan-b?token={token}",
+        json={"active": False}
+    )
+    assert toggle_res.status_code == 200
+    assert toggle_res.json()["plan_b_alert_active"] is False
+
+    # 3. Toggle Plan B on again
+    toggle_on = client.post(
+        f"/api/v1/saved-trips/{trip_id}/toggle-plan-b?token={token}",
+        json={"active": True}
+    )
+    assert toggle_on.status_code == 200
+    assert toggle_on.json()["plan_b_alert_active"] is True
+
+
+def test_unsubscribe_plan_b_endpoint(magic_token_for):
+    campsites_res = client.get("/api/v1/campsites")
+    campsite_id = campsites_res.json()[0]["id"]
+    email = f"unsub_{uuid.uuid4().hex[:8]}@example.com"
+    token = magic_token_for(client, email)
+
+    create_res = client.post("/api/v1/saved-trips", json={
+        "campsite_id": campsite_id,
+        "user_email": email,
+        "start_date": "2026-11-20",
+        "end_date": "2026-11-22",
+        "plan_b_alert_active": True,
+    })
+    trip_id = create_res.json()["id"]
+
+    # Unsubscribe with invalid token should 401
+    bad_res = client.get(f"/api/v1/saved-trips/{trip_id}/unsubscribe?token=invalid")
+    assert bad_res.status_code == 401
+
+    # Unsubscribe with valid token sets plan_b_alert_active to False
+    unsub_res = client.get(f"/api/v1/saved-trips/{trip_id}/unsubscribe?token={token}")
+    assert unsub_res.status_code == 200
+    assert unsub_res.json()["plan_b_alert_active"] is False
+
+    # Verify state in dashboard
+    dash_res = client.get(f"/api/v1/saved-trips/dashboard/{email}?token={token}")
+    assert dash_res.status_code == 200
+    trips = dash_res.json()
+    assert any(t["id"] == trip_id and t["plan_b_active"] is False for t in trips)
+
+

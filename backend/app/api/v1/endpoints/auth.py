@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import check_key_rate_limit, client_ip, rate_limit
 from app.crud import analytics as crud_analytics
 from app.schemas.auth import MagicLinkRequest, MagicLinkResponse
 from app.services.email_service import email_service
@@ -20,24 +21,28 @@ DISPATCH_MESSAGE = (
 )
 
 
-@router.post("/request-magic-link", response_model=MagicLinkResponse)
+@router.post(
+    "/request-magic-link",
+    response_model=MagicLinkResponse,
+    dependencies=[Depends(rate_limit("magic-link", 5, 600))],
+)
 def request_magic_link(req: MagicLinkRequest, request: Request, db: Session = Depends(get_db)):
     email = req.email.strip().lower()
 
+    # Per-address cap stops many different clients mail-bombing one victim. The
+    # response stays identical so this never reveals whether the address exists.
+    if not check_key_rate_limit("magic-link-email", email, 3, 3600):
+        logger.warning("Magic link throttled for %s (per-address limit)", email)
+        return MagicLinkResponse(email=email, message=DISPATCH_MESSAGE)
+
     # Capture lead for future communications
-    client_ip = request.headers.get("x-forwarded-for")
-    if client_ip:
-        client_ip = client_ip.split(",")[0].strip()
-    elif request.client:
-        client_ip = request.client.host
-    else:
-        client_ip = None
+    client_ip_value = client_ip(request)
 
     crud_analytics.record_or_update_lead(
         db=db,
         email=email,
         source="magic_link",
-        ip_address=client_ip,
+        ip_address=client_ip_value,
         metadata={"action": "requested_dashboard_access"}
     )
 
