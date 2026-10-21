@@ -5,10 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: camping-backend
     restart: unless-stopped
-    # No published ports: only the frontend container (Next.js /api rewrite) and
-    # the healthcheck reach the API, over the internal Docker network.
-    expose:
-      - "8021"
+    ports:
+      - "8021:8021"
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
@@ -93,10 +91,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    # Loopback only: the Cloudflare tunnel / reverse proxy on this host is the
-    # sole public entry point. Never expose 3021 on all interfaces.
     ports:
-      - "127.0.0.1:3021:3021"
+      - "3021:3021"
     environment:
       - NEXT_PUBLIC_API_URL=/api/v1
       - BACKEND_INTERNAL_URL=http://camping-backend:8021
